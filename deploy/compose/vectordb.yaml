@@ -70,6 +70,27 @@ services:
       timeout: 20s
       retries: 3
 
+  cyborgdb-service:
+    container_name: cyborgdb-service
+    image: ghcr.io/cyborg-inc/cyborgdb-service:latest
+    environment:
+      CYBORGDB_API_KEY: your-api-key-here
+      CYBORGDB_DB_TYPE: postgres
+      CYBORGDB_CONNECTION_STRING: postgresql://user:password@postgres:5432/cyborg
+      CYBORGDB_PORT: 8000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - milvus
+      - redis
+      - postgres
+    networks:
+      - nvidia-rag
+
 networks:
   default:
     name: nvidia-rag
