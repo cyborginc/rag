@@ -79,3 +79,7 @@ coverage.xml
 cover/
 
 # Workbench Project Layout
+
+# SSL Certificates
+cert.pem
+key.pem
