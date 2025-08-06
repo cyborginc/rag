@@ -41,7 +41,7 @@ except ImportError:
 # Import CyborgDB if available
 try:
     from cyborgdb import Client, EncryptedIndex, IndexIVFFlat, generate_key
-    from .cyborgdb_langchain import CyborgVectorStore
+    from cyborgdb.integrations.langchain import CyborgVectorStore
     CYBORGDB_AVAILABLE = True
 except ImportError:
     logger.info("CyborgDB not installed. Only Milvus will be available.")
