@@ -80,7 +80,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "19530:19530"
     environment:
       - CYBORGDB_DB_TYPE=redis
       - CYBORGDB_CONNECTION_STRING=host=redis,port=6379,db=0

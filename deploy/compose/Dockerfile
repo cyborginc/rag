@@ -61,17 +61,17 @@ RUN pip install . && \
     ls -la /opt/conda/envs/cyborgdb-service/bin/ | grep cyborg || echo "No cyborgdb scripts found"
 
 # Expose the port
-EXPOSE 8000
+EXPOSE 19530
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/v1/health || exit 1
+    CMD curl -f https://localhost:19530/v1/health || exit 1
 
 # Set default environment variables (will require override at runtime)
 ENV CYBORGDB_API_KEY=""
 ENV CYBORGDB_DB_TYPE=""
 ENV CYBORGDB_CONNECTION_STRING=""
-ENV CYBORGDB_PORT="8000"
+ENV CYBORGDB_PORT="19530"
 
 # Add labels for documentation
 LABEL org.opencontainers.image.title="CyborgDB Service"
