@@ -2,6 +2,7 @@ services:
 
   # Milvus can be made GPU accelerated by uncommenting the lines as specified below
   milvus:
+    profiles: ["milvus"]
     container_name: milvus-standalone
     image: milvusdb/milvus:v2.5.3-gpu # milvusdb/milvus:v2.5.3 for CPU
     command: ["milvus", "run", "standalone"]
@@ -36,6 +37,7 @@ services:
               device_ids: ['${VECTORSTORE_GPU_DEVICE_ID:-0}']
 
   etcd:
+    profiles: ["milvus"]
     container_name: milvus-etcd
     image: quay.io/coreos/etcd:v3.5.19
     environment:
@@ -53,6 +55,7 @@ services:
       retries: 3
 
   minio:
+    profiles: ["milvus"]
     container_name: milvus-minio
     image: minio/minio:RELEASE.2025-02-28T09-55-16Z
     environment:
@@ -71,25 +74,40 @@ services:
       retries: 3
 
   cyborgdb-service:
+    profiles: ["cyborgdb"]
     container_name: cyborgdb-service
-    image: ghcr.io/cyborg-inc/cyborgdb-service:latest
-    environment:
-      CYBORGDB_API_KEY: your-api-key-here
-      CYBORGDB_DB_TYPE: postgres
-      CYBORGDB_CONNECTION_STRING: postgresql://user:password@postgres:5432/cyborg
-      CYBORGDB_PORT: 8000
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-    volumes:
-      - .:/app
+    image: cyborginc/cyborgdb-service:latest
     ports:
       - "8000:8000"
+    environment:
+      - CYBORGDB_DB_TYPE=redis
+      - CYBORGDB_CONNECTION_STRING=host=redis,port=6379,db=0
+      - CYBORGDB_API_KEY=cyborg_your_api_key_here
     depends_on:
-      - milvus
       - redis
-      - postgres
     networks:
       - nvidia-rag
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+  
+  redis:
+    profiles: ["cyborgdb"]
+    container_name: cyborgdb-redis
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/redis:/data
+    networks:
+      - nvidia-rag
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
 
 networks:
   default:
