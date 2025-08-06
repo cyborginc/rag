@@ -28,11 +28,22 @@ services:
 
       ##===Vector DB specific configurations===
       # URL on which vectorstore is hosted
-      APP_VECTORSTORE_URL: "http://milvus:19530"
+      APP_VECTORSTORE_URL: "http://localhost:8000"
       # Type of vectordb used to store embedding supported type milvus
-      APP_VECTORSTORE_NAME: "milvus"
+      APP_VECTORSTORE_NAME: "cyborgDB"
+      # APP_VECTORSTORE_URL: "http://milvus:19530"
+      # # Type of vectordb used to store embedding supported type milvus
+      # APP_VECTORSTORE_NAME: "milvus"
+
       # Type of index to be used for vectorstore
-      APP_VECTORSTORE_INDEXTYPE: ${APP_VECTORSTORE_INDEXTYPE:-"GPU_CAGRA"}
+      APP_VECTORSTORE_INDEXTYPE: ${APP_VECTORSTORE_INDEXTYPE:-"IVF_FLAT"}
+
+      # API KEY for the vector store
+      APP_VECTORSTORE_NLIST: ${APP_VECTORSTORE_NLIST:-64}
+      APP_VECTORSTORE_METRICTYPE: ${APP_VECTORSTORE_METRICTYPE:-"euclidean"}
+
+
+      # APP_VECTORSTORE_INDEXTYPE: ${APP_VECTORSTORE_INDEXTYPE:-"GPU_CAGRA"}
       # Type of vectordb search to be used
       APP_VECTORSTORE_SEARCHTYPE: ${APP_VECTORSTORE_SEARCHTYPE:-"dense"} # Can be dense or hybrid
       # Milvus Consistency level for vector store, supported values are "Bounded", "Strong", "Session"
@@ -161,3 +172,4 @@ services:
 networks:
   default:
     name: nvidia-rag
+
