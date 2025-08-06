@@ -76,13 +76,17 @@ services:
   cyborgdb-service:
     profiles: ["cyborgdb"]
     container_name: cyborgdb-service
-    image: cyborginc/cyborgdb-service:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
       - CYBORGDB_DB_TYPE=redis
       - CYBORGDB_CONNECTION_STRING=host=redis,port=6379,db=0
-      - CYBORGDB_API_KEY=cyborg_your_api_key_here
+      - CYBORGDB_API_KEY=${CYBORGDB_API_KEY}
+      - SSL_CERT_PATH=${SSL_CERT_PATH}
+      - SSL_KEY_PATH=${SSL_KEY_PATH}
     depends_on:
       - redis
     networks:
