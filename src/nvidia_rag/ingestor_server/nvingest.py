@@ -132,28 +132,42 @@ def get_nv_ingest_ingestor(
 
     # Add Vector-DB upload task
     if ENABLE_NV_INGEST_VDB_UPLOAD:
-        vdb_upload_kwargs = {
-            # Milvus configurations
-            "collection_name": collection_name,
-            "milvus_uri": vdb_endpoint or config.vector_store.url,
+        if config.vector_store.name == "milvus":
+            vdb_upload_kwargs = {
+                # Milvus configurations
+                "collection_name": collection_name,
+                "milvus_uri": vdb_endpoint or config.vector_store.url,
 
-            # Minio configurations
-            "minio_endpoint": os.getenv("MINIO_ENDPOINT"),
-            "access_key": os.getenv("MINIO_ACCESSKEY"),
-            "secret_key": os.getenv("MINIO_SECRETKEY"),
+                # Minio configurations
+                "minio_endpoint": os.getenv("MINIO_ENDPOINT"),
+                "access_key": os.getenv("MINIO_ACCESSKEY"),
+                "secret_key": os.getenv("MINIO_SECRETKEY"),
 
-            # Hybrid search configurations
-            "sparse": (config.vector_store.search_type == "hybrid"),
+                # Hybrid search configurations
+                "sparse": (config.vector_store.search_type == "hybrid"),
 
-            # Additional configurations
-            "enable_images": config.nv_ingest.extract_images,
-            "recreate": False, # Don't re-create milvus collection
-            "dense_dim": config.embeddings.dimensions,
+                # Additional configurations
+                "enable_images": config.nv_ingest.extract_images,
+                "recreate": False, # Don't re-create milvus collection
+                "dense_dim": config.embeddings.dimensions,
 
-            # GPU configurations
-            "gpu_index": config.vector_store.enable_gpu_index,
-            "gpu_search": config.vector_store.enable_gpu_search,
-        }
+                # GPU configurations
+                "gpu_index": config.vector_store.enable_gpu_index,
+                "gpu_search": config.vector_store.enable_gpu_search,
+            }
+        elif config.vector_store.name == "cyborgdb":
+            vdb_upload_kwargs = {
+                # CyborgDB configurations
+                "collection_name": collection_name,
+                "cyborgdb_endpoint": vdb_endpoint or config.vector_store.url,
+                "cyborgdb_api_key": get_env_variable(variable_name="CYBORGDB_API_KEY", default_value=""),
+
+                # Additional configurations
+                "enable_images": config.nv_ingest.extract_images,
+                "recreate": False,  # Don't re-create cyborgdb collection
+            }
+        else:
+            raise ValueError(f"Unsupported vector store: {config.vector_store.name}")
         if csv_file_path is not None:
             # Add custom metadata configurations
             vdb_upload_kwargs.update({
