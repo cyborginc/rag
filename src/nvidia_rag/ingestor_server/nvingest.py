@@ -24,8 +24,7 @@ from typing import List
 
 from nvidia_rag.utils.common import get_config, get_env_variable, prepare_custom_metadata_dataframe
 from nv_ingest_client.client import NvIngestClient, Ingestor
-
-
+from cyborg import Cyborg
 logger = logging.getLogger(__name__)
 
 ENABLE_NV_INGEST_VDB_UPLOAD = True # When enabled entire ingestion would be performed using nv-ingest
@@ -156,8 +155,36 @@ def get_nv_ingest_ingestor(
                 "gpu_search": config.vector_store.enable_gpu_search,
             }
         elif config.vector_store.name == "cyborgdb":
+            cyborg_op = Cyborg(
+                index_name=collection_name,
+                api_url=vdb_endpoint or config.vector_store.url,
+                api_key=get_env_variable(variable_name="CYBORGDB_API_KEY", default_value=""),
+                verify_ssl=config.vector_store.get("verify_ssl", None),  # Get SSL verification setting if available
+                
+                # Index configuration
+                index_type=config.vector_store.get("index_type", "IVFFlat"),
+                dimension=config.embeddings.dimensions,
+                n_lists=config.vector_store.get("n_lists", 128),
+                m=config.vector_store.get("m", None),  # For IVFPQ
+                n_bits=config.vector_store.get("n_bits", 8),  # For IVFPQ
+                
+                # Embedding model configuration
+                embedding_model=config.embeddings.model_name if hasattr(config.embeddings, "model_name") else None,
+                
+                # Additional configurations
+                recreate=False,  # Don't re-create cyborgdb collection
+                max_cache_size=config.vector_store.get("max_cache_size", 0),
+                
+                # Enable features based on extraction settings
+                enable_text=config.nv_ingest.extract_text,
+                enable_images=config.nv_ingest.extract_images,
+                enable_tables=config.nv_ingest.extract_tables,
+                enable_charts=config.nv_ingest.extract_charts,
+                enable_infographics=config.nv_ingest.extract_infographics,
+            )
             vdb_upload_kwargs = {
                 # CyborgDB configurations
+                "vdb_op": cyborg_op,
                 "collection_name": collection_name,
                 "cyborgdb_endpoint": vdb_endpoint or config.vector_store.url,
                 "cyborgdb_api_key": get_env_variable(variable_name="CYBORGDB_API_KEY", default_value=""),
