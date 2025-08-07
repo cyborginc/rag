@@ -19,6 +19,8 @@ from .configuration_wizard import ConfigWizard
 from .configuration_wizard import configclass
 from .configuration_wizard import configfield
 
+from cyborgdb import generate_key
+
 
 @configclass
 class VectorStoreConfig(ConfigWizard):
@@ -84,6 +86,37 @@ class VectorStoreConfig(ConfigWizard):
         default="Strong", # "Bounded", "Strong", "Session"
         env_name="APP_VECTORSTORE_CONSISTENCYLEVEL",
         help_txt="Consistency level for vector store",
+    )
+
+    api_key: str = configfield(
+        "api_key",
+        default="",
+        env_name="CYBORGDB_API_KEY",
+        help_txt="CyborgDB API key (required only if using CyborgDB as vector store)",
+    )
+
+    index_key: bytes = configfield(
+        "index_key",
+        default=generate_key(),
+        help_txt="CyborgDB index key (required only if using CyborgDB as vector store)",
+    )
+
+    index_type: str = configfield(
+        "index_type",
+        default="ivfflat",
+        help_txt="Index type for the vector store",
+    )
+
+    metric: str = configfield(
+        "metric",
+        default="euclidean", 
+        help_txt="Metric for vector similarity search",
+    )
+
+    n_lists: int = configfield(
+        "n_lists",
+        default=512,
+        help_txt="Number of lists for IVF index in Milvus",
     )
 
 

@@ -47,6 +47,7 @@ except ImportError:
     logger.info("CyborgDB not installed. Only Milvus will be available.")
     CYBORGDB_AVAILABLE = False
 
+DOCUMENT_EMBEDDER = None
 
 def create_vectorstore_langchain(document_embedder, collection_name: str = "", vdb_endpoint: str = "") -> VectorStore:
     """Create the vector db index for langchain (supports both Milvus and CyborgDB)."""
@@ -132,50 +133,27 @@ def _create_cyborgdb_vectorstore(document_embedder, collection_name: str, vdb_en
     logger.debug("Trying to connect to CyborgDB collection: %s", collection_name)
     if not collection_name:
         collection_name = os.getenv('COLLECTION_NAME', "vector_db")
-    
+
+    # Write document embedder to global variable
+    global DOCUMENT_EMBEDDER
+    DOCUMENT_EMBEDDER = document_embedder
+
     # Get CyborgDB specific config
     api_key = config.vector_store.get('api_key', os.getenv('CYBORGDB_API_KEY'))
-    index_key = config.vector_store.get('index_key', None)
-    
-    if not api_key:
+
+    if not api_key or api_key == "":
         raise ValueError("CyborgDB API key is required. Set it in config or CYBORGDB_API_KEY env var")
-    
-    # Generate index key if not provided
-    if not index_key:
-        # In production, you should save and reuse this key
-        index_key = generate_key()
-        logger.warning("Generated new CyborgDB index key. In production, save and reuse this key!")
-    elif isinstance(index_key, str):
-        # Convert hex string to bytes if needed
-        index_key = bytes.fromhex(index_key)
-    
-    # Map config settings to CyborgDB parameters
-    index_type = "ivfflat"  # CyborgDB default
-    if hasattr(config.vector_store, 'index_type'):
-        if config.vector_store.index_type == "IVF_FLAT":
-            index_type = "ivfflat"
-        elif config.vector_store.index_type == "IVF_PQ":
-            index_type = "ivfpq"
-    
-    # Create index config params
-    index_config_params = {}
-    if hasattr(config.vector_store, 'nlist'):
-        index_config_params['n_lists'] = config.vector_store.nlist
-    
-    # Determine metric
-    metric = "euclidean" if config.vector_store.get('metric_type', 'L2') == 'L2' else "cosine"
     
     # Create CyborgDB vector store
     vectorstore = CyborgVectorStore(
         index_name=collection_name,
-        index_key=index_key,
+        index_key=config.vector_store.index_key,
         api_key=api_key,
         api_url=vdb_endpoint,
         embedding=document_embedder,
-        index_type=index_type,
-        index_config_params=index_config_params,
-        metric=metric,
-        max_cache_size=config.vector_store.get('max_cache_size', 0)
+        index_type=config.vector_store.index_type,
+        index_config_params={"n_lists": config.vector_store.n_lists},
+        metric=config.vector_store.metric
     )
     
     logger.debug("CyborgDB vector store created and saved.")
@@ -246,55 +224,24 @@ def _create_cyborgdb_collection(collection_name: str, vdb_endpoint: str, dimensi
     try:
         # Get CyborgDB specific config
         api_key = config.vector_store.get('api_key', os.getenv('CYBORGDB_API_KEY'))
-        
-        # Get or generate index key
-        index_key = config.vector_store.get('index_key', None)
     
-        if not api_key:
+        if not api_key or api_key == "":
             raise ValueError("CyborgDB API key is required. Set it in config or CYBORGDB_API_KEY env var")
         
-        # Generate index key if not provided
-        if not index_key:
-            # In production, you should save and reuse this key
-            index_key = generate_key()
-            logger.warning("Generated new CyborgDB index key. In production, save and reuse this key!")
-        elif isinstance(index_key, str):
-            # Convert hex string to bytes if needed
-            index_key = bytes.fromhex(index_key)
-        
-        # Map config settings to CyborgDB parameters
-        index_type = "ivfflat"
-        if hasattr(config.vector_store, 'index_type'):
-            if config.vector_store.index_type == "IVF_FLAT":
-                index_type = "ivfflat"
-            elif config.vector_store.index_type == "IVF_PQ":
-                index_type = "ivfpq"
-        
-        # Create index config params
-        index_config_params = {}
-        if hasattr(config.vector_store, 'nlist'):
-            index_config_params['n_lists'] = config.vector_store.nlist
-        
-        # Determine metric
-        metric = "euclidean" if config.vector_store.get('metric_type', 'L2') == 'L2' else "cosine"
-        
-        # Create a temporary embedding model just for collection creation
-        # In practice, you might want to pass the actual embedder or use a dummy
-        from sentence_transformers import SentenceTransformer
-        temp_embedder = SentenceTransformer('all-MiniLM-L6-v2')  # Small, fast model
+        if DOCUMENT_EMBEDDER is None:
+            raise ValueError("Document embedder is not set. Please provide a valid embedding model.")
         
         # Create CyborgDB vector store which will create the index
         vectorstore = CyborgVectorStore(
             index_name=collection_name,
-            index_key=index_key,
-            api_key=api_key,
+            index_key=config.vector_store.index_key,
+            api_key=config.vector_store.api_key,
             api_url=vdb_endpoint,
-            embedding=temp_embedder,
-            index_type=index_type,
-            index_config_params=index_config_params,
+            embedding=DOCUMENT_EMBEDDER,
+            index_type=config.vector_store.index_type,
+            index_config_params={'n_lists': config.vector_store.n_lists},
             dimension=dimension,
-            metric=metric,
-            max_cache_size=0
+            metric=config.vector_store.metric        
         )
         
         logger.info(f"CyborgDB collection '{collection_name}' created successfully")
@@ -538,23 +485,20 @@ def _delete_cyborgdb_collections(
     Returns:
         dict: Mapping of collection name to deletion success (True/False).
     """
-    
-    index_key = config.vector_store.index_key
-    api_key = config.vector_store.api_key
-    embedding = config.vector_store.embedding
-    verify_ssl = getattr(config.vector_store, "verify_ssl", None)
 
+    if not DOCUMENT_EMBEDDER:
+        raise ValueError("Document embedder is not set. Please provide a valid embedding model.")
+    
     successful = []
     failed = []
     for name in collection_names:
         try:
             store = CyborgVectorStore(
                 index_name=name,
-                index_key=index_key,
-                api_key=api_key,
+                index_key=config.vector_store.index_key,
+                api_key=config.vector_store.api_key,
                 api_url=vdb_endpoint,
-                embedding=embedding,
-                verify_ssl=verify_ssl,
+                embedding=DOCUMENT_EMBEDDER,
             )
             if store.delete(delete_index=True):
                 successful.append(name)
