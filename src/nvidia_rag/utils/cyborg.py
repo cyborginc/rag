@@ -33,7 +33,7 @@ class Cyborg(VDB):
         api_url: str = "http://localhost:8000",
         api_key: Optional[str] = None,
         index_key: Optional[bytes] = None,
-        verify_ssl: Optional[bool] = None,
+        verify_ssl: Optional[bool] = False,
         index_type: str = "IVFFlat",
         dimension: int = 1536,
         n_lists: int = 128,
