@@ -76,9 +76,7 @@ services:
   cyborgdb-service:
     profiles: ["cyborgdb"]
     container_name: cyborgdb-service
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: cyborginc/cyborgdb-service:latest
     ports:
       - "19530:19530"
     environment:
@@ -90,7 +88,7 @@ services:
     depends_on:
       - redis
     networks:
-      - nvidia-rag
+      - default
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
       interval: 30s
@@ -106,7 +104,7 @@ services:
     volumes:
       - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/redis:/data
     networks:
-      - nvidia-rag
+      - default
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -116,3 +114,4 @@ services:
 networks:
   default:
     name: nvidia-rag
+    external: true
