@@ -165,9 +165,9 @@ def get_nv_ingest_ingestor(
                 index_type=config.vector_store.get("index_type", "IVFFlat"),
                 dimension=config.embeddings.dimensions,
                 n_lists=config.vector_store.get("n_lists", 128),
-                m=config.vector_store.get("m", None),  # For IVFPQ
-                n_bits=config.vector_store.get("n_bits", 8),  # For IVFPQ
-                
+                pq_bits=config.vector_store.get("pq_bits", 8),  # For IVFPQ
+                pq_dim=config.vector_store.get("pq_dim", 8),  # For IVFPQ
+                metric=config.vector_store.get("metric", "euclidean"),  
                 # Embedding model configuration
                 embedding_model=config.embeddings.model_name if hasattr(config.embeddings, "model_name") else None,
                 

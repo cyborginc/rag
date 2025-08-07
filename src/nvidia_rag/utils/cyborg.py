@@ -37,8 +37,9 @@ class Cyborg(VDB):
         index_type: str = "IVFFlat",
         dimension: int = 1536,
         n_lists: int = 128,
-        m: Optional[int] = None,
-        n_bits: Optional[int] = 8,
+        metric:str = "euclidean",
+        pq_bits: Optional[int] = 8,
+        pq_dim: Optional[int] = 8,
         embedding_model: Optional[str] = None,
         recreate: bool = True,
         max_cache_size: int = 0,
@@ -56,8 +57,9 @@ class Cyborg(VDB):
             index_type: Type of index ("IVFFlat", "IVF", "IVFPQ")
             dimension: Dimension of vectors
             n_lists: Number of inverted lists
-            m: Number of subquantizers (for IVFPQ)
-            n_bits: Number of bits per subquantizer (for IVFPQ)
+            metric: type of metric for index
+            pq_bits: Number of bits per subquantizer (for IVFPQ)
+            pq_dim: number of bits per PQ code (for IVFPQ)
             embedding_model: Optional embedding model name
             recreate: Whether to recreate index if it exists
             max_cache_size: Maximum cache size
@@ -92,26 +94,23 @@ class Cyborg(VDB):
         """Create appropriate index configuration based on index_type."""
         if self.index_type == "IVFFlat":
             return IndexIVFFlat(
-                index_type="IVFFlat",
                 dimension=self.dimension,
-                n_lists=self.n_lists
+                n_lists=self.n_lists,
+                metric=self.metric
             )
         elif self.index_type == "IVF":
             return IndexIVF(
-                index_type="IVF",
-                dimension=self.dimension,
-                n_lists=self.n_lists
-            )
-        elif self.index_type == "IVFPQ":
-            if self.m is None:
-                # Auto-calculate m if not provided
-                self.m = self.dimension // 8
-            return IndexIVFPQ(
-                index_type="IVFPQ",
                 dimension=self.dimension,
                 n_lists=self.n_lists,
-                m=self.m,
-                n_bits=self.n_bits
+                metric=self.metric
+            )
+        elif self.index_type == "IVFPQ":
+            return IndexIVFPQ(
+                dimension=self.dimension,
+                n_lists=self.n_lists,
+                pq_dim=self.pq_dim,
+                pq_bits=self.pq_bits,
+                metric=self.metric
             )
         else:
             raise ValueError(f"Unsupported index type: {self.index_type}")
