@@ -383,10 +383,11 @@ class Cyborg(VDB):
             "dimension": self.dimension,
             "n_lists": self.n_lists,
             "recreate": self.recreate,
+            
         }
         if self.index_type == "IVFPQ":
-            conn_dict["m"] = self.m
             conn_dict["n_bits"] = self.n_bits
+            conn_dict["pq_dim"] = self.pq_dim
         
         return (self.index_name, conn_dict)
     
