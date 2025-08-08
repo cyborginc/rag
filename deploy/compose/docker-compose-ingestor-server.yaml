@@ -25,7 +25,7 @@ services:
 
       ##===Vector DB specific configurations===
       # URL on which vectorstore is hosted
-      APP_VECTORSTORE_URL: "http://localhost:8000"
+      APP_VECTORSTORE_URL: "http://localhost:19530"
       # Type of vectordb used to store embedding supported type milvus
       APP_VECTORSTORE_NAME: "cyborgDB"
       # Type of vectordb search to be used
