@@ -14,6 +14,7 @@ WORKDIR /build
 
 COPY uv.lock pyproject.toml README.md LICENSE ./
 COPY ./src ./src
+COPY dev-wheels ./dev-wheels
 
 RUN uv build
 
@@ -56,6 +57,7 @@ WORKDIR /workspace
 
 COPY --from=builder /build/pyproject.toml /workspace/
 COPY --from=builder /build/uv.lock /workspace/
+COPY --from=builder /build/dev-wheels /workspace/dev-wheels
 
 RUN uv sync --locked --no-install-project --no-dev --extra rag
 

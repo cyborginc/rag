@@ -24,7 +24,7 @@ from typing import List
 
 from nvidia_rag.utils.common import get_config, get_env_variable, prepare_custom_metadata_dataframe
 from nv_ingest_client.client import NvIngestClient, Ingestor
-from cyborg import Cyborg
+from nvidia_rag.utils.cyborg import Cyborg
 logger = logging.getLogger(__name__)
 
 ENABLE_NV_INGEST_VDB_UPLOAD = True # When enabled entire ingestion would be performed using nv-ingest

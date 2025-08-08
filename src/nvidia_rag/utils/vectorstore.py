@@ -315,6 +315,9 @@ def get_collection(vdb_endpoint: str = "") -> Dict[str, Any]:
     """Get list of all collections in vectorstore along with the number of rows in each collection."""
     
     config = get_config()
+
+    print(f"\n\n\t\tVDB ENDPOINT:\t{vdb_endpoint}\n")
+    print(f"\n\n\t\tVECTOR STORE NAME:\t{config.vector_store.name}\n")
     
     if config.vector_store.name == "milvus":
         return _get_milvus_collections(vdb_endpoint)
