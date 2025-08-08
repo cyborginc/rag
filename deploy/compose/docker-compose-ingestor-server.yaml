@@ -27,7 +27,7 @@ services:
       # URL on which vectorstore is hosted
       APP_VECTORSTORE_URL: "http://localhost:19530"
       # Type of vectordb used to store embedding supported type milvus
-      APP_VECTORSTORE_NAME: "cyborgDB"
+      APP_VECTORSTORE_NAME: "cyborgdb"
       # Type of vectordb search to be used
       APP_VECTORSTORE_SEARCHTYPE: ${APP_VECTORSTORE_SEARCHTYPE:-"dense"} # Can be dense or hybrid
       # Boolean to enable GPU index for milvus vectorstore specific to nvingest
