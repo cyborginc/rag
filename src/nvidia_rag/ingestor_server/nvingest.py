@@ -159,21 +159,21 @@ def get_nv_ingest_ingestor(
                 index_name=collection_name,
                 api_url=vdb_endpoint or config.vector_store.url,
                 api_key=get_env_variable(variable_name="CYBORGDB_API_KEY", default_value=""),
-                verify_ssl=config.vector_store.get("verify_ssl", False),  # Get SSL verification setting if available
+                verify_ssl=config.vector_store.verify_ssl,  # Get SSL verification setting if available
                 
                 # Index configuration
-                index_type=config.vector_store.get("index_type", "IVFFlat"),
+                index_type=config.vector_store.index_type or "IVFFlat",
                 dimension=config.embeddings.dimensions,
-                n_lists=config.vector_store.get("n_lists", 128),
-                pq_bits=config.vector_store.get("pq_bits", 8),  # For IVFPQ
-                pq_dim=config.vector_store.get("pq_dim", 8),  # For IVFPQ
-                metric=config.vector_store.get("metric", "euclidean"),  
+                n_lists=config.vector_store.n_lists or 128,
+                pq_bits=config.vector_store.pq_bits or 8,       # For IVFPQ
+                pq_dim=config.vector_store.pq_dim or 8,         # For IVFPQ
+                metric=config.vector_store.metric or "euclidean",
                 # Embedding model configuration
                 embedding_model=config.embeddings.model_name if hasattr(config.embeddings, "model_name") else None,
                 
                 # Additional configurations
                 recreate=False,  # Don't re-create cyborgdb collection
-                max_cache_size=config.vector_store.get("max_cache_size", 0),
+                max_cache_size=config.vector_store.max_cache_size or 0,
                 
                 # Enable features based on extraction settings
                 enable_text=config.nv_ingest.extract_text,

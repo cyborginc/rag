@@ -139,7 +139,7 @@ def _create_cyborgdb_vectorstore(document_embedder, collection_name: str, vdb_en
     DOCUMENT_EMBEDDER = document_embedder
 
     # Get CyborgDB specific config
-    api_key = config.vector_store.get('api_key', os.getenv('CYBORGDB_API_KEY'))
+    api_key = config.vector_store.api_key or os.getenv('CYBORGDB_API_KEY')
 
     if not api_key or api_key == "":
         raise ValueError("CyborgDB API key is required. Set it in config or CYBORGDB_API_KEY env var")
@@ -223,7 +223,7 @@ def _create_cyborgdb_collection(collection_name: str, vdb_endpoint: str, dimensi
     """Create CyborgDB collection (index)."""
     try:
         # Get CyborgDB specific config
-        api_key = config.vector_store.get('api_key', os.getenv('CYBORGDB_API_KEY'))
+        api_key = config.vector_store.api_key or os.getenv('CYBORGDB_API_KEY')
     
         if not api_key or api_key == "":
             raise ValueError("CyborgDB API key is required. Set it in config or CYBORGDB_API_KEY env var")
@@ -364,7 +364,8 @@ def _get_milvus_collections(vdb_endpoint: str) -> List[Dict[str, Any]]:
 
 def _get_cyborgdb_collections(vdb_endpoint: str, config) -> List[Dict[str, Any]]:
     """Get CyborgDB collections (indexes)."""
-    api_key = config.vector_store.get('api_key', os.getenv('CYBORGDB_API_KEY'))
+    api_key = config.vector_store.api_key or os.getenv('CYBORGDB_API_KEY')
+    
     if not api_key:
         raise ValueError("CyborgDB API key is required")
     
