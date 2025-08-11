@@ -83,3 +83,5 @@ cover/
 # SSL Certificates
 cert.pem
 key.pem
+
+notebooks/.env
