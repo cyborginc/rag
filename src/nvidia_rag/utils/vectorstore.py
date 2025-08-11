@@ -172,7 +172,7 @@ def get_vectorstore(
     return create_vectorstore_langchain(document_embedder, collection_name, vdb_endpoint)
 
 
-def create_collection(collection_name: str, vdb_endpoint: str, dimension: int = 2048, collection_type: str = "text") -> None:
+def create_collection(collection_name: str, vdb_endpoint: str, dimension: int = 2048, collection_type: str = "text",document_embedder) -> None:
     """
     Create a new collection in the vector database (Milvus or CyborgDB).
     
@@ -192,7 +192,7 @@ def create_collection(collection_name: str, vdb_endpoint: str, dimension: int = 
     elif config.vector_store.name == "cyborgdb":
         if not CYBORGDB_AVAILABLE:
             raise ValueError("CyborgDB is not installed. Please install cyborgdb-py[langchain]")
-        _create_cyborgdb_collection(collection_name, vdb_endpoint, dimension, collection_type, config)
+        _create_cyborgdb_collection(collection_name, vdb_endpoint, dimension, collection_type, config,document_embedder)
     else:
         raise ValueError(f"{config.vector_store.name} vector database is not supported")
 
@@ -219,7 +219,7 @@ def _create_milvus_collection(collection_name: str, vdb_endpoint: str, dimension
         raise Exception(f"Failed to create Milvus collection {collection_name}: {str(e)}")
 
 
-def _create_cyborgdb_collection(collection_name: str, vdb_endpoint: str, dimension: int, collection_type: str, config) -> None:
+def _create_cyborgdb_collection(collection_name: str, vdb_endpoint: str, dimension: int, collection_type: str, config,document_embedder) -> None:
     """Create CyborgDB collection (index)."""
     try:
         # Get CyborgDB specific config
@@ -237,7 +237,7 @@ def _create_cyborgdb_collection(collection_name: str, vdb_endpoint: str, dimensi
             index_key=config.vector_store.index_key,
             api_key=config.vector_store.api_key,
             api_url=vdb_endpoint,
-            embedding=DOCUMENT_EMBEDDER,
+            embedding=document_embedder,
             index_type=config.vector_store.index_type.lower(),
             index_config_params={'n_lists': config.vector_store.nlist},
             dimension=dimension,
