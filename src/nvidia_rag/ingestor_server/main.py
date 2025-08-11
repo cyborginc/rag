@@ -488,7 +488,7 @@ class NvidiaRAGIngestor():
                     "collection_name": collection_name
                 }
             logger.info(f"Creating collection {collection_name} at {vdb_endpoint}")
-            create_collection(collection_name, vdb_endpoint, embedding_dimension,DOCUMENT_EMBEDDER)
+            create_collection(collection_name, vdb_endpoint, embedding_dimension)
 
             # Add metadata schema
             if metadata_schema:

@@ -18,7 +18,7 @@ from pymilvus.orm.types import CONSISTENCY_STRONG
 from langchain_milvus import Milvus
 from langchain_core.runnables import RunnableAssign, RunnableLambda
 from opentelemetry import context as otel_context
-
+from nvidia_rag.utils.embedding import get_embedding_model
 from nvidia_rag.utils.common import get_config
 
 logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ except ImportError:
     logger.info("CyborgDB not installed. Only Milvus will be available.")
     CYBORGDB_AVAILABLE = False
 
-DOCUMENT_EMBEDDER = None
+DOCUMENT_EMBEDDER = document_embedder = get_embedding_model(model=CONFIG.embeddings.model_name, url=CONFIG.embeddings.server_url)
 
 def create_vectorstore_langchain(document_embedder, collection_name: str = "", vdb_endpoint: str = "") -> VectorStore:
     """Create the vector db index for langchain (supports both Milvus and CyborgDB)."""
@@ -134,9 +134,7 @@ def _create_cyborgdb_vectorstore(document_embedder, collection_name: str, vdb_en
     if not collection_name:
         collection_name = os.getenv('COLLECTION_NAME', "vector_db")
 
-    # Write document embedder to global variable
-    global DOCUMENT_EMBEDDER
-    DOCUMENT_EMBEDDER = document_embedder
+
 
     # Get CyborgDB specific config
     api_key = config.vector_store.api_key or os.getenv('CYBORGDB_API_KEY')
@@ -150,7 +148,7 @@ def _create_cyborgdb_vectorstore(document_embedder, collection_name: str, vdb_en
         index_key=config.vector_store.index_key,
         api_key=api_key,
         api_url=vdb_endpoint,
-        embedding=document_embedder,
+        embedding=DOCUMENT_EMBEDDER,
         index_type=config.vector_store.index_type.lower(),
         index_config_params={"n_lists": config.vector_store.nlist},
         metric=config.vector_store.metric
@@ -172,7 +170,7 @@ def get_vectorstore(
     return create_vectorstore_langchain(document_embedder, collection_name, vdb_endpoint)
 
 
-def create_collection(collection_name: str, vdb_endpoint: str, dimension: int = 2048, collection_type: str = "text",document_embedder) -> None:
+def create_collection(collection_name: str, vdb_endpoint: str, dimension: int = 2048, collection_type: str = "text") -> None:
     """
     Create a new collection in the vector database (Milvus or CyborgDB).
     
@@ -192,7 +190,7 @@ def create_collection(collection_name: str, vdb_endpoint: str, dimension: int = 
     elif config.vector_store.name == "cyborgdb":
         if not CYBORGDB_AVAILABLE:
             raise ValueError("CyborgDB is not installed. Please install cyborgdb-py[langchain]")
-        _create_cyborgdb_collection(collection_name, vdb_endpoint, dimension, collection_type, config,document_embedder)
+        _create_cyborgdb_collection(collection_name, vdb_endpoint, dimension, collection_type, config)
     else:
         raise ValueError(f"{config.vector_store.name} vector database is not supported")
 
@@ -219,7 +217,7 @@ def _create_milvus_collection(collection_name: str, vdb_endpoint: str, dimension
         raise Exception(f"Failed to create Milvus collection {collection_name}: {str(e)}")
 
 
-def _create_cyborgdb_collection(collection_name: str, vdb_endpoint: str, dimension: int, collection_type: str, config,document_embedder) -> None:
+def _create_cyborgdb_collection(collection_name: str, vdb_endpoint: str, dimension: int, collection_type: str, config) -> None:
     """Create CyborgDB collection (index)."""
     try:
         # Get CyborgDB specific config
@@ -237,7 +235,7 @@ def _create_cyborgdb_collection(collection_name: str, vdb_endpoint: str, dimensi
             index_key=config.vector_store.index_key,
             api_key=config.vector_store.api_key,
             api_url=vdb_endpoint,
-            embedding=document_embedder,
+            embedding=DOCUMENT_EMBEDDER,
             index_type=config.vector_store.index_type.lower(),
             index_config_params={'n_lists': config.vector_store.nlist},
             dimension=dimension,
