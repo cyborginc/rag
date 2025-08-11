@@ -162,18 +162,18 @@ def get_nv_ingest_ingestor(
                 verify_ssl=config.vector_store.verify_ssl,  # Get SSL verification setting if available
                 
                 # Index configuration
-                index_type=config.vector_store.index_type or "IVFFlat",
+                index_type=config.vector_store.index_type,
                 dimension=config.embeddings.dimensions,
-                n_lists=config.vector_store.n_lists or 128,
-                pq_bits=config.vector_store.pq_bits or 8,       # For IVFPQ
-                pq_dim=config.vector_store.pq_dim or 8,         # For IVFPQ
-                metric=config.vector_store.metric or "euclidean",
+                n_lists=config.vector_store.nlist,
+                pq_bits=config.vector_store.pq_bits,       # For IVFPQ
+                pq_dim=config.vector_store.pq_dim,         # For IVFPQ
+                metric=config.vector_store.metric,
                 # Embedding model configuration
                 embedding_model=config.embeddings.model_name if hasattr(config.embeddings, "model_name") else None,
                 
                 # Additional configurations
                 recreate=False,  # Don't re-create cyborgdb collection
-                max_cache_size=config.vector_store.max_cache_size or 0,
+                # max_cache_size=0,
                 
                 # Enable features based on extraction settings
                 enable_text=config.nv_ingest.extract_text,

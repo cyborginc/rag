@@ -152,7 +152,7 @@ def _create_cyborgdb_vectorstore(document_embedder, collection_name: str, vdb_en
         api_url=vdb_endpoint,
         embedding=document_embedder,
         index_type=config.vector_store.index_type,
-        index_config_params={"n_lists": config.vector_store.n_lists},
+        index_config_params={"n_lists": config.vector_store.nlist},
         metric=config.vector_store.metric
     )
     
@@ -239,7 +239,7 @@ def _create_cyborgdb_collection(collection_name: str, vdb_endpoint: str, dimensi
             api_url=vdb_endpoint,
             embedding=DOCUMENT_EMBEDDER,
             index_type=config.vector_store.index_type,
-            index_config_params={'n_lists': config.vector_store.n_lists},
+            index_config_params={'n_lists': config.vector_store.nlist},
             dimension=dimension,
             metric=config.vector_store.metric        
         )

@@ -52,7 +52,7 @@ class VectorStoreConfig(ConfigWizard):
     )
     index_type: str = configfield(
         "index_type",
-        default="GPU_CAGRA",
+        default="IVFFlat",
         help_txt="Index of the vector db",  # IVF Flat for milvus
     )
 
@@ -101,22 +101,28 @@ class VectorStoreConfig(ConfigWizard):
         help_txt="CyborgDB index key (required only if using CyborgDB as vector store)",
     )
 
-    index_type: str = configfield(
-        "index_type",
-        default="ivfflat",
-        help_txt="Index type for the vector store",
-    )
-
     metric: str = configfield(
         "metric",
         default="euclidean", 
         help_txt="Metric for vector similarity search",
     )
 
-    n_lists: int = configfield(
-        "n_lists",
-        default=512,
-        help_txt="Number of lists for IVF index in Milvus",
+    verify_ssl: bool = configfield(
+        "verify_ssl",
+        default=False,
+        help_txt="Flag to verify SSL certificates",
+    )
+
+    pq_bits: int = configfield(
+        "pq_bits",
+        default=8,
+        help_txt="Number of bits for product quantization",
+    )
+
+    pq_dim: int = configfield(
+        "pq_dim",
+        default=8,
+        help_txt="Number of dimensions for product quantization",
     )
 
 
