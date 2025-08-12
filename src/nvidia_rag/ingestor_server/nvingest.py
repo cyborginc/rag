@@ -173,7 +173,6 @@ def get_nv_ingest_ingestor(
                 
                 # Additional configurations
                 recreate=False,  # Don't re-create cyborgdb collection
-                # max_cache_size=0,
                 
                 # Enable features based on extraction settings
                 enable_text=config.nv_ingest.extract_text,

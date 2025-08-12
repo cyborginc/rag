@@ -42,7 +42,6 @@ class Cyborg(VDB):
         pq_dim: Optional[int] = 8,
         embedding_model: Optional[str] = None,
         recreate: bool = True,
-        max_cache_size: int = 0,
         **kwargs
     ):
         """
@@ -62,7 +61,6 @@ class Cyborg(VDB):
             pq_dim: number of bits per PQ code (for IVFPQ)
             embedding_model: Optional embedding model name
             recreate: Whether to recreate index if it exists
-            max_cache_size: Maximum cache size
             **kwargs: Additional parameters
         """
         # Store all parameters
@@ -138,8 +136,7 @@ class Cyborg(VDB):
                         index_name=index_name,
                         index_key=self.index_key,
                         api=self.client.api,
-                        api_client=self.client.api_client,
-                        max_cache_size=self.max_cache_size
+                        api_client=self.client.api_client
                     )
                     existing_index.delete_index()
                     logger.info(f"Deleted existing index: {index_name}")
@@ -149,8 +146,7 @@ class Cyborg(VDB):
                         index_name=index_name,
                         index_key=self.index_key,
                         api=self.client.api,
-                        api_client=self.client.api_client,
-                        max_cache_size=self.max_cache_size
+                        api_client=self.client.api_client
                     )
                     return self._index
         except Exception as e:
@@ -164,8 +160,7 @@ class Cyborg(VDB):
             index_name=index_name,
             index_key=self.index_key,
             index_config=index_config,
-            embedding_model=params.get("embedding_model", self.embedding_model),
-            max_cache_size=params.get("max_cache_size", self.max_cache_size)
+            embedding_model=params.get("embedding_model", self.embedding_model)
         )
         
         logger.info(f"Created new index: {index_name}")
@@ -394,8 +389,7 @@ class Cyborg(VDB):
     def get_write_params(self) -> tuple:
         """Get parameters for writing to the index."""
         write_params = {
-            "embedding_model": self.embedding_model,
-            "max_cache_size": self.max_cache_size,
+            "embedding_model": self.embedding_model
         }
         return (self.index_name, write_params)
 
