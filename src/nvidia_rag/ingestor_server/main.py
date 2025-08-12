@@ -266,18 +266,23 @@ class NvidiaRAGIngestor():
 
             logger.info("Filepaths for ingestion after validation: %s", filepaths)
 
-            # Peform ingestion using nvingest for all files that have not failed
-            # Check if the provided collection_name exists in vector-DB
-            # Connect to Milvus to check for collection availability
-            url = urlparse(vdb_endpoint)
-            connection_alias = f"milvus_{url.hostname}_{url.port}"
-            connections.connect(connection_alias, host=url.hostname, port=url.port)
+            config = get_config()
+            if config.vector_store.name == "milvus": 
+                # Peform ingestion using nvingest for all files that have not failed
+                # Check if the provided collection_name exists in vector-DB
+                # Connect to Milvus to check for collection availability
+                url = urlparse(vdb_endpoint)
+                connection_alias = f"milvus_{url.hostname}_{url.port}"
+                connections.connect(connection_alias, host=url.hostname, port=url.port)
 
-            try:
-                if not utility.has_collection(collection_name, using=connection_alias):
-                    raise ValueError(f"Collection {collection_name} does not exist in {vdb_endpoint}. Ensure a collection is created using POST /collections endpoint first.")
-            finally:
-                connections.disconnect(connection_alias)
+                try:
+                    if not utility.has_collection(collection_name, using=connection_alias):
+                        raise ValueError(f"Collection {collection_name} does not exist in {vdb_endpoint}. Ensure a collection is created using POST /collections endpoint first.")
+                finally:
+                    connections.disconnect(connection_alias)
+            elif config.vector_store.name == "cyborgdb": 
+                # should we check over here
+                print('in cyborgdb for ingesting')
 
             start_time = time.time()
             results, failures = await self.__nvingest_upload_doc(
@@ -850,6 +855,7 @@ class NvidiaRAGIngestor():
         else:
             csv_file_path = None
 
+        
         nv_ingest_ingestor = get_nv_ingest_ingestor(
             nv_ingest_client_instance=NV_INGEST_CLIENT_INSTANCE,
             filepaths=filepaths,
