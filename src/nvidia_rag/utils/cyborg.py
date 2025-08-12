@@ -356,6 +356,10 @@ class Cyborg(VDB):
         
         # Insert records
         if records:
+            # If records is a tuple, extract the first element
+            if isinstance(records, tuple) and len(records) == 2:
+                records = records[0]
+
             self.write_to_index(records)
             
             # Train index if we have enough data
