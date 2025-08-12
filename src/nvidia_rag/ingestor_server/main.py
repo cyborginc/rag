@@ -282,7 +282,7 @@ class NvidiaRAGIngestor():
                     connections.disconnect(connection_alias)
             elif config.vector_store.name == "cyborgdb": 
                 # should we check over here
-                print('in cyborgdb for ingesting')
+                logger.info('in cyborgdb for ingesting')
 
             start_time = time.time()
             results, failures = await self.__nvingest_upload_doc(

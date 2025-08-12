@@ -63,6 +63,19 @@ class Cyborg(VDB):
             recreate: Whether to recreate index if it exists
             **kwargs: Additional parameters
         """
+        logger.info("=== Initializing CyborgDB ===")
+        logger.debug(f"Parameters: index_name={index_name}, api_url={api_url}, "
+                    f"index_type={index_type}, dimension={dimension}, n_lists={n_lists}, "
+                    f"metric={metric}, recreate={recreate}")
+        logger.debug(f"Optional params: api_key={'***' if api_key else 'None'}, "
+                    f"index_key={'provided' if index_key else 'will generate'}, "
+                    f"verify_ssl={verify_ssl}, embedding_model={embedding_model}")
+        
+        if index_type == "IVFPQ":
+            logger.debug(f"IVFPQ specific params: pq_bits={pq_bits}, pq_dim={pq_dim}")
+        
+        logger.debug(f"Additional kwargs: {kwargs}")
+        
         # Store all parameters
         kwargs.update(locals())
         kwargs.pop("self", None)
@@ -72,46 +85,86 @@ class Cyborg(VDB):
         if self.index_key is None:
             self.index_key = generate_key()
             logger.info(f"Generated new index key for {index_name}")
+            logger.debug(f"Key length: {len(self.index_key)} bytes")
+        else:
+            logger.info(f"Using provided index key for {index_name}")
+            logger.debug(f"Provided key length: {len(self.index_key)} bytes")
         
         # Initialize client
         self._client = None
         self._index = None
+        logger.debug("Client and index initialized to None (lazy loading)")
         
     @property
     def client(self) -> Client:
         """Lazy initialization of client."""
         if self._client is None:
-            self._client = Client(
-                api_url=self.api_url,
-                api_key=self.api_key,
-                verify_ssl=self.verify_ssl
-            )
+            logger.info("Initializing CyborgDB client (lazy load)")
+            logger.debug(f"Client params: api_url={self.api_url}, "
+                        f"api_key={'***' if self.api_key else 'None'}, "
+                        f"verify_ssl={self.verify_ssl}")
+            try:
+                self._client = Client(
+                    api_url=self.api_url,
+                    api_key=self.api_key,
+                    verify_ssl=self.verify_ssl
+                )
+                logger.info("CyborgDB client initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize CyborgDB client: {e}", exc_info=True)
+                raise
+        else:
+            logger.debug("Returning existing CyborgDB client")
         return self._client
     
     def _create_index_config(self) -> Union[IndexIVF, IndexIVFPQ, IndexIVFFlat]:
         """Create appropriate index configuration based on index_type."""
-        if self.index_type == "IVFFlat":
-            return IndexIVFFlat(
-                dimension=self.dimension,
-                n_lists=self.n_lists,
-                metric=self.metric
-            )
-        elif self.index_type == "IVF":
-            return IndexIVF(
-                dimension=self.dimension,
-                n_lists=self.n_lists,
-                metric=self.metric
-            )
-        elif self.index_type == "IVFPQ":
-            return IndexIVFPQ(
-                dimension=self.dimension,
-                n_lists=self.n_lists,
-                pq_dim=self.pq_dim,
-                pq_bits=self.pq_bits,
-                metric=self.metric
-            )
-        else:
-            raise ValueError(f"Unsupported index type: {self.index_type}")
+        logger.info(f"Creating index configuration for type: {self.index_type}")
+        
+        try:
+            if self.index_type == "IVFFlat":
+                logger.debug(f"Creating IndexIVFFlat config: dimension={self.dimension}, "
+                           f"n_lists={self.n_lists}, metric={self.metric}")
+                config = IndexIVFFlat(
+                    dimension=self.dimension,
+                    n_lists=self.n_lists,
+                    metric=self.metric
+                )
+                logger.info("IndexIVFFlat configuration created successfully")
+                return config
+                
+            elif self.index_type == "IVF":
+                logger.debug(f"Creating IndexIVF config: dimension={self.dimension}, "
+                           f"n_lists={self.n_lists}, metric={self.metric}")
+                config = IndexIVF(
+                    dimension=self.dimension,
+                    n_lists=self.n_lists,
+                    metric=self.metric
+                )
+                logger.info("IndexIVF configuration created successfully")
+                return config
+                
+            elif self.index_type == "IVFPQ":
+                logger.debug(f"Creating IndexIVFPQ config: dimension={self.dimension}, "
+                           f"n_lists={self.n_lists}, pq_dim={self.pq_dim}, "
+                           f"pq_bits={self.pq_bits}, metric={self.metric}")
+                config = IndexIVFPQ(
+                    dimension=self.dimension,
+                    n_lists=self.n_lists,
+                    pq_dim=self.pq_dim,
+                    pq_bits=self.pq_bits,
+                    metric=self.metric
+                )
+                logger.info("IndexIVFPQ configuration created successfully")
+                return config
+                
+            else:
+                logger.error(f"Unsupported index type: {self.index_type}")
+                raise ValueError(f"Unsupported index type: {self.index_type}")
+                
+        except Exception as e:
+            logger.error(f"Failed to create index configuration: {e}", exc_info=True)
+            raise
     
     def create_index(self, **kwargs) -> EncryptedIndex:
         """
@@ -120,27 +173,46 @@ class Cyborg(VDB):
         Returns:
             EncryptedIndex: The created index
         """
+        logger.info("=== Creating CyborgDB Index ===")
+        logger.debug(f"create_index called with kwargs: {kwargs}")
+        
         # Override with any provided kwargs
         params = self.__dict__.copy()
         params.update(kwargs)
+        logger.debug(f"Merged parameters: recreate={params.get('recreate')}, "
+                    f"index_name={params.get('index_name')}")
         
         index_name = params.get("index_name", self.index_name)
+        logger.info(f"Target index name: {index_name}")
         
         # Check if index exists and handle recreation
         try:
+            logger.info("Checking for existing indexes...")
             existing_indexes = self.client.list_indexes()
+            logger.debug(f"Found {len(existing_indexes)} existing indexes: {existing_indexes}")
+            
             if index_name in existing_indexes:
+                logger.warning(f"Index '{index_name}' already exists")
+                
                 if params.get("recreate", self.recreate):
-                    # Load existing index to delete it
-                    existing_index = EncryptedIndex(
-                        index_name=index_name,
-                        index_key=self.index_key,
-                        api=self.client.api,
-                        api_client=self.client.api_client
-                    )
-                    existing_index.delete_index()
-                    logger.info(f"Deleted existing index: {index_name}")
+                    logger.info(f"Recreate flag is True, deleting existing index: {index_name}")
+                    try:
+                        # Load existing index to delete it
+                        existing_index = EncryptedIndex(
+                            index_name=index_name,
+                            index_key=self.index_key,
+                            api=self.client.api,
+                            api_client=self.client.api_client
+                        )
+                        logger.debug("Existing index loaded for deletion")
+                        
+                        existing_index.delete_index()
+                        logger.info(f"Successfully deleted existing index: {index_name}")
+                    except Exception as e:
+                        logger.error(f"Failed to delete existing index: {e}", exc_info=True)
+                        raise
                 else:
+                    logger.info(f"Recreate flag is False, returning existing index: {index_name}")
                     # Return existing index
                     self._index = EncryptedIndex(
                         index_name=index_name,
@@ -148,22 +220,39 @@ class Cyborg(VDB):
                         api=self.client.api,
                         api_client=self.client.api_client
                     )
+                    logger.debug("Loaded existing index successfully")
                     return self._index
+            else:
+                logger.info(f"Index '{index_name}' does not exist, will create new")
+                
         except Exception as e:
-            logger.debug(f"Error checking existing indexes: {e}")
+            logger.warning(f"Error checking existing indexes: {e}")
+            logger.debug("Proceeding with index creation despite error", exc_info=True)
         
         # Create index configuration
+        logger.info("Creating index configuration...")
         index_config = self._create_index_config()
+        logger.debug(f"Index config created: {type(index_config).__name__}")
         
         # Create new index
-        self._index = self.client.create_index(
-            index_name=index_name,
-            index_key=self.index_key,
-            index_config=index_config,
-            embedding_model=params.get("embedding_model", self.embedding_model)
-        )
-        
-        logger.info(f"Created new index: {index_name}")
+        try:
+            logger.info(f"Creating new index '{index_name}' via client...")
+            logger.debug(f"Create params: embedding_model={params.get('embedding_model', self.embedding_model)}")
+            
+            self._index = self.client.create_index(
+                index_name=index_name,
+                index_key=self.index_key,
+                index_config=index_config,
+                embedding_model=params.get("embedding_model", self.embedding_model)
+            )
+            
+            logger.info(f"Successfully created new index: {index_name}")
+            logger.debug(f"Index object type: {type(self._index).__name__}")
+            
+        except Exception as e:
+            logger.error(f"Failed to create index: {e}", exc_info=True)
+            raise
+            
         return self._index
     
     def write_to_index(self, records: List[Dict[str, Any]], **kwargs):
@@ -174,49 +263,96 @@ class Cyborg(VDB):
             records: List of records to insert
             **kwargs: Additional parameters
         """
+        logger.info("=== Writing Records to Index ===")
+        logger.debug(f"write_to_index called with {len(records)} records")
+        logger.debug(f"Additional kwargs: {kwargs}")
+        
         if self._index is None:
+            logger.error("Index not created. Call create_index() first.")
             raise ValueError("Index not created. Call create_index() first.")
+        
+        logger.info(f"Processing {len(records)} records for insertion")
         
         # Convert records to CyborgDB format
         items = []
-        for record in records:
-            item = {
-                "id": str(record.get("id", record.get("pk", record.get("_id")))),
-            }
+        
+        for idx, record in enumerate(records):
+            logger.debug(f"Processing record {idx + 1}/{len(records)}")
+            logger.debug(f"Record keys: {list(record.keys())}")
+            
+            # Extract ID
+            id_value = str(record.get("id", record.get("pk", record.get("_id"))))
+            logger.debug(f"Record ID: {id_value}")
+            
+            item = {"id": id_value}
             
             # Handle vector field
+            vector_found = False
             if "vector" in record:
                 item["vector"] = record["vector"]
+                vector_found = True
+                logger.debug(f"Found vector field, length: {len(record['vector'])}")
             elif "embedding" in record:
                 item["vector"] = record["embedding"]
+                vector_found = True
+                logger.debug(f"Found embedding field, length: {len(record['embedding'])}")
             elif "metadata" in record and "embedding" in record["metadata"]:
                 item["vector"] = record["metadata"]["embedding"]
+                vector_found = True
+                logger.debug(f"Found embedding in metadata, length: {len(record['metadata']['embedding'])}")
+            
+            if not vector_found:
+                logger.warning(f"No vector/embedding found for record {id_value}")
             
             # Handle content/text field
+            content_found = False
             if "text" in record:
                 item["contents"] = record["text"]
+                content_found = True
+                logger.debug(f"Found text field, length: {len(record['text'])}")
             elif "content" in record:
                 item["contents"] = record["content"]
+                content_found = True
+                logger.debug(f"Found content field, length: {len(record['content'])}")
             elif "metadata" in record and "content" in record["metadata"]:
                 item["contents"] = record["metadata"]["content"]
+                content_found = True
+                logger.debug(f"Found content in metadata, length: {len(record['metadata']['content'])}")
+            
+            if not content_found:
+                logger.debug(f"No content/text found for record {id_value}")
             
             # Handle metadata
             metadata = {}
             if "metadata" in record:
                 metadata.update(record["metadata"])
+                logger.debug(f"Added metadata fields: {list(record['metadata'].keys())}")
             if "source" in record:
                 metadata["source"] = record["source"]
+                logger.debug(f"Added source: {record['source']}")
             if "content_metadata" in record:
                 metadata["content_metadata"] = record["content_metadata"]
+                logger.debug(f"Added content_metadata")
             
             if metadata:
                 item["metadata"] = metadata
+                logger.debug(f"Total metadata fields: {len(metadata)}")
+            else:
+                logger.debug("No metadata for this record")
             
             items.append(item)
         
+        logger.info(f"Prepared {len(items)} items for upsertion")
+        
         # Upsert items
-        self._index.upsert(items)
-        logger.info(f"Inserted {len(items)} records into index")
+        try:
+            logger.info("Starting upsert operation...")
+            self._index.upsert(items)
+            logger.info(f"Successfully inserted {len(items)} records into index")
+        except Exception as e:
+            logger.error(f"Failed to upsert records: {e}", exc_info=True)
+            logger.debug(f"Failed items sample (first item): {items[0] if items else 'No items'}")
+            raise
     
     def retrieval(
         self,
@@ -243,41 +379,69 @@ class Cyborg(VDB):
         Returns:
             List of results for each query
         """
+        logger.info("=== Performing Retrieval ===")
+        logger.debug(f"Retrieval params: num_queries={len(queries)}, top_k={top_k}, "
+                    f"n_probes={n_probes}, greedy={greedy}")
+        logger.debug(f"Filters: {filters}")
+        logger.debug(f"Include fields: {include}")
+        logger.debug(f"Additional kwargs: {kwargs}")
+        
         if self._index is None:
+            logger.error("Index not created. Call create_index() first.")
             raise ValueError("Index not created. Call create_index() first.")
         
         all_results = []
         
-        for query in queries:
-            if isinstance(query, str):
-                # Text query - use query_contents
-                results = self._index.query(
-                    query_contents=query,
-                    top_k=top_k,
-                    n_probes=n_probes,
-                    filters=filters,
-                    include=include,
-                    greedy=greedy
-                )
-            else:
-                # Vector query
-                if isinstance(query, np.ndarray):
-                    query = query.tolist()
-                results = self._index.query(
-                    query_vector=query,
-                    top_k=top_k,
-                    n_probes=n_probes,
-                    filters=filters,
-                    include=include,
-                    greedy=greedy
-                )
+        for query_idx, query in enumerate(queries):
+            logger.debug(f"Processing query {query_idx + 1}/{len(queries)}")
             
-            # Ensure results is always a list of lists
-            if results and not isinstance(results[0], list):
-                results = [results]
-            
-            all_results.extend(results)
+            try:
+                if isinstance(query, str):
+                    logger.info(f"Text query detected: '{query[:50]}...'")
+                    # Text query - use query_contents
+                    results = self._index.query(
+                        query_contents=query,
+                        top_k=top_k,
+                        n_probes=n_probes,
+                        filters=filters,
+                        include=include,
+                        greedy=greedy
+                    )
+                    logger.debug(f"Text query completed, got {len(results) if results else 0} results")
+                else:
+                    # Vector query
+                    if isinstance(query, np.ndarray):
+                        logger.debug(f"Converting numpy array to list, shape: {query.shape}")
+                        query = query.tolist()
+                    
+                    logger.info(f"Vector query detected, dimension: {len(query)}")
+                    results = self._index.query(
+                        query_vector=query,
+                        top_k=top_k,
+                        n_probes=n_probes,
+                        filters=filters,
+                        include=include,
+                        greedy=greedy
+                    )
+                    logger.debug(f"Vector query completed, got {len(results) if results else 0} results")
+                
+                # Ensure results is always a list of lists
+                if results and not isinstance(results[0], list):
+                    logger.debug("Converting single result list to list of lists")
+                    results = [results]
+                
+                logger.debug(f"Query {query_idx + 1} returned {len(results)} result sets")
+                if results and results[0]:
+                    logger.debug(f"First result sample: id={results[0][0].get('id')}, "
+                               f"distance={results[0][0].get('distance')}")
+                
+                all_results.extend(results)
+                
+            except Exception as e:
+                logger.error(f"Failed to process query {query_idx + 1}: {e}", exc_info=True)
+                raise
         
+        logger.info(f"Retrieval completed. Total result sets: {len(all_results)}")
         return all_results
     
     def reindex(self, **kwargs):
@@ -289,17 +453,23 @@ class Cyborg(VDB):
         2. Creating a new index with updated configuration
         3. Re-inserting all data
         """
+        logger.info("=== Starting Reindex Operation ===")
+        logger.debug(f"Reindex kwargs: {kwargs}")
+        
         if self._index is None:
+            logger.error("Index not created. Call create_index() first.")
             raise ValueError("Index not created. Call create_index() first.")
         
         current_index_name = kwargs.pop("current_index_name", self.index_name)
         new_index_name = kwargs.pop("new_index_name", f"{current_index_name}_reindexed")
         batch_size = kwargs.pop("batch_size", 1000)
         
-        logger.info(f"Starting reindex from {current_index_name} to {new_index_name}")
+        logger.info(f"Reindex plan: {current_index_name} -> {new_index_name}")
+        logger.debug(f"Batch size: {batch_size}")
         
         # Get all IDs (this is a limitation - CyborgDB doesn't have a direct "get all" method)
         # In practice, you'd need to track IDs separately or implement a scan method
+        logger.error("Reindexing not implemented - CyborgDB lacks document scan capability")
         raise NotImplementedError(
             "Reindexing requires tracking document IDs separately. "
             "CyborgDB doesn't provide a method to retrieve all document IDs."
@@ -312,7 +482,11 @@ class Cyborg(VDB):
         Args:
             **kwargs: Training parameters (batch_size, max_iters, tolerance, max_memory)
         """
+        logger.info("=== Training Index ===")
+        logger.debug(f"Training kwargs: {kwargs}")
+        
         if self._index is None:
+            logger.error("Index not created. Call create_index() first.")
             raise ValueError("Index not created. Call create_index() first.")
         
         # Use provided kwargs or defaults
@@ -321,13 +495,21 @@ class Cyborg(VDB):
         tolerance = kwargs.get("tolerance", 1e-6)
         max_memory = kwargs.get("max_memory", 0)
         
-        self._index.train(
-            batch_size=batch_size,
-            max_iters=max_iters,
-            tolerance=tolerance,
-            max_memory=max_memory
-        )
-        logger.info("Index training completed")
+        logger.info(f"Training parameters: batch_size={batch_size}, max_iters={max_iters}, "
+                   f"tolerance={tolerance}, max_memory={max_memory}")
+        
+        try:
+            logger.info("Starting index training...")
+            self._index.train(
+                batch_size=batch_size,
+                max_iters=max_iters,
+                tolerance=tolerance,
+                max_memory=max_memory
+            )
+            logger.info("Index training completed successfully")
+        except Exception as e:
+            logger.error(f"Index training failed: {e}", exc_info=True)
+            raise
     
     def delete(self, ids: List[str]):
         """
@@ -336,11 +518,21 @@ class Cyborg(VDB):
         Args:
             ids: List of IDs to delete
         """
+        logger.info("=== Deleting Records ===")
+        logger.debug(f"Deleting {len(ids)} records")
+        logger.debug(f"First few IDs: {ids[:5] if len(ids) > 5 else ids}")
+        
         if self._index is None:
+            logger.error("Index not created. Call create_index() first.")
             raise ValueError("Index not created. Call create_index() first.")
         
-        self._index.delete(ids)
-        logger.info(f"Deleted {len(ids)} records from index")
+        try:
+            logger.info(f"Deleting {len(ids)} records from index...")
+            self._index.delete(ids)
+            logger.info(f"Successfully deleted {len(ids)} records from index")
+        except Exception as e:
+            logger.error(f"Failed to delete records: {e}", exc_info=True)
+            raise
     
     def run(self, records: List[Dict[str, Any]]):
         """
@@ -351,29 +543,50 @@ class Cyborg(VDB):
         Args:
             records: List of records to process
         """
+        logger.info("=== Running CyborgDB Pipeline ===")
+        logger.debug(f"Input type: {type(records)}")
+        
         # Create or get index
+        logger.info("Step 1: Creating/getting index")
         self.create_index()
         
         # Insert records
         if records:
             # If records is a tuple, extract the first element
             if isinstance(records, tuple) and len(records) == 2:
+                logger.debug(f"Records is a tuple of length {len(records)}, extracting first element")
                 records = records[0]
-
+            
+            logger.info(f"Step 2: Writing {len(records)} records to index")
             self.write_to_index(records)
             
             # Train index if we have enough data
-            if len(records) >= 2 * self.n_lists:
+            min_records_for_training = 2 * self.n_lists
+            logger.debug(f"Records: {len(records)}, Min for training: {min_records_for_training}")
+            
+            if len(records) >= min_records_for_training:
+                logger.info(f"Step 3: Training index (have {len(records)} records, "
+                           f"need {min_records_for_training})")
                 try:
                     self.train()
                 except Exception as e:
                     logger.warning(f"Failed to train index: {e}")
+                    logger.debug("Training failure details:", exc_info=True)
+            else:
+                logger.info(f"Skipping training - insufficient records "
+                           f"({len(records)} < {min_records_for_training})")
+        else:
+            logger.warning("No records provided to process")
         
         # Update recreate flag for subsequent runs
+        logger.debug(f"Setting recreate flag from {self.recreate} to False")
         self.recreate = False
+        logger.info("Pipeline completed successfully")
     
     def get_connection_params(self) -> tuple:
         """Get connection parameters for the index."""
+        logger.debug("Getting connection parameters")
+        
         conn_dict = {
             "api_url": self.api_url,
             "api_key": self.api_key,
@@ -382,19 +595,29 @@ class Cyborg(VDB):
             "dimension": self.dimension,
             "n_lists": self.n_lists,
             "recreate": self.recreate,
-            
         }
+        
         if self.index_type == "IVFPQ":
             conn_dict["n_bits"] = self.n_bits
             conn_dict["pq_dim"] = self.pq_dim
+            logger.debug("Added IVFPQ parameters to connection dict")
+        
+        logger.debug(f"Connection params: index_name={self.index_name}, "
+                    f"params_keys={list(conn_dict.keys())}")
         
         return (self.index_name, conn_dict)
     
     def get_write_params(self) -> tuple:
         """Get parameters for writing to the index."""
+        logger.debug("Getting write parameters")
+        
         write_params = {
             "embedding_model": self.embedding_model
         }
+        
+        logger.debug(f"Write params: index_name={self.index_name}, "
+                    f"embedding_model={self.embedding_model}")
+        
         return (self.index_name, write_params)
 
 
@@ -417,15 +640,34 @@ def cleanup_records(
     Returns:
         Cleaned records ready for insertion
     """
-    cleaned = []
+    logger.info("=== Cleaning Records ===")
+    logger.debug(f"Cleanup params: enable_text={enable_text}, "
+                f"enable_embeddings={enable_embeddings}")
+    logger.debug(f"Input records: {len(records)}")
+    logger.debug(f"Additional kwargs: {kwargs}")
     
-    for record in records:
+    cleaned = []
+    skipped_no_embedding = 0
+    skipped_no_content = 0
+    
+    for idx, record in enumerate(records):
+        logger.debug(f"Checking record {idx + 1}/{len(records)}")
+        
         # Skip records without required fields
         if not enable_embeddings and "embedding" not in record.get("metadata", {}):
+            logger.debug(f"Skipping record {idx + 1} - no embedding")
+            skipped_no_embedding += 1
             continue
+            
         if not enable_text and "content" not in record.get("metadata", {}):
+            logger.debug(f"Skipping record {idx + 1} - no content")
+            skipped_no_content += 1
             continue
         
         cleaned.append(record)
+    
+    logger.info(f"Record cleaning complete: {len(cleaned)} cleaned, "
+               f"{skipped_no_embedding} skipped (no embedding), "
+               f"{skipped_no_content} skipped (no content)")
     
     return cleaned
