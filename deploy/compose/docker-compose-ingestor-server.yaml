@@ -37,6 +37,8 @@ services:
       # vectorstore collection name to store embeddings
       COLLECTION_NAME: ${COLLECTION_NAME:-multimodal_data}
 
+      CYBORGDB_API_KEY: ${CYBORGDB_API_KEY:-}
+
       ##===MINIO specific configurations===
       MINIO_ENDPOINT: "minio:9010"
       MINIO_ACCESSKEY: "minioadmin"
