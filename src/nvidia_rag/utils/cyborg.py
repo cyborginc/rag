@@ -15,6 +15,7 @@ from cyborgdb import (
     IndexIVFFlat,
     generate_key
 )
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -282,15 +283,22 @@ class Cyborg(VDB):
             logger.debug(f"Type of record: {type(record).__name__}")
 
             if not isinstance(record, dict):
-                logger.error(f"Record {idx} is not a dict. Value: {record!r}")
+                logger.error(f"Record {idx} is not a dict.")
                 raise TypeError(f"Expected dict, got {type(record).__name__}")
             logger.debug(f"Record keys: {list(record.keys())}")
 
             logger.debug(f"Calling get() on record of type {type(record)}")
 
+            for k, v in record.items():
+                logger.debug(f"  attr='{k}' type={type(v).__name__} value={repr(v)[:20]}")
             # Extract ID
             id_value = str(record.get("id", record.get("pk", record.get("_id"))))
-            logger.debug(f"Record ID: {id_value}")
+            if id_value is None or str(id_value).strip() == "":
+                id_value = f"{random.randint(0, 999999):06d}"  # always 6 digits, zero-padded
+                logger.debug(f"No ID found, generated random ID: {id_value}")
+            else:
+                id_value = str(id_value)
+                logger.debug(f"Record ID: {id_value}")
             
             item = {"id": id_value}
             
@@ -313,22 +321,22 @@ class Cyborg(VDB):
                 logger.warning(f"No vector/embedding found for record {id_value}")
             
             # Handle content/text field
-            content_found = False
-            if "text" in record:
-                item["contents"] = record["text"]
-                content_found = True
-                logger.debug(f"Found text field, length: {len(record['text'])}")
-            elif "content" in record:
-                item["contents"] = record["content"]
-                content_found = True
-                logger.debug(f"Found content field, length: {len(record['content'])}")
-            elif "metadata" in record and "content" in record["metadata"]:
-                item["contents"] = record["metadata"]["content"]
-                content_found = True
-                logger.debug(f"Found content in metadata, length: {len(record['metadata']['content'])}")
+            # content_found = False
+            # if "text" in record:
+            #     item["contents"] = record["text"]
+            #     content_found = True
+            #     logger.debug(f"Found text field, length: {len(record['text'])}")
+            # elif "content" in record:
+            #     item["contents"] = record["content"]
+            #     content_found = True
+            #     logger.debug(f"Found content field, length: {len(record['content'])}")
+            # elif "metadata" in record and "content" in record["metadata"]:
+            #     item["contents"] = record["metadata"]["content"]
+            #     content_found = True
+            #     logger.debug(f"Found content in metadata, length: {len(record['metadata']['content'])}")
             
-            if not content_found:
-                logger.debug(f"No content/text found for record {id_value}")
+            # if not content_found:
+            #     logger.debug(f"No content/text found for record {id_value}")
             
             # Handle metadata
             metadata = {}
@@ -359,7 +367,7 @@ class Cyborg(VDB):
             logger.info(f"Successfully inserted {len(items)} records into index")
         except Exception as e:
             logger.error(f"Failed to upsert records: {e}", exc_info=True)
-            logger.debug(f"Failed items sample (first item): {items[0] if items else 'No items'}")
+            # logger.debug(f"Failed items sample (first item): {items[0] if items else 'No items'}")
             raise
     
     def retrieval(
@@ -562,13 +570,22 @@ class Cyborg(VDB):
         
         # Insert records
         if records:
-            # If records is a tuple, extract the first element
-            if isinstance(records, tuple) and len(records) == 2:
-                logger.debug(f"Records is a tuple of length {len(records)}, extracting first element")
-                records = records[0]
-            
+            logger.debug(f"Input records type: {infer_type_structure(records)}")
+
+            flat_records = []
+            try:
+                flat_records = normalize_records(records)
+            except Exception as e:
+                logger.error(f"Failed to normalize records: {e}", exc_info=True)
+                raise
+
+            logger.debug(f"Normalized to List[Dict]; count={len(flat_records)}")
+            if not flat_records:
+                logger.warning("No records to write after normalization")
+                return
+
             logger.info(f"Step 2: Writing {len(records)} records to index")
-            self.write_to_index(records)
+            self.write_to_index(flat_records)
             
             # Train index if we have enough data
             min_records_for_training = 2 * self.n_lists
@@ -683,3 +700,61 @@ def cleanup_records(
                f"{skipped_no_content} skipped (no content)")
     
     return cleaned
+
+def infer_type_structure(obj):
+    """Simple type structure inference"""
+    if isinstance(obj, list):
+        if obj:
+            # Check first element
+            inner = infer_type_structure(obj[0])
+            return f"List[{inner}]"
+        return "List[Unknown]"
+    elif isinstance(obj, dict):
+        if obj:
+            # Sample first key-value pair
+            key = next(iter(obj))
+            val = obj[key]
+            return f"Dict[{type(key).__name__}, {infer_type_structure(val)}]"
+        return "Dict[Unknown, Unknown]"
+    else:
+        return type(obj).__name__
+    
+def get_records_dict(obj):
+    if isinstance(obj, dict):
+        return obj
+    elif isinstance(obj, list) and obj:
+        return get_records_dict(obj[0])
+    elif isinstance(obj, tuple) and len(obj) > 0:
+        return get_records_dict(obj[0])
+    return {}
+
+def normalize_records(records) -> List[Dict[str, Any]]:
+    """
+    Flattens arbitrarily nested lists/tuples of dicts into List[Dict].
+    Raises if it encounters a non-dict leaf.
+    """
+    flat: List[Dict[str, Any]] = []
+    stack = [records]
+    max_items_warned = False
+
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, dict):
+            flat.append(cur)
+        elif isinstance(cur, (list, tuple)):
+            # push children; keep order by reversing
+            stack.extend(reversed(cur))
+        elif cur is None:
+            # ignore stray None
+            continue
+        else:
+            raise TypeError(
+                f"normalize_records expected dict/list/tuple leaves, got {type(cur).__name__}"
+            )
+
+        # (optional) safeguard on giant nesting explosions
+        if not max_items_warned and len(flat) > 1_000_000:
+            max_items_warned = True
+            logger.warning("normalize_records: more than 1,000,000 dicts collected")
+
+    return flat
