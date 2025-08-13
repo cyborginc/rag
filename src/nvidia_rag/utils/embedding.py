@@ -36,10 +36,11 @@ except Exception:
 def get_embedding_model(model: str, url: str) -> Embeddings:
     """Create the embedding model."""
     model_kwargs = {"device": "cpu"}
-    if torch.cuda.is_available():
-        model_kwargs["device"] = "cuda:0"
+    # if torch.cuda.is_available():
+    #     model_kwargs["device"] = "cuda:0"
 
-    encode_kwargs = {"normalize_embeddings": False}
+    # encode_kwargs = {"normalize_embeddings": False}
+    encode_kwargs = {"normalize_embeddings": True}
     settings = get_config()
 
     # Sanitize the URL

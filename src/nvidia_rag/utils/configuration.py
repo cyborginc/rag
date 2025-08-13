@@ -376,15 +376,25 @@ class EmbeddingConfig(ConfigWizard):
     :cvar model_name: The name of the huggingface embedding model.
     """
 
+    # model_name: str = configfield(
+    #     "model_name",
+    #     default="nvidia/llama-3.2-nv-embedqa-1b-v2",
+    #     help_txt="The name of huggingface embedding model.",
+    # )
+    # model_engine: str = configfield(
+    #     "model_engine",
+    #     default="nvidia-ai-endpoints",
+    #     help_txt="The server type of the hosted model. Allowed values are hugginface",
+    # )
     model_name: str = configfield(
         "model_name",
-        default="nvidia/llama-3.2-nv-embedqa-1b-v2",
-        help_txt="The name of huggingface embedding model.",
+        default="all-MiniLM-L6-v2",
+        help_txt="The name of the hosted model.",
     )
     model_engine: str = configfield(
         "model_engine",
-        default="nvidia-ai-endpoints",
-        help_txt="The server type of the hosted model. Allowed values are hugginface",
+        default="huggingface",
+        help_txt="The server type of the hosted model. Allowed values are nvidia-ai-endpoints",
     )
     dimensions: int = configfield(
         "dimensions",
