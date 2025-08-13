@@ -279,6 +279,11 @@ class Cyborg(VDB):
         
         for idx, record in enumerate(records):
             logger.debug(f"Processing record {idx + 1}/{len(records)}")
+            logger.debug(f"Type of record: {type(record).__name__}")
+
+            if not isinstance(record, dict):
+                logger.error(f"Record {idx} is not a dict. Value: {record!r}")
+                raise TypeError(f"Expected dict, got {type(record).__name__}")
             logger.debug(f"Record keys: {list(record.keys())}")
 
             logger.debug(f"Calling get() on record of type {type(record)}")
