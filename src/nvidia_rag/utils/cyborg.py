@@ -179,6 +179,7 @@ class Cyborg(VDB):
         # Override with any provided kwargs
         params = self.__dict__.copy()
         params.update(kwargs)
+        logger.debug(f"Calling get() on params of type {type(params)}")
         logger.debug(f"Merged parameters: recreate={params.get('recreate')}, "
                     f"index_name={params.get('index_name')}")
         
@@ -279,7 +280,9 @@ class Cyborg(VDB):
         for idx, record in enumerate(records):
             logger.debug(f"Processing record {idx + 1}/{len(records)}")
             logger.debug(f"Record keys: {list(record.keys())}")
-            
+
+            logger.debug(f"Calling get() on record of type {type(record)}")
+
             # Extract ID
             id_value = str(record.get("id", record.get("pk", record.get("_id"))))
             logger.debug(f"Record ID: {id_value}")
@@ -432,6 +435,7 @@ class Cyborg(VDB):
                 
                 logger.debug(f"Query {query_idx + 1} returned {len(results)} result sets")
                 if results and results[0]:
+                    logger.debug(f"Calling get on results[0][0] of type {type(results[0][0])}")
                     logger.debug(f"First result sample: id={results[0][0].get('id')}, "
                                f"distance={results[0][0].get('distance')}")
                 
@@ -488,7 +492,8 @@ class Cyborg(VDB):
         if self._index is None:
             logger.error("Index not created. Call create_index() first.")
             raise ValueError("Index not created. Call create_index() first.")
-        
+
+        logger.debug(f"Calling get() on kwargs of type {type(kwargs)}")
         # Use provided kwargs or defaults
         batch_size = kwargs.get("batch_size", 2048)
         max_iters = kwargs.get("max_iters", 100)
@@ -652,7 +657,9 @@ def cleanup_records(
     
     for idx, record in enumerate(records):
         logger.debug(f"Checking record {idx + 1}/{len(records)}")
-        
+
+        logger.debug(f"Calling get() on record in cleanup_records of type {type(record)}")
+
         # Skip records without required fields
         if not enable_embeddings and "embedding" not in record.get("metadata", {}):
             logger.debug(f"Skipping record {idx + 1} - no embedding")
