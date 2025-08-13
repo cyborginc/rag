@@ -87,7 +87,8 @@ services:
       APP_RETRIEVER_TOPK: ${APP_RETRIEVER_TOPK:-10}
 
       # Log level for server, supported level NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
-      LOGLEVEL: ${LOGLEVEL:-INFO}
+      # LOGLEVEL: ${LOGLEVEL:-INFO}
+      LOGLEVEL: DEBUG
 
       # enable multi-turn conversation in the rag chain - this controls conversation history usage
       # while doing query rewriting and in LLM prompt
