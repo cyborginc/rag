@@ -160,7 +160,7 @@ def get_nv_ingest_ingestor(
                 api_url=vdb_endpoint or config.vector_store.url,
                 api_key=get_env_variable(variable_name="CYBORGDB_API_KEY", default_value=""),
                 verify_ssl=config.vector_store.verify_ssl,  # Get SSL verification setting if available
-                
+                index_key=config.vector_store.index_key,
                 # Index configuration
                 index_type=config.vector_store.index_type,
                 dimension=config.embeddings.dimensions,

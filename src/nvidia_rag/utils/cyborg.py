@@ -33,7 +33,7 @@ class Cyborg(VDB):
         index_name: str = "cyborg_index",
         api_url: str = "http://localhost:8000",
         api_key: Optional[str] = None,
-        index_key: Optional[bytes] = None,
+        index_key: bytes = None,
         verify_ssl: Optional[bool] = False,
         index_type: str = "IVFFlat",
         dimension: int = 1536,
@@ -84,9 +84,9 @@ class Cyborg(VDB):
         
         # Generate index key if not provided
         if self.index_key is None:
-            self.index_key = generate_key()
-            logger.info(f"Generated new index key for {index_name}")
-            logger.debug(f"Key length: {len(self.index_key)} bytes")
+
+            logger.info(f"index key not provided for {index_name}")
+            raise
         else:
             logger.info(f"Using provided index key for {index_name}")
             logger.debug(f"Provided key length: {len(self.index_key)} bytes")
