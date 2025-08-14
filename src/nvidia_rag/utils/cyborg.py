@@ -16,7 +16,7 @@ from cyborgdb import (
     generate_key
 )
 import random
-
+import uuid
 logger = logging.getLogger(__name__)
 
 
@@ -292,14 +292,9 @@ class Cyborg(VDB):
             for k, v in record.items():
                 logger.debug(f"  attr='{k}' type={type(v).__name__} value={repr(v)[:20]}")
             # Extract ID
-            id_value = str(record.get("id", record.get("pk", record.get("_id"))))
-            if id_value is None or str(id_value).strip() == "":
-                id_value = f"{random.randint(0, 999999):06d}"  # always 6 digits, zero-padded
-                logger.debug(f"No ID found, generated random ID: {id_value}")
-            else:
-                id_value = str(id_value)
-                logger.debug(f"Record ID: {id_value}")
-            
+            id_value = str(uuid.uuid4())
+            logger.debug(f"Generated new UUID for record ID: {id_value}")
+
             item = {"id": id_value}
             
             # Handle vector field
@@ -341,8 +336,14 @@ class Cyborg(VDB):
             # Handle metadata
             metadata = {}
             if "metadata" in record:
+                logger.debug(f"Before metadata fields change: {list(record['metadata'].keys())}")
                 metadata.update(record["metadata"])
-                logger.debug(f"Added metadata fields: {list(record['metadata'].keys())}")
+                # Rename 'content' -> '_content' if it exists
+                if "content" in metadata:
+                    metadata["_content"] = metadata.pop("content")
+                if "source_metadata" in metadata:
+                    metadata["source"] = metadata.pop("source_metadata")    
+                logger.debug(f"Added metadata fields: {list(metadata.keys())}")
             if "source" in record:
                 metadata["source"] = record["source"]
                 logger.debug(f"Added source: {record['source']}")

@@ -948,20 +948,21 @@ class NvidiaRAGIngestor():
                 )
                 failed_documents_filenames.add(filename)
         
-        # Add document to failed documents if it is not in the Milvus
-        filenames_in_vdb = set()
-        for document in self.get_documents(collection_name, vdb_endpoint).get("documents"):
-            filenames_in_vdb.add(document.get("document_name"))
-        for filepath in filepaths:
-            filename = os.path.basename(filepath)
-            if filename not in filenames_in_vdb and filename not in failed_documents_filenames:
-                failed_documents.append(
-                    {
-                        "document_name": filename,
-                        "error_message": "Ingestion did not complete successfully"
-                    }
-                )
-                failed_documents_filenames.add(filename)
+        if CONFIG.vector_store.name == "milvus":
+            # Add document to failed documents if it is not in the Milvus
+            filenames_in_vdb = set()
+            for document in self.get_documents(collection_name, vdb_endpoint).get("documents"):
+                filenames_in_vdb.add(document.get("document_name"))
+            for filepath in filepaths:
+                filename = os.path.basename(filepath)
+                if filename not in filenames_in_vdb and filename not in failed_documents_filenames:
+                    failed_documents.append(
+                        {
+                            "document_name": filename,
+                            "error_message": "Ingestion did not complete successfully"
+                        }
+                    )
+                    failed_documents_filenames.add(filename)
 
         if failed_documents:
             logger.error("Ingestion failed for %d document(s)", len(failed_documents))
