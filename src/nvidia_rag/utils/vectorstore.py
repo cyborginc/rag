@@ -47,7 +47,6 @@ except ImportError:
     logger.info("CyborgDB not installed. Only Milvus will be available.")
     CYBORGDB_AVAILABLE = False
 
-DOCUMENT_EMBEDDER = document_embedder = get_embedding_model(model=CONFIG.embeddings.model_name, url=CONFIG.embeddings.server_url)
 
 def create_vectorstore_langchain(document_embedder, collection_name: str = "", vdb_endpoint: str = "") -> VectorStore:
     """Create the vector db index for langchain (supports both Milvus and CyborgDB)."""
@@ -148,7 +147,7 @@ def _create_cyborgdb_vectorstore(document_embedder, collection_name: str, vdb_en
         index_key=config.vector_store.index_key,
         api_key=api_key,
         api_url=vdb_endpoint,
-        embedding=DOCUMENT_EMBEDDER,
+        embedding=None,
         index_type=config.vector_store.index_type.lower(),
         index_config_params={"n_lists": config.vector_store.nlist},
         metric=config.vector_store.metric
@@ -226,16 +225,13 @@ def _create_cyborgdb_collection(collection_name: str, vdb_endpoint: str, dimensi
         if not api_key or api_key == "":
             raise ValueError("CyborgDB API key is required. Set it in config or CYBORGDB_API_KEY env var")
         
-        if DOCUMENT_EMBEDDER is None:
-            raise ValueError("Document embedder is not set. Please provide a valid embedding model.")
-        
         # Create CyborgDB vector store which will create the index
         vectorstore = CyborgVectorStore(
             index_name=collection_name,
             index_key=config.vector_store.index_key,
             api_key=config.vector_store.api_key,
             api_url=vdb_endpoint,
-            embedding=DOCUMENT_EMBEDDER,
+            embedding=None,
             index_type=config.vector_store.index_type.lower(),
             index_config_params={'n_lists': config.vector_store.nlist},
             dimension=dimension,
@@ -487,9 +483,6 @@ def _delete_cyborgdb_collections(
     Returns:
         dict: Mapping of collection name to deletion success (True/False).
     """
-
-    if not DOCUMENT_EMBEDDER:
-        raise ValueError("Document embedder is not set. Please provide a valid embedding model.")
     
     successful = []
     failed = []
@@ -500,7 +493,7 @@ def _delete_cyborgdb_collections(
                 index_key=config.vector_store.index_key,
                 api_key=config.vector_store.api_key,
                 api_url=vdb_endpoint,
-                embedding=DOCUMENT_EMBEDDER,
+                embedding=None,
             )
             if store.delete(delete_index=True):
                 successful.append(name)
