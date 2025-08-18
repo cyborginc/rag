@@ -359,8 +359,11 @@ class NvidiaRAGIngestor():
         documents = await self.__prepare_summary_documents(results, collection_name)
         # Generate summary for each document
         documents = await self.__generate_summary_for_documents(documents)
-        # # Add document summary to minio
-        await self.__put_document_summary_to_minio(documents)
+        config = get_config()
+        if config.vector_store.name == "milvus":
+
+            # # Add document summary to minio
+            await self.__put_document_summary_to_minio(documents)
         end_time = time.time()
         logger.info(f"Document summary ingestion completed! Time taken: {end_time - start_time} seconds")
 
@@ -855,7 +858,7 @@ class NvidiaRAGIngestor():
         else:
             csv_file_path = None
 
-        
+        config = get_config()
         nv_ingest_ingestor = get_nv_ingest_ingestor(
             nv_ingest_client_instance=NV_INGEST_CLIENT_INSTANCE,
             filepaths=filepaths,
@@ -888,19 +891,19 @@ class NvidiaRAGIngestor():
             error_message = "NV-Ingest ingestion failed with no results. Please check the ingestor-server microservice logs for more details."
             logger.error(error_message)
             raise Exception(error_message)
-
-        try:
-            start_time = time.time()
-            self.__put_content_to_minio(
-                results=results,
-                collection_name=collection_name
-            )
-            end_time = time.time()
-            logger.info(f"== MinIO upload for collection_name: {collection_name} "
-                        f"for batch {batch_number} is complete! Time taken: {end_time - start_time} seconds ==")
-        except Exception as e:
-            logger.error("Failed to put content to minio: %s, citations would be disabled for collection: %s", str(e),
-                         collection_name, exc_info=logger.getEffectiveLevel() <= logging.DEBUG)
+        if config.vector_store.name == "milvus":
+            try:
+                start_time = time.time()
+                self.__put_content_to_minio(
+                    results=results,
+                    collection_name=collection_name
+                )
+                end_time = time.time()
+                logger.info(f"== MinIO upload for collection_name: {collection_name} "
+                            f"for batch {batch_number} is complete! Time taken: {end_time - start_time} seconds ==")
+            except Exception as e:
+                logger.error("Failed to put content to minio: %s, citations would be disabled for collection: %s", str(e),
+                            collection_name, exc_info=logger.getEffectiveLevel() <= logging.DEBUG)
 
         return results, failures
 
