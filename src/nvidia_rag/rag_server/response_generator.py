@@ -33,6 +33,7 @@ from langchain_core.documents import Document
 from pymilvus.exceptions import MilvusException, MilvusUnavailableException
 from pydantic import BaseModel, Field, validator
 from typing import Literal, Optional
+from nvidia_rag.utils.common import get_config
 
 from nvidia_rag.utils.minio_operator import get_unique_thumbnail_id, get_minio_operator
 
@@ -400,14 +401,22 @@ def prepare_citations(
                             page_number=page_number,
                             location=location
                         )
-                        payload = get_minio_operator().get_payload(object_name=unique_thumbnail_id)
-                        content = payload.get("content", "")
-                        source_metadata = SourceMetadata(
-                            page_number=page_number,
-                            location=location,
-                            description=doc.page_content,
-                            content_metadata=doc.metadata.get("content_metadata")
-                        )
+                        config = get_config()
+                        if config.vector_store.name == "milvus":
+                            payload = get_minio_operator().get_payload(object_name=unique_thumbnail_id)
+                            content = payload.get("content", "")
+                            source_metadata = SourceMetadata(
+                                page_number=page_number,
+                                location=location,
+                                description=doc.page_content,
+                                content_metadata=doc.metadata.get("content_metadata")
+                            )
+                        else:
+                            content = ""
+                            source_metadata = SourceMetadata(
+                                description=doc.page_content,
+                                content_metadata=doc.metadata.get("content_metadata", {})
+                            ) 
                     else:
                         content = ""
                         source_metadata = SourceMetadata(
@@ -491,18 +500,29 @@ async def retrieve_summary(
                 page_number=0,
                 location=[]
             )
+            config = get_config()
 
-            # First attempt to get existing summary
-            payload = get_minio_operator().get_payload(object_name=unique_thumbnail_id)
+            if config.vector_store.name == "milvus":
 
-            if payload:
+                # First attempt to get existing summary
+                payload = get_minio_operator().get_payload(object_name=unique_thumbnail_id)
+
+                if payload:
+                    return {
+                        "message": "Summary retrieved successfully.",
+                        "summary": payload.get("summary", ""),
+                        "file_name": payload.get("file_name", ""),
+                        "collection_name": collection_name,
+                        "status": "SUCCESS"
+                    }
+            else:
                 return {
-                    "message": "Summary retrieved successfully.",
-                    "summary": payload.get("summary", ""),
-                    "file_name": payload.get("file_name", ""),
-                    "collection_name": collection_name,
-                    "status": "SUCCESS"
-                }
+                        "message": "Summary retrieved successfully.",
+                        "summary": "",
+                        "file_name": "",
+                        "collection_name": collection_name,
+                        "status": "SUCCESS"
+                    }
 
             # If summary not found and wait=False, return immediately
             if not wait:
@@ -514,15 +534,25 @@ async def retrieve_summary(
             # If wait=True, poll for summary with timeout
             start_time = time.time()
             while time.time() - start_time < timeout:
-                payload = get_minio_operator().get_payload(object_name=unique_thumbnail_id)
-                if payload:
+                if config.vector_store.name == "milvus":
+                    payload = get_minio_operator().get_payload(object_name=unique_thumbnail_id)
+                    if payload:
+                        return {
+                            "message": "Summary retrieved successfully.",
+                            "summary": payload.get("summary", ""),
+                            "file_name": payload.get("file_name", ""),
+                            "collection_name": collection_name,
+                            "status": "SUCCESS"
+                        }
+                else:
                     return {
-                        "message": "Summary retrieved successfully.",
-                        "summary": payload.get("summary", ""),
-                        "file_name": payload.get("file_name", ""),
-                        "collection_name": collection_name,
-                        "status": "SUCCESS"
-                    }
+                            "message": "Summary retrieved successfully.",
+                            "summary": "",
+                            "file_name": "",
+                            "collection_name": collection_name,
+                            "status": "SUCCESS"
+                        }
+                 
 
                 # Wait before next poll
                 await asyncio.sleep(2)

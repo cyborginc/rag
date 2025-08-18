@@ -222,11 +222,15 @@ class VLM:
                         page_number=page_number,
                         location=location,
                     )
+                    config = get_config()
+                    if config.vector_store.name == "milvus":
 
-                    payload = get_minio_operator().get_payload(
-                        object_name=unique_thumbnail_id
-                    )
-                    content = payload.get("content", "")
+                        payload = get_minio_operator().get_payload(
+                            object_name=unique_thumbnail_id
+                        )
+                        content = payload.get("content", "")
+                    else:
+                        content=""
                     image_bytes = base64.b64decode(content)
                     img = PILImage.open(io.BytesIO(image_bytes)).convert("RGB")
                     image_objects.append(img)

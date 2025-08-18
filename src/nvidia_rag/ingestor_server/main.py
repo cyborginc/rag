@@ -84,7 +84,8 @@ logger = logging.getLogger(__name__)
 CONFIG = get_config()
 DOCUMENT_EMBEDDER = document_embedder = get_embedding_model(model=CONFIG.embeddings.model_name, url=CONFIG.embeddings.server_url)
 NV_INGEST_CLIENT_INSTANCE = get_nv_ingest_client()
-MINIO_OPERATOR = get_minio_operator()
+if CONFIG.vector_store.name == "milvus":
+    MINIO_OPERATOR = get_minio_operator()
 
 # NV-Ingest Batch Mode Configuration
 ENABLE_NV_INGEST_BATCH_MODE = os.getenv("ENABLE_NV_INGEST_BATCH_MODE", "true").lower() == "true"
