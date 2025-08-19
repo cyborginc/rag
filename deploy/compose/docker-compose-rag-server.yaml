@@ -31,18 +31,9 @@ services:
       APP_VECTORSTORE_URL: "http://cyborgdb-service:19530"
       # Type of vectordb used to store embedding supported type milvus
       APP_VECTORSTORE_NAME: "cyborgdb"
-      # APP_VECTORSTORE_URL: "http://localhost:19530"
-      # # Type of vectordb used to store embedding supported type milvus
-      # APP_VECTORSTORE_NAME: "cyborgdb"
-
-      # Type of index to be used for vectorstore
-      # APP_VECTORSTORE_INDEXTYPE: ${APP_VECTORSTORE_INDEXTYPE:-"IVF_FLAT"}
-
-      # # API KEY for the vector store
-      # APP_VECTORSTORE_NLIST: ${APP_VECTORSTORE_NLIST:-64}
-      # APP_VECTORSTORE_METRICTYPE: ${APP_VECTORSTORE_METRICTYPE:-"euclidean"}
 
       CYBORGDB_API_KEY: ${CYBORGDB_API_KEY:-}
+      CYBORGDB_INDEX_KEY: ${CYBORGDB_INDEX_KEY:-}
 
       # APP_VECTORSTORE_INDEXTYPE: ${APP_VECTORSTORE_INDEXTYPE:-"GPU_CAGRA"}
       # Type of vectordb search to be used

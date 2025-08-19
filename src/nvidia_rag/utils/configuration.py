@@ -15,12 +15,10 @@
 """The definition of the application configuration."""
 
 import os
+import base64
 from .configuration_wizard import ConfigWizard
 from .configuration_wizard import configclass
 from .configuration_wizard import configfield
-
-from cyborgdb import generate_key
-
 
 @configclass
 class VectorStoreConfig(ConfigWizard):
@@ -95,9 +93,10 @@ class VectorStoreConfig(ConfigWizard):
         help_txt="CyborgDB API key (required only if using CyborgDB as vector store)",
     )
 
-    index_key: bytes = configfield(
+    _index_key: str = configfield(
         "index_key",
-        default=generate_key(),
+        default='',
+        env_name="CYBORGDB_INDEX_KEY",
         help_txt="CyborgDB index key (required only if using CyborgDB as vector store)",
     )
 
@@ -124,6 +123,15 @@ class VectorStoreConfig(ConfigWizard):
         default=8,
         help_txt="Number of dimensions for product quantization",
     )
+
+    @property
+    def index_key(self) -> bytes:
+        """Convert the base64 string index_key back to bytes."""
+        if isinstance(self._index_key, bytes):
+            return self._index_key
+        if self._index_key:
+            return base64.b64decode(self._index_key)
+        return b''
 
 
 @configclass
