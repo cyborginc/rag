@@ -47,6 +47,7 @@ except ImportError:
     logger.info("CyborgDB not installed. Only Milvus will be available.")
     CYBORGDB_AVAILABLE = False
 
+DOCUMENT_EMBEDDER = document_embedder = get_embedding_model(model=CONFIG.embeddings.model_name, url=CONFIG.embeddings.server_url)
 
 def create_vectorstore_langchain(document_embedder, collection_name: str = "", vdb_endpoint: str = "") -> VectorStore:
     """Create the vector db index for langchain (supports both Milvus and CyborgDB)."""
@@ -147,7 +148,8 @@ def _create_cyborgdb_vectorstore(document_embedder, collection_name: str, vdb_en
         index_key=config.vector_store.index_key,
         api_key=api_key,
         api_url=vdb_endpoint,
-        embedding=None,
+        
+        embedding=DOCUMENT_EMBEDDER,
         index_type=config.vector_store.index_type.lower(),
         index_config_params={"n_lists": config.vector_store.nlist},
         metric=config.vector_store.metric
@@ -231,7 +233,7 @@ def _create_cyborgdb_collection(collection_name: str, vdb_endpoint: str, dimensi
             index_key=config.vector_store.index_key,
             api_key=config.vector_store.api_key,
             api_url=vdb_endpoint,
-            embedding=None,
+            embedding=DOCUMENT_EMBEDDER,
             index_type=config.vector_store.index_type.lower(),
             index_config_params={'n_lists': config.vector_store.nlist},
             dimension=dimension,
@@ -493,7 +495,7 @@ def _delete_cyborgdb_collections(
                 index_key=config.vector_store.index_key,
                 api_key=config.vector_store.api_key,
                 api_url=vdb_endpoint,
-                embedding=None,
+                embedding=DOCUMENT_EMBEDDER,
             )
             if store.delete(delete_index=True):
                 successful.append(name)
