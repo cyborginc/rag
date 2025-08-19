@@ -518,22 +518,24 @@ class NvidiaRAGIngestor():
         Main function called by ingestor server to delete collections in vector-DB
         """
         logger.info(f"Deleting collections {collection_names} at {vdb_endpoint}")
+        config = get_config()
 
         try:
             response = delete_collections(vdb_endpoint, collection_names)
-            # Delete citation metadata from Minio
-            for collection in collection_names:
-                collection_prefix = get_unique_thumbnail_id_collection_prefix(collection)
-                delete_object_names = MINIO_OPERATOR.list_payloads(collection_prefix)
-                MINIO_OPERATOR.delete_payloads(delete_object_names)
-
-            # Delete document summary from Minio
-            for collection in collection_names:
-                collection_prefix = get_unique_thumbnail_id_collection_prefix(f"summary_{collection}")
-                delete_object_names = MINIO_OPERATOR.list_payloads(collection_prefix)
-                if len(delete_object_names):
+            if config.vector_store.name == "milvus":
+                # Delete citation metadata from Minio
+                for collection in collection_names:
+                    collection_prefix = get_unique_thumbnail_id_collection_prefix(collection)
+                    delete_object_names = MINIO_OPERATOR.list_payloads(collection_prefix)
                     MINIO_OPERATOR.delete_payloads(delete_object_names)
-                    logger.info(f"Deleted all document summaries from Minio for collection: {collection}")
+
+                # Delete document summary from Minio
+                for collection in collection_names:
+                    collection_prefix = get_unique_thumbnail_id_collection_prefix(f"summary_{collection}")
+                    delete_object_names = MINIO_OPERATOR.list_payloads(collection_prefix)
+                    if len(delete_object_names):
+                        MINIO_OPERATOR.delete_payloads(delete_object_names)
+                        logger.info(f"Deleted all document summaries from Minio for collection: {collection}")
 
             return response
         except Exception as e:
