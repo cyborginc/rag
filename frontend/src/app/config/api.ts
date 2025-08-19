@@ -32,7 +32,7 @@ export const API_CONFIG = {
       },
       TASK_STATUS: "/status",
     },
-    VDB_ENDPOINT: process.env.NEXT_PUBLIC_VDB_ENDPOINT ?? "http://milvus:19530",
+    VDB_ENDPOINT: process.env.NEXT_PUBLIC_VDB_ENDPOINT ?? "http://cyborgdb-service:19530",
   },
   CHAT: {
     BASE_URL:
