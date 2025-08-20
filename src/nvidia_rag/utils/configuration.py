@@ -127,8 +127,6 @@ class VectorStoreConfig(ConfigWizard):
     @property
     def index_key(self) -> bytes:
         """Convert the base64 string index_key back to bytes."""
-        if isinstance(self._index_key, bytes):
-            return self._index_key
         if self._index_key:
             return base64.b64decode(self._index_key)
         return b''
