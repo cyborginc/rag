@@ -579,11 +579,11 @@ class Cyborg(VDB):
             self.write_to_index(flat_records)
             
             # Train index if we have enough data
-            min_records_for_training = 2 * self.n_lists
-            logger.debug(f"Records: {len(records)}, Min for training: {min_records_for_training}")
-            
-            if len(records) >= min_records_for_training:
-                logger.info(f"Step 3: Training index (have {len(records)} records, "
+            min_records_for_training = self.n_lists
+            logger.debug(f"Records: {len(flat_records)}, Min for training: {min_records_for_training}")
+
+            if len(flat_records) >= min_records_for_training:
+                logger.info(f"Step 3: Training index (have {len(flat_records)} records, "
                            f"need {min_records_for_training})")
                 try:
                     self.train()
@@ -592,7 +592,7 @@ class Cyborg(VDB):
                     logger.debug("Training failure details:", exc_info=True)
             else:
                 logger.info(f"Skipping training - insufficient records "
-                           f"({len(records)} < {min_records_for_training})")
+                           f"({len(flat_records)} < {min_records_for_training})")
         else:
             logger.warning("No records provided to process")
         
