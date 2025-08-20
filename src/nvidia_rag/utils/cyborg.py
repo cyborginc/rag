@@ -94,6 +94,7 @@ class Cyborg(VDB):
         # Initialize client
         self._client = None
         self._index = None
+        self.total_record = 0
         logger.debug("Client and index initialized to None (lazy loading)")
         
     @property
@@ -318,7 +319,9 @@ class Cyborg(VDB):
             elif "metadata" in record and "embedding" in record["metadata"]:
                 item["vector"] = record["metadata"]["embedding"]
                 vector_found = True
-                logger.debug(f"Found embedding in metadata, length: {len(record['metadata']['embedding'])}")
+                if item["vector"]:
+                    logger.debug(f"Found embedding in metadata, length: {len(item["vector"])}")
+
             
             if not vector_found:
                 logger.warning(f"No vector/embedding found for record {id_value}")
@@ -513,7 +516,6 @@ class Cyborg(VDB):
                 batch_size=batch_size,
                 max_iters=max_iters,
                 tolerance=tolerance,
-                max_memory=max_memory
             )
             logger.info("Index training completed successfully")
         except Exception as e:
@@ -575,15 +577,17 @@ class Cyborg(VDB):
                 logger.warning("No records to write after normalization")
                 return
 
-            logger.info(f"Step 2: Writing {len(records)} records to index")
+            logger.info(f"Step 2: Writing {len(flat_records)} records to index")
             self.write_to_index(flat_records)
-            
+            self.total_record += len(flat_records)
+            logger.info(f"Step 2.1: total record {self.total_record}")
             # Train index if we have enough data
             min_records_for_training = self.n_lists
-            logger.debug(f"Records: {len(flat_records)}, Min for training: {min_records_for_training}")
+            logger.debug(f"Flatten Records: {len(flat_records)}, Min for training: {min_records_for_training}")
 
-            if len(flat_records) >= min_records_for_training:
-                logger.info(f"Step 3: Training index (have {len(flat_records)} records, "
+            
+            if self.total_record >= min_records_for_training:
+                logger.info(f"Step 3: Training index (have {self.total_record} records, "
                            f"need {min_records_for_training})")
                 try:
                     self.train()
@@ -592,7 +596,7 @@ class Cyborg(VDB):
                     logger.debug("Training failure details:", exc_info=True)
             else:
                 logger.info(f"Skipping training - insufficient records "
-                           f"({len(flat_records)} < {min_records_for_training})")
+                           f"({self.total_record} < {min_records_for_training})")
         else:
             logger.warning("No records provided to process")
         
