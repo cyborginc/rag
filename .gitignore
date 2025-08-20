@@ -80,8 +80,4 @@ cover/
 
 # Workbench Project Layout
 
-# SSL Certificates
-cert.pem
-key.pem
-
 notebooks/.env
