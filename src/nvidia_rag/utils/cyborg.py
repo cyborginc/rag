@@ -476,7 +476,7 @@ class Cyborg(VDB):
         logger.debug(f"Batch size: {batch_size}")
         
         # Get all IDs (this is a limitation - CyborgDB doesn't have a direct "get all" method)
-        # In practice, you'd need to track IDs separately or implement a scan method
+        # CyborgDB will expose this method in an upcoming release
         logger.error("Reindexing not implemented - CyborgDB lacks document scan capability")
         raise NotImplementedError(
             "Reindexing requires tracking document IDs separately. "
