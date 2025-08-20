@@ -814,6 +814,15 @@ def retreive_docs_from_retriever(retriever, retriever_query: str, expr: str, ote
     retriever_chain = {"context": retriever_lambda} | RunnableAssign({"context": lambda input: input["context"]})
     retriever_docs = retriever_chain.invoke(retriever_query, config={'run_name':'retriever'})
     docs = retriever_docs.get("context", [])
+    
+    # Truncate document content for CyborgDB to prevent reranker errors
+    if config.vector_store.name == "cyborgdb":
+        max_content_length = int(os.getenv('MAX_DOCUMENT_CONTENT_LENGTH', '2000'))  # Smaller limit for reranker
+        for doc in docs:
+            if len(doc.page_content) > max_content_length:
+                logger.debug(f"Truncating CyborgDB document from {len(doc.page_content)} to {max_content_length} chars")
+                doc.page_content = doc.page_content[:max_content_length] + "...[truncated]"
+    
     collection_name = retriever.vectorstore.collection_name if hasattr(retriever.vectorstore, 'collection_name') else retriever.vectorstore.index_name
     end_time = time.time()
     latency = end_time - start_time
@@ -823,36 +832,7 @@ def retreive_docs_from_retriever(retriever, retriever_query: str, expr: str, ote
 
 
 def add_collection_name_to_retreived_docs(docs: List[Document], collection_name: str) -> List[Document]:
-    """Add the collection name to the retreived documents and truncate content if needed."""
-    
-    # Configuration for content truncation
-    MAX_CONTENT_LENGTH = int(os.getenv('MAX_DOCUMENT_CONTENT_LENGTH', '4000'))  # Characters per document
-    MAX_TOTAL_CONTENT = int(os.getenv('MAX_TOTAL_CONTEXT_LENGTH', '100000'))  # Total characters for all docs
-    
-    total_content_length = 0
-    truncated_docs = []
-    
+    """Add the collection name to the retreived documents."""
     for doc in docs:
         doc.metadata["collection_name"] = collection_name
-        
-        # Truncate individual document content if too long
-        if len(doc.page_content) > MAX_CONTENT_LENGTH:
-            logger.debug(f"Truncating document content from {len(doc.page_content)} to {MAX_CONTENT_LENGTH} chars")
-            doc.page_content = doc.page_content[:MAX_CONTENT_LENGTH] + "...[truncated]"
-        
-        # Check if adding this document would exceed total limit
-        if total_content_length + len(doc.page_content) > MAX_TOTAL_CONTENT:
-            remaining_space = MAX_TOTAL_CONTENT - total_content_length
-            if remaining_space > 500:  # Only add if we have meaningful space left
-                doc.page_content = doc.page_content[:remaining_space] + "...[truncated]"
-                truncated_docs.append(doc)
-                logger.info(f"Reached total context limit. Truncating remaining documents. Added {len(truncated_docs)} of {len(docs)} docs")
-            break
-        
-        total_content_length += len(doc.page_content)
-        truncated_docs.append(doc)
-    
-    if len(truncated_docs) < len(docs):
-        logger.warning(f"Context limit reached: Using {len(truncated_docs)} of {len(docs)} retrieved documents")
-    
-    return truncated_docs
+    return docs

@@ -335,13 +335,13 @@ class Cyborg(VDB):
                 # Rename 'content' -> '_content' if it exists and truncate if needed
                 if "content" in metadata:
                     content = metadata.pop("content")
-                    # Get max content length from env or use default
-                    max_content_length = int(os.environ.get('MAX_DOCUMENT_CONTENT_LENGTH', '4000'))
+                    # Get max content length from env or use default (2000 chars to prevent reranker issues)
+                    max_content_length = int(os.environ.get('MAX_DOCUMENT_CONTENT_LENGTH', '2000'))
                     # Use the smaller of env setting or Milvus limit
                     max_length = min(max_content_length, 65535)
                     if content and len(content) > max_length:
                         logger.warning(f"Truncating content from {len(content)} to {max_length} chars for record {id_value}")
-                        content = content[:max_length]
+                        content = content[:max_length] + "...[truncated]"
                     metadata["_content"] = content
                 if "source_metadata" in metadata:
                     metadata["source"] = metadata.pop("source_metadata")    
@@ -701,13 +701,13 @@ def cleanup_records(
         # Check and truncate content length to match configured limit
         if "metadata" in record and "content" in record["metadata"]:
             content = record["metadata"]["content"]
-            # Get max content length from env or use default
-            max_content_length = int(os.environ.get('MAX_DOCUMENT_CONTENT_LENGTH', '4000'))
+            # Get max content length from env or use default (2000 chars to prevent reranker issues)
+            max_content_length = int(os.environ.get('MAX_DOCUMENT_CONTENT_LENGTH', '2000'))
             # Use the smaller of env setting or Milvus limit
             max_length = min(max_content_length, 65535)
             if content and len(content) > max_length:
                 logger.warning(f"Content too long ({len(content)} chars) in record {idx + 1}, truncating to {max_length}")
-                record["metadata"]["content"] = content[:max_length]
+                record["metadata"]["content"] = content[:max_length] + "...[truncated]"
                 skipped_too_long += 1
         
         cleaned.append(record)
