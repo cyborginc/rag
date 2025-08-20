@@ -33,7 +33,7 @@ class Cyborg(VDB):
         index_name: str = "cyborg_index",
         api_url: str = "http://localhost:8000",
         api_key: Optional[str] = None,
-        index_key: bytes = None,
+        index_key: Optional[bytes] = None,
         verify_ssl: Optional[bool] = False,
         index_type: str = "IVFFlat",
         dimension: int = 1536,
@@ -86,7 +86,7 @@ class Cyborg(VDB):
         if self.index_key is None:
 
             logger.info(f"index key not provided for {index_name}")
-            raise
+            raise ValueError("index_key must be provided for CyborgDB initialization")
         else:
             logger.info(f"Using provided index key for {index_name}")
             logger.debug(f"Provided key length: {len(self.index_key)} bytes")
@@ -291,9 +291,17 @@ class Cyborg(VDB):
 
             for k, v in record.items():
                 logger.debug(f"  attr='{k}' type={type(v).__name__} value={repr(v)[:20]}")
+
             # Extract ID
-            id_value = str(uuid.uuid4())
-            logger.debug(f"Generated new UUID for record ID: {id_value}")
+            if "id" in record and record["id"] is not None:
+                id_value = str(record["id"])
+                logger.debug(f"Using provided ID: {id_value}")
+            elif "_id" in record and record["_id"] is not None:
+                id_value = str(record["_id"])
+                logger.debug(f"Using provided _id: {id_value}")
+            else:
+                id_value = str(uuid.uuid4())
+                logger.debug(f"Generated new UUID for record ID: {id_value}")
 
             item = {"id": id_value}
             
@@ -314,24 +322,6 @@ class Cyborg(VDB):
             
             if not vector_found:
                 logger.warning(f"No vector/embedding found for record {id_value}")
-            
-            # Handle content/text field
-            # content_found = False
-            # if "text" in record:
-            #     item["contents"] = record["text"]
-            #     content_found = True
-            #     logger.debug(f"Found text field, length: {len(record['text'])}")
-            # elif "content" in record:
-            #     item["contents"] = record["content"]
-            #     content_found = True
-            #     logger.debug(f"Found content field, length: {len(record['content'])}")
-            # elif "metadata" in record and "content" in record["metadata"]:
-            #     item["contents"] = record["metadata"]["content"]
-            #     content_found = True
-            #     logger.debug(f"Found content in metadata, length: {len(record['metadata']['content'])}")
-            
-            # if not content_found:
-            #     logger.debug(f"No content/text found for record {id_value}")
             
             # Handle metadata
             metadata = {}
