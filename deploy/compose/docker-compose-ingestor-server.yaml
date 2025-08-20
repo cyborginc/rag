@@ -87,8 +87,7 @@ services:
       SUMMARY_LLM_MAX_CHUNK_LENGTH: ${SUMMARY_LLM_MAX_CHUNK_LENGTH:-50000}
       SUMMARY_CHUNK_OVERLAP: ${SUMMARY_CHUNK_OVERLAP:-200}
       # Log level for server, supported level NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
-      # LOGLEVEL: ${LOGLEVEL:-INFO}
-      LOGLEVEL: DEBUG
+      LOGLEVEL: ${LOGLEVEL:-INFO}
 
       # [Optional] Redis configuration for task status and result storage
       REDIS_HOST: ${REDIS_HOST:-redis}
