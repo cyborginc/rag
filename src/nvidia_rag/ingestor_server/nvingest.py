@@ -156,18 +156,21 @@ def get_nv_ingest_ingestor(
             }
         elif config.vector_store.name == "cyborgdb":
             cyborg_op = Cyborg(
+                # CyborgDB configurations
                 index_name=collection_name,
                 api_url=vdb_endpoint or config.vector_store.url,
-                api_key=get_env_variable(variable_name="CYBORGDB_API_KEY", default_value=""),
-                verify_ssl=config.vector_store.verify_ssl,  # Get SSL verification setting if available
+                api_key=config.vector_store.api_key,
+                verify_ssl=config.vector_store.verify_ssl,
                 index_key=config.vector_store.index_key,
+
                 # Index configuration
                 index_type=config.vector_store.index_type,
                 dimension=config.embeddings.dimensions,
                 n_lists=config.vector_store.nlist,
-                pq_bits=config.vector_store.pq_bits,       # For IVFPQ
-                pq_dim=config.vector_store.pq_dim,         # For IVFPQ
+                pq_bits=config.vector_store.pq_bits,
+                pq_dim=config.vector_store.pq_dim,
                 metric=config.vector_store.metric,
+
                 # Embedding model configuration
                 embedding_model=config.embeddings.model_name if hasattr(config.embeddings, "model_name") else None,
                 
@@ -186,7 +189,7 @@ def get_nv_ingest_ingestor(
                 "vdb_op": cyborg_op,
                 "collection_name": collection_name,
                 "cyborgdb_endpoint": vdb_endpoint or config.vector_store.url,
-                "cyborgdb_api_key": get_env_variable(variable_name="CYBORGDB_API_KEY", default_value=""),
+                "cyborgdb_api_key": config.vector_store.api_key,
 
                 # Additional configurations
                 "enable_images": config.nv_ingest.extract_images,
