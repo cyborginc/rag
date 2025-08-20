@@ -823,7 +823,36 @@ def retreive_docs_from_retriever(retriever, retriever_query: str, expr: str, ote
 
 
 def add_collection_name_to_retreived_docs(docs: List[Document], collection_name: str) -> List[Document]:
-    """Add the collection name to the retreived documents."""
+    """Add the collection name to the retreived documents and truncate content if needed."""
+    
+    # Configuration for content truncation
+    MAX_CONTENT_LENGTH = int(os.getenv('MAX_DOCUMENT_CONTENT_LENGTH', '4000'))  # Characters per document
+    MAX_TOTAL_CONTENT = int(os.getenv('MAX_TOTAL_CONTEXT_LENGTH', '100000'))  # Total characters for all docs
+    
+    total_content_length = 0
+    truncated_docs = []
+    
     for doc in docs:
         doc.metadata["collection_name"] = collection_name
-    return docs
+        
+        # Truncate individual document content if too long
+        if len(doc.page_content) > MAX_CONTENT_LENGTH:
+            logger.debug(f"Truncating document content from {len(doc.page_content)} to {MAX_CONTENT_LENGTH} chars")
+            doc.page_content = doc.page_content[:MAX_CONTENT_LENGTH] + "...[truncated]"
+        
+        # Check if adding this document would exceed total limit
+        if total_content_length + len(doc.page_content) > MAX_TOTAL_CONTENT:
+            remaining_space = MAX_TOTAL_CONTENT - total_content_length
+            if remaining_space > 500:  # Only add if we have meaningful space left
+                doc.page_content = doc.page_content[:remaining_space] + "...[truncated]"
+                truncated_docs.append(doc)
+                logger.info(f"Reached total context limit. Truncating remaining documents. Added {len(truncated_docs)} of {len(docs)} docs")
+            break
+        
+        total_content_length += len(doc.page_content)
+        truncated_docs.append(doc)
+    
+    if len(truncated_docs) < len(docs):
+        logger.warning(f"Context limit reached: Using {len(truncated_docs)} of {len(docs)} retrieved documents")
+    
+    return truncated_docs

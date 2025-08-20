@@ -1,6 +1,7 @@
 # cyborg.py
 import logging
 import json
+import os
 import numpy as np
 from typing import Dict, List, Optional, Union, Any
 from pathlib import Path
@@ -334,10 +335,13 @@ class Cyborg(VDB):
                 # Rename 'content' -> '_content' if it exists and truncate if needed
                 if "content" in metadata:
                     content = metadata.pop("content")
-                    # Truncate content to match Milvus's 65535 char limit
-                    if content and len(content) > 65535:
-                        logger.warning(f"Truncating content from {len(content)} to 65535 chars for record {id_value}")
-                        content = content[:65535]
+                    # Get max content length from env or use default
+                    max_content_length = int(os.environ.get('MAX_DOCUMENT_CONTENT_LENGTH', '4000'))
+                    # Use the smaller of env setting or Milvus limit
+                    max_length = min(max_content_length, 65535)
+                    if content and len(content) > max_length:
+                        logger.warning(f"Truncating content from {len(content)} to {max_length} chars for record {id_value}")
+                        content = content[:max_length]
                     metadata["_content"] = content
                 if "source_metadata" in metadata:
                     metadata["source"] = metadata.pop("source_metadata")    
@@ -694,12 +698,16 @@ def cleanup_records(
             skipped_no_content += 1
             continue
         
-        # Check and truncate content length to match Milvus limit
+        # Check and truncate content length to match configured limit
         if "metadata" in record and "content" in record["metadata"]:
             content = record["metadata"]["content"]
-            if content and len(content) > 65535:
-                logger.warning(f"Content too long ({len(content)} chars) in record {idx + 1}, truncating to 65535")
-                record["metadata"]["content"] = content[:65535]
+            # Get max content length from env or use default
+            max_content_length = int(os.environ.get('MAX_DOCUMENT_CONTENT_LENGTH', '4000'))
+            # Use the smaller of env setting or Milvus limit
+            max_length = min(max_content_length, 65535)
+            if content and len(content) > max_length:
+                logger.warning(f"Content too long ({len(content)} chars) in record {idx + 1}, truncating to {max_length}")
+                record["metadata"]["content"] = content[:max_length]
                 skipped_too_long += 1
         
         cleaned.append(record)
