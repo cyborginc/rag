@@ -331,9 +331,14 @@ class Cyborg(VDB):
             if "metadata" in record:
                 logger.debug(f"Before metadata fields change: {list(record['metadata'].keys())}")
                 metadata.update(record["metadata"])
-                # Rename 'content' -> '_content' if it exists
+                # Rename 'content' -> '_content' if it exists and truncate if needed
                 if "content" in metadata:
-                    metadata["_content"] = metadata.pop("content")
+                    content = metadata.pop("content")
+                    # Truncate content to match Milvus's 65535 char limit
+                    if content and len(content) > 65535:
+                        logger.warning(f"Truncating content from {len(content)} to 65535 chars for record {id_value}")
+                        content = content[:65535]
+                    metadata["_content"] = content
                 if "source_metadata" in metadata:
                     metadata["source"] = metadata.pop("source_metadata")    
                 logger.debug(f"Added metadata fields: {list(metadata.keys())}")
@@ -671,6 +676,7 @@ def cleanup_records(
     cleaned = []
     skipped_no_embedding = 0
     skipped_no_content = 0
+    skipped_too_long = 0
     
     for idx, record in enumerate(records):
         logger.debug(f"Checking record {idx + 1}/{len(records)}")
@@ -688,11 +694,20 @@ def cleanup_records(
             skipped_no_content += 1
             continue
         
+        # Check and truncate content length to match Milvus limit
+        if "metadata" in record and "content" in record["metadata"]:
+            content = record["metadata"]["content"]
+            if content and len(content) > 65535:
+                logger.warning(f"Content too long ({len(content)} chars) in record {idx + 1}, truncating to 65535")
+                record["metadata"]["content"] = content[:65535]
+                skipped_too_long += 1
+        
         cleaned.append(record)
     
     logger.info(f"Record cleaning complete: {len(cleaned)} cleaned, "
                f"{skipped_no_embedding} skipped (no embedding), "
-               f"{skipped_no_content} skipped (no content)")
+               f"{skipped_no_content} skipped (no content), "
+               f"{skipped_too_long} truncated (too long)")
     
     return cleaned
 
