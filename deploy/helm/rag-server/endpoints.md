@@ -5,7 +5,7 @@ This document describes the configurable endpoints used by the RAG server and it
 ## Core Service Endpoints
 
 ### Vector Store
-- **APP_VECTORSTORE_URL**: URL for the vector store service (default: "http://localhost:19530")
+- **APP_VECTORSTORE_URL**: URL for the vector store service (default: "http://milvus:19530")
 - **APP_VECTORSTORE_NAME**: Type of vector store (default: "milvus")
 - **APP_VECTORSTORE_SEARCHTYPE**: Type of vector store search (default: "dense")
 
