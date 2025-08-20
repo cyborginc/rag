@@ -1,8 +1,25 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 """The wrapper for interacting with milvus/cyborgdb vectorstore and associated functions.
-Extended to support CyborgDB as an additional vector store option.
+1. create_vectorstore_langchain: Create the vector db index for langchain.
+2. get_vectorstore: Get the vectorstore object.
+3. create_collections: Create multiple collections in the vector database.
+4. get_collection: Get the list of all collection in vectorstore along with the number of rows in each collection.
+5. delete_collections: Delete a list of collections from the vector database.
+6. get_docs_vectorstore_langchain: Retrieve filenames stored in the vector store implemented in LangChain (Milvus only).
 """
 
 import os
@@ -47,7 +64,7 @@ except ImportError:
     logger.info("CyborgDB not installed. Only Milvus will be available.")
     CYBORGDB_AVAILABLE = False
 
-DOCUMENT_EMBEDDER = document_embedder = get_embedding_model(model=CONFIG.embeddings.model_name, url=CONFIG.embeddings.server_url)
+DOCUMENT_EMBEDDER = get_embedding_model(model=CONFIG.embeddings.model_name, url=CONFIG.embeddings.server_url)
 
 def create_vectorstore_langchain(document_embedder, collection_name: str = "", vdb_endpoint: str = "") -> VectorStore:
     """Create the vector db index for langchain (supports both Milvus and CyborgDB)."""
@@ -149,7 +166,7 @@ def _create_cyborgdb_vectorstore(document_embedder, collection_name: str, vdb_en
         api_key=api_key,
         api_url=vdb_endpoint,
         
-        embedding=DOCUMENT_EMBEDDER,
+        embedding=document_embedder,
         index_type=config.vector_store.index_type.lower(),
         index_config_params={"n_lists": config.vector_store.nlist},
         metric=config.vector_store.metric
@@ -312,9 +329,9 @@ def get_collection(vdb_endpoint: str = "") -> Dict[str, Any]:
     
     config = get_config()
 
-    print(f"\n\n\t\tVDB ENDPOINT:\t{vdb_endpoint}\n")
-    print(f"\n\n\t\tVECTOR STORE NAME:\t{config.vector_store.name}\n")
-    
+    logger.debug(f"VDB ENDPOINT: {vdb_endpoint}")
+    logger.debug(f"VECTOR STORE NAME: {config.vector_store.name}")
+
     if config.vector_store.name == "milvus":
         return _get_milvus_collections(vdb_endpoint)
     elif config.vector_store.name == "cyborgdb":
