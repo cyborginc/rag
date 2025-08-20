@@ -267,8 +267,7 @@ class NvidiaRAGIngestor():
 
             logger.info("Filepaths for ingestion after validation: %s", filepaths)
 
-            config = get_config()
-            if config.vector_store.name == "milvus": 
+            if CONFIG.vector_store.name == "milvus": 
                 # Peform ingestion using nvingest for all files that have not failed
                 # Check if the provided collection_name exists in vector-DB
                 # Connect to Milvus to check for collection availability
@@ -281,7 +280,7 @@ class NvidiaRAGIngestor():
                         raise ValueError(f"Collection {collection_name} does not exist in {vdb_endpoint}. Ensure a collection is created using POST /collections endpoint first.")
                 finally:
                     connections.disconnect(connection_alias)
-            elif config.vector_store.name == "cyborgdb": 
+            elif CONFIG.vector_store.name == "cyborgdb": 
                 # should we check over here
                 logger.info('in cyborgdb for ingesting')
 
@@ -360,10 +359,8 @@ class NvidiaRAGIngestor():
         documents = await self.__prepare_summary_documents(results, collection_name)
         # Generate summary for each document
         documents = await self.__generate_summary_for_documents(documents)
-        config = get_config()
-        if config.vector_store.name == "milvus":
-
-            # # Add document summary to minio
+        if CONFIG.vector_store.name == "milvus":
+            # Add document summary to minio
             await self.__put_document_summary_to_minio(documents)
         end_time = time.time()
         logger.info(f"Document summary ingestion completed! Time taken: {end_time - start_time} seconds")
@@ -518,11 +515,10 @@ class NvidiaRAGIngestor():
         Main function called by ingestor server to delete collections in vector-DB
         """
         logger.info(f"Deleting collections {collection_names} at {vdb_endpoint}")
-        config = get_config()
 
         try:
             response = delete_collections(vdb_endpoint, collection_names)
-            if config.vector_store.name == "milvus":
+            if CONFIG.vector_store.name == "milvus":
                 # Delete citation metadata from Minio
                 for collection in collection_names:
                     collection_prefix = get_unique_thumbnail_id_collection_prefix(collection)
@@ -861,7 +857,6 @@ class NvidiaRAGIngestor():
         else:
             csv_file_path = None
 
-        config = get_config()
         nv_ingest_ingestor = get_nv_ingest_ingestor(
             nv_ingest_client_instance=NV_INGEST_CLIENT_INSTANCE,
             filepaths=filepaths,
@@ -894,7 +889,7 @@ class NvidiaRAGIngestor():
             error_message = "NV-Ingest ingestion failed with no results. Please check the ingestor-server microservice logs for more details."
             logger.error(error_message)
             raise Exception(error_message)
-        if config.vector_store.name == "milvus":
+        if CONFIG.vector_store.name == "milvus":
             try:
                 start_time = time.time()
                 self.__put_content_to_minio(
