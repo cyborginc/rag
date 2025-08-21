@@ -103,8 +103,13 @@ class Cyborg(VDB):
         """Lazy initialization of client."""
         if self._client is None:
             logger.info("Initializing CyborgDB client (lazy load)")
+            # Safely log API key - show only first 4 characters
+            if self.api_key:
+                masked_key = f"{self.api_key[:min(4, len(self.api_key))]}..."
+            else:
+                masked_key = 'None'
             logger.debug(f"Client params: api_url={self.api_url}, "
-                        f"api_key={'***' if self.api_key else 'None'}, "
+                        f"api_key={masked_key}, "
                         f"verify_ssl={self.verify_ssl}")
             try:
                 self._client = Client(
@@ -292,7 +297,9 @@ class Cyborg(VDB):
             logger.debug(f"Calling get() on record of type {type(record)}")
 
             for k, v in record.items():
-                logger.debug(f"  attr='{k}' type={type(v).__name__} value={repr(v)[:20]}")
+                value_repr = repr(v)
+                value_preview = value_repr[:20] + '...' if len(value_repr) > 20 else value_repr
+                logger.debug(f"  attr='{k}' type={type(v).__name__} value={value_preview}")
 
             # Extract ID
             if "id" in record and record["id"] is not None:
@@ -416,7 +423,9 @@ class Cyborg(VDB):
             
             try:
                 if isinstance(query, str):
-                    logger.info(f"Text query detected: '{query[:50]}...'")
+                    # Safely truncate query for logging
+                    query_preview = query[:50] + '...' if len(query) > 50 else query
+                    logger.info(f"Text query detected: '{query_preview}'")
                     # Text query - use query_contents
                     results = self._index.query(
                         query_contents=query,
@@ -445,12 +454,12 @@ class Cyborg(VDB):
                     logger.debug(f"Vector query completed, got {len(results) if results else 0} results")
                 
                 # Ensure results is always a list of lists
-                if results and not isinstance(results[0], list):
+                if results and len(results) > 0 and not isinstance(results[0], list):
                     logger.debug("Converting single result list to list of lists")
                     results = [results]
                 
                 logger.debug(f"Query {query_idx + 1} returned {len(results)} result sets")
-                if results and results[0]:
+                if results and len(results) > 0 and results[0] and len(results[0]) > 0:
                     logger.debug(f"Calling get on results[0][0] of type {type(results[0][0])}")
                     logger.debug(f"First result sample: id={results[0][0].get('id')}, "
                                f"distance={results[0][0].get('distance')}")
