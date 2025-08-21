@@ -25,15 +25,21 @@ services:
 
       ##===Vector DB specific configurations===
       # URL on which vectorstore is hosted
-      APP_VECTORSTORE_URL: "http://milvus:19530"
+      APP_VECTORSTORE_URL: "http://cyborgdb-service:19530"
       # Type of vectordb used to store embedding supported type milvus
-      APP_VECTORSTORE_NAME: "milvus"
+      APP_VECTORSTORE_NAME: "cyborgdb"
       # Type of vectordb search to be used
       APP_VECTORSTORE_SEARCHTYPE: ${APP_VECTORSTORE_SEARCHTYPE:-"dense"} # Can be dense or hybrid
       # Boolean to enable GPU index for milvus vectorstore specific to nvingest
       APP_VECTORSTORE_ENABLEGPUINDEX: ${APP_VECTORSTORE_ENABLEGPUINDEX:-True}
       # Boolean to control GPU search for milvus vectorstore specific to nvingest
       APP_VECTORSTORE_ENABLEGPUSEARCH: ${APP_VECTORSTORE_ENABLEGPUSEARCH:-True}
+      # Vectorstore API key
+      APP_VECTORSTORE_APIKEY: ${CYBORGDB_API_KEY:-}
+      # Vectorstore 32-byte index key
+      APP_VECTORSTORE_INDEXKEY: ${APP_VECTORSTORE_INDEXKEY:-}
+      # Vectorstore SSL verification
+      APP_VECTORSTORE_VERIFYSSL: ${APP_VECTORSTORE_VERIFYSSL:-False}
       # vectorstore collection name to store embeddings
       COLLECTION_NAME: ${COLLECTION_NAME:-multimodal_data}
 

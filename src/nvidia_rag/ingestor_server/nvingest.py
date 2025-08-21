@@ -24,8 +24,7 @@ from typing import List
 
 from nvidia_rag.utils.common import get_config, get_env_variable, prepare_custom_metadata_dataframe
 from nv_ingest_client.client import NvIngestClient, Ingestor
-
-
+from nvidia_rag.utils.cyborg import Cyborg
 logger = logging.getLogger(__name__)
 
 ENABLE_NV_INGEST_VDB_UPLOAD = True # When enabled entire ingestion would be performed using nv-ingest
@@ -132,28 +131,72 @@ def get_nv_ingest_ingestor(
 
     # Add Vector-DB upload task
     if ENABLE_NV_INGEST_VDB_UPLOAD:
-        vdb_upload_kwargs = {
-            # Milvus configurations
-            "collection_name": collection_name,
-            "milvus_uri": vdb_endpoint or config.vector_store.url,
+        if config.vector_store.name == "milvus":
+            vdb_upload_kwargs = {
+                # Milvus configurations
+                "collection_name": collection_name,
+                "milvus_uri": vdb_endpoint or config.vector_store.url,
 
-            # Minio configurations
-            "minio_endpoint": os.getenv("MINIO_ENDPOINT"),
-            "access_key": os.getenv("MINIO_ACCESSKEY"),
-            "secret_key": os.getenv("MINIO_SECRETKEY"),
+                # Minio configurations
+                "minio_endpoint": os.getenv("MINIO_ENDPOINT"),
+                "access_key": os.getenv("MINIO_ACCESSKEY"),
+                "secret_key": os.getenv("MINIO_SECRETKEY"),
 
-            # Hybrid search configurations
-            "sparse": (config.vector_store.search_type == "hybrid"),
+                # Hybrid search configurations
+                "sparse": (config.vector_store.search_type == "hybrid"),
 
-            # Additional configurations
-            "enable_images": config.nv_ingest.extract_images,
-            "recreate": False, # Don't re-create milvus collection
-            "dense_dim": config.embeddings.dimensions,
+                # Additional configurations
+                "enable_images": config.nv_ingest.extract_images,
+                "recreate": False, # Don't re-create milvus collection
+                "dense_dim": config.embeddings.dimensions,
 
-            # GPU configurations
-            "gpu_index": config.vector_store.enable_gpu_index,
-            "gpu_search": config.vector_store.enable_gpu_search,
-        }
+                # GPU configurations
+                "gpu_index": config.vector_store.enable_gpu_index,
+                "gpu_search": config.vector_store.enable_gpu_search,
+            }
+        elif config.vector_store.name == "cyborgdb":
+            cyborg_op = Cyborg(
+                # CyborgDB configurations
+                index_name=collection_name,
+                api_url=vdb_endpoint or config.vector_store.url,
+                api_key=config.vector_store.api_key,
+                verify_ssl=config.vector_store.verify_ssl,
+                index_key=config.vector_store.index_key,
+
+                # Index configuration
+                index_type=config.vector_store.index_type,
+                dimension=config.embeddings.dimensions,
+                n_lists=config.vector_store.nlist,
+                pq_bits=config.vector_store.pq_bits,
+                pq_dim=config.vector_store.pq_dim,
+                metric=config.vector_store.metric,
+
+                # Embedding model configuration
+                embedding_model=config.embeddings.model_name if hasattr(config.embeddings, "model_name") else None,
+                
+                # Additional configurations
+                recreate=False,  # Don't re-create cyborgdb collection
+                
+                # Enable features based on extraction settings
+                enable_text=config.nv_ingest.extract_text,
+                enable_images=config.nv_ingest.extract_images,
+                enable_tables=config.nv_ingest.extract_tables,
+                enable_charts=config.nv_ingest.extract_charts,
+                enable_infographics=config.nv_ingest.extract_infographics,
+            )
+            vdb_upload_kwargs = {
+                # CyborgDB configurations
+                "vdb_op": cyborg_op,
+                "collection_name": collection_name,
+                "cyborgdb_endpoint": vdb_endpoint or config.vector_store.url,
+                "cyborgdb_api_key": config.vector_store.api_key,
+
+                # Additional configurations
+                "enable_images": config.nv_ingest.extract_images,
+                "recreate": False,  # Don't re-create cyborgdb collection
+            }
+        else:
+            raise ValueError(f"Unsupported vector store: {config.vector_store.name}")
         if csv_file_path is not None:
             # Add custom metadata configurations
             vdb_upload_kwargs.update({

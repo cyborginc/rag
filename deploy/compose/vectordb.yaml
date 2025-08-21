@@ -2,6 +2,7 @@ services:
 
   # Milvus can be made GPU accelerated by uncommenting the lines as specified below
   milvus:
+    profiles: ["milvus"]
     container_name: milvus-standalone
     image: milvusdb/milvus:v2.5.3-gpu # milvusdb/milvus:v2.5.3 for CPU
     command: ["milvus", "run", "standalone"]
@@ -36,6 +37,7 @@ services:
               device_ids: ['${VECTORSTORE_GPU_DEVICE_ID:-0}']
 
   etcd:
+    profiles: ["milvus"]
     container_name: milvus-etcd
     image: quay.io/coreos/etcd:v3.5.19
     environment:
@@ -53,6 +55,7 @@ services:
       retries: 3
 
   minio:
+    profiles: ["milvus"]
     container_name: milvus-minio
     image: minio/minio:RELEASE.2025-02-28T09-55-16Z
     environment:
@@ -70,6 +73,46 @@ services:
       timeout: 20s
       retries: 3
 
+  cyborgdb-service:
+    profiles: ["cyborgdb"]
+    container_name: cyborgdb-service
+    image: cyborginc/cyborgdb-service:latest
+    ports:
+      - "19530:19530"
+    environment:
+      - CYBORGDB_DB_TYPE=redis
+      - CYBORGDB_CONNECTION_STRING=host:cyborgdb-redis,port:6379,db:0
+      - CYBORGDB_API_KEY=${CYBORGDB_API_KEY:-}
+      - PORT=19530
+    depends_on:
+      cyborgdb-redis:
+        condition: service_healthy
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19530/v1/health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+  
+  cyborgdb-redis:
+    profiles: ["cyborgdb"]
+    container_name: cyborgdb-redis
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/redis:/data
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
 networks:
   default:
     name: nvidia-rag
+    external: true

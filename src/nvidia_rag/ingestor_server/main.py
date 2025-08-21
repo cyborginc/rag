@@ -84,7 +84,8 @@ logger = logging.getLogger(__name__)
 CONFIG = get_config()
 DOCUMENT_EMBEDDER = document_embedder = get_embedding_model(model=CONFIG.embeddings.model_name, url=CONFIG.embeddings.server_url)
 NV_INGEST_CLIENT_INSTANCE = get_nv_ingest_client()
-MINIO_OPERATOR = get_minio_operator()
+if CONFIG.vector_store.name == "milvus":
+    MINIO_OPERATOR = get_minio_operator()
 
 # NV-Ingest Batch Mode Configuration
 ENABLE_NV_INGEST_BATCH_MODE = os.getenv("ENABLE_NV_INGEST_BATCH_MODE", "true").lower() == "true"
@@ -266,18 +267,22 @@ class NvidiaRAGIngestor():
 
             logger.info("Filepaths for ingestion after validation: %s", filepaths)
 
-            # Peform ingestion using nvingest for all files that have not failed
-            # Check if the provided collection_name exists in vector-DB
-            # Connect to Milvus to check for collection availability
-            url = urlparse(vdb_endpoint)
-            connection_alias = f"milvus_{url.hostname}_{url.port}"
-            connections.connect(connection_alias, host=url.hostname, port=url.port)
+            if CONFIG.vector_store.name == "milvus": 
+                # Peform ingestion using nvingest for all files that have not failed
+                # Check if the provided collection_name exists in vector-DB
+                # Connect to Milvus to check for collection availability
+                url = urlparse(vdb_endpoint)
+                connection_alias = f"milvus_{url.hostname}_{url.port}"
+                connections.connect(connection_alias, host=url.hostname, port=url.port)
 
-            try:
-                if not utility.has_collection(collection_name, using=connection_alias):
-                    raise ValueError(f"Collection {collection_name} does not exist in {vdb_endpoint}. Ensure a collection is created using POST /collections endpoint first.")
-            finally:
-                connections.disconnect(connection_alias)
+                try:
+                    if not utility.has_collection(collection_name, using=connection_alias):
+                        raise ValueError(f"Collection {collection_name} does not exist in {vdb_endpoint}. Ensure a collection is created using POST /collections endpoint first.")
+                finally:
+                    connections.disconnect(connection_alias)
+            elif CONFIG.vector_store.name == "cyborgdb": 
+                # should we check over here
+                logger.info('in cyborgdb for ingesting')
 
             start_time = time.time()
             results, failures = await self.__nvingest_upload_doc(
@@ -354,8 +359,9 @@ class NvidiaRAGIngestor():
         documents = await self.__prepare_summary_documents(results, collection_name)
         # Generate summary for each document
         documents = await self.__generate_summary_for_documents(documents)
-        # # Add document summary to minio
-        await self.__put_document_summary_to_minio(documents)
+        if CONFIG.vector_store.name == "milvus":
+            # Add document summary to minio
+            await self.__put_document_summary_to_minio(documents)
         end_time = time.time()
         logger.info(f"Document summary ingestion completed! Time taken: {end_time - start_time} seconds")
 
@@ -512,19 +518,20 @@ class NvidiaRAGIngestor():
 
         try:
             response = delete_collections(vdb_endpoint, collection_names)
-            # Delete citation metadata from Minio
-            for collection in collection_names:
-                collection_prefix = get_unique_thumbnail_id_collection_prefix(collection)
-                delete_object_names = MINIO_OPERATOR.list_payloads(collection_prefix)
-                MINIO_OPERATOR.delete_payloads(delete_object_names)
-
-            # Delete document summary from Minio
-            for collection in collection_names:
-                collection_prefix = get_unique_thumbnail_id_collection_prefix(f"summary_{collection}")
-                delete_object_names = MINIO_OPERATOR.list_payloads(collection_prefix)
-                if len(delete_object_names):
+            if CONFIG.vector_store.name == "milvus":
+                # Delete citation metadata from Minio
+                for collection in collection_names:
+                    collection_prefix = get_unique_thumbnail_id_collection_prefix(collection)
+                    delete_object_names = MINIO_OPERATOR.list_payloads(collection_prefix)
                     MINIO_OPERATOR.delete_payloads(delete_object_names)
-                    logger.info(f"Deleted all document summaries from Minio for collection: {collection}")
+
+                # Delete document summary from Minio
+                for collection in collection_names:
+                    collection_prefix = get_unique_thumbnail_id_collection_prefix(f"summary_{collection}")
+                    delete_object_names = MINIO_OPERATOR.list_payloads(collection_prefix)
+                    if len(delete_object_names):
+                        MINIO_OPERATOR.delete_payloads(delete_object_names)
+                        logger.info(f"Deleted all document summaries from Minio for collection: {collection}")
 
             return response
         except Exception as e:
@@ -882,19 +889,19 @@ class NvidiaRAGIngestor():
             error_message = "NV-Ingest ingestion failed with no results. Please check the ingestor-server microservice logs for more details."
             logger.error(error_message)
             raise Exception(error_message)
-
-        try:
-            start_time = time.time()
-            self.__put_content_to_minio(
-                results=results,
-                collection_name=collection_name
-            )
-            end_time = time.time()
-            logger.info(f"== MinIO upload for collection_name: {collection_name} "
-                        f"for batch {batch_number} is complete! Time taken: {end_time - start_time} seconds ==")
-        except Exception as e:
-            logger.error("Failed to put content to minio: %s, citations would be disabled for collection: %s", str(e),
-                         collection_name, exc_info=logger.getEffectiveLevel() <= logging.DEBUG)
+        if CONFIG.vector_store.name == "milvus":
+            try:
+                start_time = time.time()
+                self.__put_content_to_minio(
+                    results=results,
+                    collection_name=collection_name
+                )
+                end_time = time.time()
+                logger.info(f"== MinIO upload for collection_name: {collection_name} "
+                            f"for batch {batch_number} is complete! Time taken: {end_time - start_time} seconds ==")
+            except Exception as e:
+                logger.error("Failed to put content to minio: %s, citations would be disabled for collection: %s", str(e),
+                            collection_name, exc_info=logger.getEffectiveLevel() <= logging.DEBUG)
 
         return results, failures
 
@@ -942,20 +949,21 @@ class NvidiaRAGIngestor():
                 )
                 failed_documents_filenames.add(filename)
         
-        # Add document to failed documents if it is not in the Milvus
-        filenames_in_vdb = set()
-        for document in self.get_documents(collection_name, vdb_endpoint).get("documents"):
-            filenames_in_vdb.add(document.get("document_name"))
-        for filepath in filepaths:
-            filename = os.path.basename(filepath)
-            if filename not in filenames_in_vdb and filename not in failed_documents_filenames:
-                failed_documents.append(
-                    {
-                        "document_name": filename,
-                        "error_message": "Ingestion did not complete successfully"
-                    }
-                )
-                failed_documents_filenames.add(filename)
+        if CONFIG.vector_store.name == "milvus":
+            # Add document to failed documents if it is not in the Milvus
+            filenames_in_vdb = set()
+            for document in self.get_documents(collection_name, vdb_endpoint).get("documents"):
+                filenames_in_vdb.add(document.get("document_name"))
+            for filepath in filepaths:
+                filename = os.path.basename(filepath)
+                if filename not in filenames_in_vdb and filename not in failed_documents_filenames:
+                    failed_documents.append(
+                        {
+                            "document_name": filename,
+                            "error_message": "Ingestion did not complete successfully"
+                        }
+                    )
+                    failed_documents_filenames.add(filename)
 
         if failed_documents:
             logger.error("Ingestion failed for %d document(s)", len(failed_documents))

@@ -15,10 +15,10 @@
 """The definition of the application configuration."""
 
 import os
+import base64
 from .configuration_wizard import ConfigWizard
 from .configuration_wizard import configclass
 from .configuration_wizard import configfield
-
 
 @configclass
 class VectorStoreConfig(ConfigWizard):
@@ -50,7 +50,7 @@ class VectorStoreConfig(ConfigWizard):
     )
     index_type: str = configfield(
         "index_type",
-        default="GPU_CAGRA",
+        default="IVFFlat",
         help_txt="Index of the vector db",  # IVF Flat for milvus
     )
 
@@ -85,6 +85,49 @@ class VectorStoreConfig(ConfigWizard):
         env_name="APP_VECTORSTORE_CONSISTENCYLEVEL",
         help_txt="Consistency level for vector store",
     )
+
+    api_key: str = configfield(
+        "api_key",
+        default="",
+        help_txt="CyborgDB API key (required only if using CyborgDB as vector store)",
+    )
+
+    _index_key: str = configfield(
+        "index_key",
+        default='',
+        help_txt="CyborgDB index key (required only if using CyborgDB as vector store)",
+    )
+
+    metric: str = configfield(
+        "metric",
+        default="euclidean", 
+        help_txt="Metric for vector similarity search",
+    )
+
+    verify_ssl: bool = configfield(
+        "verify_ssl",
+        default=False,
+        help_txt="Flag to verify SSL certificates",
+    )
+
+    pq_bits: int = configfield(
+        "pq_bits",
+        default=8,
+        help_txt="Number of bits for product quantization",
+    )
+
+    pq_dim: int = configfield(
+        "pq_dim",
+        default=8,
+        help_txt="Number of dimensions for product quantization",
+    )
+
+    @property
+    def index_key(self) -> bytes:
+        """Convert the base64 string index_key back to bytes."""
+        if self._index_key:
+            return base64.b64decode(self._index_key)
+        return b''
 
 
 @configclass

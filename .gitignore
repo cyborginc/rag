@@ -79,3 +79,5 @@ coverage.xml
 cover/
 
 # Workbench Project Layout
+
+notebooks/.env
