@@ -83,14 +83,21 @@ class Cyborg(VDB):
         kwargs.pop("self", None)
         super().__init__(**kwargs)
         
-        # Generate index key if not provided
+        # Validate index key
         if self.index_key is None:
-
             logger.info(f"index key not provided for {index_name}")
             raise ValueError("index_key must be provided for CyborgDB initialization")
         else:
-            logger.info(f"Using provided index key for {index_name}")
-            logger.debug(f"Provided key length: {len(self.index_key)} bytes")
+            # Validate key format - should match format from generate_key()
+            # generate_key() returns 32 random bytes
+            if isinstance(self.index_key, bytes):
+                if len(self.index_key) != 32:
+                    raise ValueError(f"Index key must be exactly 32 bytes (like from generate_key()), got {len(self.index_key)} bytes")
+                logger.info(f"Using valid 32-byte index key for {index_name}")
+                logger.debug(f"Index key validated: 32 bytes binary format")
+            else:
+                raise ValueError(f"Index key must be bytes (as returned by generate_key()), got {type(self.index_key).__name__}. "
+                               f"Use: index_key = generate_key()")
         
         # Initialize client
         self._client = None

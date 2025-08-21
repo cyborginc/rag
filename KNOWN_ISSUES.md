@@ -1,0 +1,2 @@
+1. Document viewing and metadata inspection features are not yet implemented for CyborgDB collections. This functionality will be added in a future release
+2. Large documents (>500KB PDFs) require content truncation to prevent reranker service errors. Documents are automatically truncated to 2000 characters (configurable via MAX_DOCUMENT_CONTENT_LENGTH environment variable) to stay within processing limits. Full document processing will be supported in a future release
