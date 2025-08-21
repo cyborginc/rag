@@ -73,8 +73,15 @@ class Cyborg(VDB):
                     f"index_key={'provided' if index_key else 'will generate'}, "
                     f"verify_ssl={verify_ssl}, embedding_model={embedding_model}")
         
+        # Log index-specific parameters
         if index_type == "IVFPQ":
-            logger.debug(f"IVFPQ specific params: pq_bits={pq_bits}, pq_dim={pq_dim}")
+            logger.debug(f"IVFPQ specific params: pq_bits={pq_bits}, pq_dim={pq_dim}, metric={metric}")
+        elif index_type == "IVFFlat":
+            logger.debug(f"IVFFlat specific params: dimension={dimension}, n_lists={n_lists}, metric={metric}")
+        elif index_type == "IVF":
+            logger.debug(f"IVF specific params: dimension={dimension}, n_lists={n_lists}, metric={metric}")
+        else:
+            logger.debug(f"Unknown index type '{index_type}' - using default params")
         
         logger.debug(f"Additional kwargs: {kwargs}")
         
