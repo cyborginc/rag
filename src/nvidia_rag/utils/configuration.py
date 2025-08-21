@@ -89,14 +89,12 @@ class VectorStoreConfig(ConfigWizard):
     api_key: str = configfield(
         "api_key",
         default="",
-        env_name="CYBORGDB_API_KEY",
         help_txt="CyborgDB API key (required only if using CyborgDB as vector store)",
     )
 
     _index_key: str = configfield(
         "index_key",
         default='',
-        env_name="CYBORGDB_INDEX_KEY",
         help_txt="CyborgDB index key (required only if using CyborgDB as vector store)",
     )
 

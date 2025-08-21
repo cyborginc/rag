@@ -34,11 +34,14 @@ services:
       APP_VECTORSTORE_ENABLEGPUINDEX: ${APP_VECTORSTORE_ENABLEGPUINDEX:-True}
       # Boolean to control GPU search for milvus vectorstore specific to nvingest
       APP_VECTORSTORE_ENABLEGPUSEARCH: ${APP_VECTORSTORE_ENABLEGPUSEARCH:-True}
+      # Vectorstore API key
+      APP_VECTORSTORE_APIKEY: ${CYBORGDB_API_KEY:-}
+      # Vectorstore 32-byte index key
+      APP_VECTORSTORE_INDEXKEY: ${APP_VECTORSTORE_INDEXKEY:-}
+      # Vectorstore SSL verification
+      APP_VECTORSTORE_VERIFYSSL: ${APP_VECTORSTORE_VERIFYSSL:-False}
       # vectorstore collection name to store embeddings
       COLLECTION_NAME: ${COLLECTION_NAME:-multimodal_data}
-
-      CYBORGDB_API_KEY: ${CYBORGDB_API_KEY:-}
-      CYBORGDB_INDEX_KEY: ${CYBORGDB_INDEX_KEY:-}
 
       ##===MINIO specific configurations===
       MINIO_ENDPOINT: "minio:9010"

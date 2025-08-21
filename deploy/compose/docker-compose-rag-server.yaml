@@ -31,11 +31,14 @@ services:
       APP_VECTORSTORE_URL: "http://cyborgdb-service:19530"
       # Type of vectordb used to store embedding supported type milvus
       APP_VECTORSTORE_NAME: "cyborgdb"
-
-      CYBORGDB_API_KEY: ${CYBORGDB_API_KEY:-}
-      CYBORGDB_INDEX_KEY: ${CYBORGDB_INDEX_KEY:-}
-
-      # APP_VECTORSTORE_INDEXTYPE: ${APP_VECTORSTORE_INDEXTYPE:-"GPU_CAGRA"}
+      # API key for vectorstore
+      APP_VECTORSTORE_APIKEY: ${CYBORGDB_API_KEY:-}
+      # Vectorstore 32-byte index key
+      APP_VECTORSTORE_INDEXKEY: ${APP_VECTORSTORE_INDEXKEY:-}
+      # Vectorstore SSL verification
+      APP_VECTORSTORE_VERIFYSSL: ${APP_VECTORSTORE_VERIFYSSL:-False}
+      # Vectorstore index type
+      APP_VECTORSTORE_INDEXTYPE: ${APP_VECTORSTORE_INDEXTYPE:-"IVFFLAT"}
       # Type of vectordb search to be used
       APP_VECTORSTORE_SEARCHTYPE: ${APP_VECTORSTORE_SEARCHTYPE:-"dense"} # Can be dense or hybrid
       # Milvus Consistency level for vector store, supported values are "Bounded", "Strong", "Session"
