@@ -581,10 +581,71 @@ def _get_docs_milvus(vectorstore: VectorStore, collection_name: str, vdb_endpoin
 
 def _get_docs_cyborgdb(vectorstore: VectorStore, collection_name: str, vdb_endpoint: str, settings) -> List[Dict[str, Any]]:
     """Get documents from CyborgDB."""
-    # CyborgDB doesn't have a direct way to list all documents
-    # This is a limitation of the current implementation
-    logger.warning("Listing all documents is not directly supported in CyborgDB")
-    return []
+    try:
+        extract_filename = lambda metadata: os.path.basename(metadata['source'] if isinstance(metadata['source'], str) else metadata.get('source', {}).get('source_name', ''))
+        
+        # Use CyborgDB's list_ids method to get all document IDs
+        if hasattr(vectorstore, 'list_ids'):
+            all_ids = vectorstore.list_ids()
+            logger.info(f"Retrieved {len(all_ids)} document IDs from CyborgDB")
+            
+            if not all_ids:
+                logger.info("No documents found in CyborgDB collection")
+                return []
+            
+            # Get documents in batches to avoid overwhelming the system
+            batch_size = 1000  # Process in batches of 1000
+            filepaths_added = set()
+            documents_list = []
+            
+            for i in range(0, len(all_ids), batch_size):
+                batch_ids = all_ids[i:i + batch_size]
+                logger.debug(f"Processing batch {i//batch_size + 1}: {len(batch_ids)} IDs")
+                
+                # Get document data for this batch
+                if hasattr(vectorstore, 'get_by_ids'):
+                    batch_docs = vectorstore.get_by_ids(batch_ids)
+                elif hasattr(vectorstore, 'index') and hasattr(vectorstore.index, 'get'):
+                    # Fallback to using the underlying index
+                    batch_docs = vectorstore.index.get(batch_ids, include=["contents", "metadata"])
+                else:
+                    logger.warning("CyborgDB vectorstore doesn't support batch document retrieval")
+                    batch_docs = []
+                
+                # Process each document in the batch
+                for doc in batch_docs:
+                    if doc and doc.get('metadata'):
+                        try:
+                            filename = extract_filename(doc['metadata'])
+                            
+                            if filename and filename not in filepaths_added:
+                                # Build metadata dict similar to Milvus approach
+                                metadata_dict = {}
+                                # Copy relevant metadata fields, excluding vector data
+                                for key, value in doc['metadata'].items():
+                                    if key not in ['vector', 'embedding']:  # Skip vector data
+                                        metadata_dict[key] = value
+                                
+                                documents_list.append({
+                                    "document_name": filename,
+                                    "metadata": metadata_dict
+                                })
+                                filepaths_added.add(filename)
+                                logger.debug(f"Added document: {filename}")
+                        except Exception as e:
+                            logger.debug(f"Error processing document metadata: {e}")
+                            continue
+            
+            logger.info(f"Retrieved {len(documents_list)} unique documents from CyborgDB")
+            return documents_list
+            
+        else:
+            logger.warning("CyborgDB vectorstore doesn't support list_ids method")
+            return []
+            
+    except Exception as e:
+        logger.error("Error occurred while retrieving documents from CyborgDB: %s", e)
+        return []
 
 
 def del_docs_vectorstore_langchain(vectorstore: VectorStore, filenames: List[str], collection_name: str="", include_upload_path: bool = False) -> bool:
