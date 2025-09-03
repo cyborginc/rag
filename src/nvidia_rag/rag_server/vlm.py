@@ -223,7 +223,8 @@ class VLM:
                         location=location,
                     )
                     config = get_config()
-                    if config.vector_store.name == "milvus":
+                    # if config.vector_store.name == "milvus":
+                    if True:
 
                         payload = get_minio_operator().get_payload(
                             object_name=unique_thumbnail_id

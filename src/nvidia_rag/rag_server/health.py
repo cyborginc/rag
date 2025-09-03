@@ -202,22 +202,36 @@ async def check_all_services_health() -> Dict[str, List[Dict[str, Any]]]:
         "nim": [],  # New unified category for NIM services
     }
 
-    if config.vector_store.name == "milvus":
+    # if config.vector_store.name == "milvus":
 
+    #     # MinIO health check
+    #     minio_endpoint = config.minio.endpoint
+    #     minio_access_key = config.minio.access_key
+    #     minio_secret_key = config.minio.secret_key
+    #     if minio_endpoint:
+    #         tasks.append(("object_storage", check_minio_health(
+    #             endpoint=minio_endpoint,
+    #             access_key=minio_access_key,
+    #             secret_key=minio_secret_key
+    #         )))
+
+    # Vector DB (Milvus) health check
+    if config.vector_store.url:
+        tasks.append(("databases", check_milvus_health(config.vector_store.url)))
         # MinIO health check
-        minio_endpoint = config.minio.endpoint
-        minio_access_key = config.minio.access_key
-        minio_secret_key = config.minio.secret_key
-        if minio_endpoint:
-            tasks.append(("object_storage", check_minio_health(
-                endpoint=minio_endpoint,
-                access_key=minio_access_key,
-                secret_key=minio_secret_key
-            )))
+    minio_endpoint = config.minio.endpoint
+    minio_access_key = config.minio.access_key
+    minio_secret_key = config.minio.secret_key
+    if minio_endpoint:
+        tasks.append(("object_storage", check_minio_health(
+            endpoint=minio_endpoint,
+            access_key=minio_access_key,
+            secret_key=minio_secret_key
+        )))
 
-        # Vector DB (Milvus) health check
-        if config.vector_store.url:
-            tasks.append(("databases", check_milvus_health(config.vector_store.url)))
+    # Vector DB (Milvus) health check
+    if config.vector_store.url:
+        tasks.append(("databases", check_milvus_health(config.vector_store.url)))
 
     # LLM service health check
     if config.llm.server_url and not is_nvidia_api_catalog_url(config.llm.server_url):

@@ -402,7 +402,16 @@ def prepare_citations(
                             location=location
                         )
                         config = get_config()
-                        if config.vector_store.name == "milvus":
+                        # if config.vector_store.name == "milvus":
+                        #     payload = get_minio_operator().get_payload(object_name=unique_thumbnail_id)
+                        #     content = payload.get("content", "")
+                        #     source_metadata = SourceMetadata(
+                        #         page_number=page_number,
+                        #         location=location,
+                        #         description=doc.page_content,
+                        #         content_metadata=doc.metadata.get("content_metadata")
+                        #     )
+                        if True: #revert back to milvus if we need to change back
                             payload = get_minio_operator().get_payload(object_name=unique_thumbnail_id)
                             content = payload.get("content", "")
                             source_metadata = SourceMetadata(
@@ -502,7 +511,8 @@ async def retrieve_summary(
             )
             config = get_config()
 
-            if config.vector_store.name == "milvus":
+            # if config.vector_store.name == "milvus":
+            if True: #revert back later
 
                 # First attempt to get existing summary
                 payload = get_minio_operator().get_payload(object_name=unique_thumbnail_id)
@@ -534,7 +544,8 @@ async def retrieve_summary(
             # If wait=True, poll for summary with timeout
             start_time = time.time()
             while time.time() - start_time < timeout:
-                if config.vector_store.name == "milvus":
+                # if config.vector_store.name == "milvus":
+                if True:
                     payload = get_minio_operator().get_payload(object_name=unique_thumbnail_id)
                     if payload:
                         return {
