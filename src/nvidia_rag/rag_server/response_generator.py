@@ -35,7 +35,8 @@ from pydantic import BaseModel, Field, validator
 from typing import Literal, Optional
 from nvidia_rag.utils.common import get_config
 
-from nvidia_rag.utils.minio_operator import get_unique_thumbnail_id, get_minio_operator
+# Conditionally use MinIO or CyborgDB based on vector store
+from nvidia_rag.utils.metadata_operator import get_unique_thumbnail_id, get_minio_operator
 
 logger = logging.getLogger(__name__)
 

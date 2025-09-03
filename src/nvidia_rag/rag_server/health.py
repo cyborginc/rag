@@ -30,7 +30,12 @@ from typing import Dict, Optional, List, Any
 from pymilvus import connections, utility
 from urllib.parse import urlparse
 
-from nvidia_rag.utils.minio_operator import MinioOperator
+# Conditionally import the appropriate metadata operator
+try:
+    from nvidia_rag.utils.metadata_operator import MetadataOperator
+except ImportError:
+    # Fallback if the conditional import fails
+    from nvidia_rag.utils.minio_operator import MinioOperator as MetadataOperator
 from nvidia_rag.utils.common import get_config
 
 logger = logging.getLogger(__name__)
@@ -103,31 +108,51 @@ async def check_service_health(
     return status
 
 async def check_minio_health(endpoint: str, access_key: str, secret_key: str) -> Dict[str, Any]:
-    """Check MinIO server health"""
+    """Check metadata store health (MinIO or CyborgDB based on config)"""
+    config = get_config()
+    
+    # Determine which service we're checking
+    if config.vector_store.name == "milvus":
+        service_name = "MinIO"
+    else:
+        service_name = f"CyborgDB Metadata Store (for {config.vector_store.name})"
+    
     status = {
-        "service": "MinIO",
-        "url": endpoint,
+        "service": service_name,
+        "url": endpoint if endpoint else f"Using {service_name} config",
         "status": "unknown",
         "error": None
     }
 
-    if not endpoint:
-        status["status"] = "skipped"
-        status["error"] = "No endpoint provided"
-        return status
-
     try:
         start_time = time.time()
-        minio_operator = MinioOperator(
-            endpoint=endpoint,
-            access_key=access_key,
-            secret_key=secret_key
-        )
-        # Test basic operation - list buckets
-        buckets = minio_operator.client.list_buckets()
-        status["status"] = "healthy"
-        status["latency_ms"] = round((time.time() - start_time) * 1000, 2)
-        status["buckets"] = len(buckets)
+        # Initialize the appropriate metadata operator
+        if config.vector_store.name == "milvus":
+            # Use MinIO operator for Milvus
+            from nvidia_rag.utils.minio_operator import MinioOperator
+            metadata_operator = MinioOperator(
+                endpoint=endpoint,
+                access_key=access_key,
+                secret_key=secret_key
+            )
+            # Test basic operation - list buckets
+            buckets = metadata_operator.client.list_buckets()
+            status["status"] = "healthy"
+            status["latency_ms"] = round((time.time() - start_time) * 1000, 2)
+            status["buckets"] = len(buckets)
+        else:
+            # Use CyborgDB operator for other vector stores
+            from nvidia_rag.utils.cyborg_metadata_operator import CyborgMetadataOperator
+            metadata_operator = CyborgMetadataOperator(
+                api_url=endpoint if endpoint else None,
+                api_key=access_key if access_key else None,
+                index_key=None  # Will generate or use from config
+            )
+            # Test basic operation - list payloads
+            payloads = metadata_operator.list_payloads(prefix="")
+            status["status"] = "healthy"
+            status["latency_ms"] = round((time.time() - start_time) * 1000, 2)
+            status["payloads"] = len(payloads)
     except Exception as e:
         status["status"] = "error"
         status["error"] = str(e)

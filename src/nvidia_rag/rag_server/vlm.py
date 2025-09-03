@@ -45,7 +45,8 @@ from PIL import Image as PILImage
 
 from nvidia_rag.utils.common import get_config
 from nvidia_rag.utils.llm import get_llm, get_prompts
-from nvidia_rag.utils.minio_operator import get_minio_operator, get_unique_thumbnail_id
+# Conditionally use MinIO or CyborgDB based on vector store
+from nvidia_rag.utils.metadata_operator import get_minio_operator, get_unique_thumbnail_id
 
 logger = getLogger(__name__)
 
