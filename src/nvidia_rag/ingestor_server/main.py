@@ -62,7 +62,7 @@ from nvidia_rag.utils.common import get_config
 from nvidia_rag.ingestor_server.task_handler import INGESTION_TASK_HANDLER
 from nv_ingest_client.util.file_processing.extract import EXTENSION_TO_DOCUMENT_TYPE
 # Conditionally use MinIO or CyborgDB based on vector store
-from nvidia_rag.utils.metadata_operator import (get_minio_operator,
+from nvidia_rag.utils.minio_operator import (get_minio_operator,
                                       get_unique_thumbnail_id_collection_prefix,
                                       get_unique_thumbnail_id_file_name_prefix,
                                       get_unique_thumbnail_id)
