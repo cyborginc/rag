@@ -24,6 +24,7 @@
 
 import os
 import time
+import json
 import logging
 from typing import List, Dict, Any, Optional, Union
 from pathlib import Path
@@ -603,27 +604,52 @@ def _get_docs_cyborgdb(vectorstore: VectorStore, collection_name: str, vdb_endpo
                 logger.debug(f"Processing batch {i//batch_size + 1}: {len(batch_ids)} IDs")
                 
                 # Get document data for this batch
-                if hasattr(vectorstore, 'get_by_ids'):
-                    batch_docs = vectorstore.get_by_ids(batch_ids)
+                if hasattr(vectorstore, 'get'):
+                    # Use the get method which returns Document objects
+                    batch_docs = vectorstore.get(batch_ids)
                 elif hasattr(vectorstore, 'index') and hasattr(vectorstore.index, 'get'):
-                    # Fallback to using the underlying index
-                    batch_docs = vectorstore.index.get(batch_ids, include=["contents", "metadata"])
+                    # Fallback to using the underlying index directly
+                    batch_items = vectorstore.index.get(batch_ids, include=["metadata"])
+                    # Convert items to Document-like format for consistency
+                    batch_docs = []
+                    for item in batch_items:
+                        if item and item.get('metadata'):
+                            metadata = item['metadata']
+                            if isinstance(metadata, str):
+                                try:
+                                    metadata = json.loads(metadata)
+                                except json.JSONDecodeError:
+                                    metadata = {"raw": metadata}
+                            # Extract content from metadata (following CyborgDB convention)
+                            metadata_copy = metadata.copy() if isinstance(metadata, dict) else {}
+                            content = metadata_copy.pop("_content", "")
+                            batch_docs.append(Document(page_content=content, metadata=metadata_copy))
                 else:
                     logger.warning("CyborgDB vectorstore doesn't support batch document retrieval")
                     batch_docs = []
                 
                 # Process each document in the batch
                 for doc in batch_docs:
-                    if doc and doc.get('metadata'):
+                    if doc:
                         try:
-                            filename = extract_filename(doc['metadata'])
+                            # Handle Document objects (from get method) or dict objects (from index.get)
+                            if hasattr(doc, 'metadata'):
+                                # It's a Document object
+                                metadata = doc.metadata
+                            elif isinstance(doc, dict) and 'metadata' in doc:
+                                # It's a dict from index.get
+                                metadata = doc['metadata']
+                            else:
+                                continue
+                            
+                            filename = extract_filename(metadata)
                             
                             if filename and filename not in filepaths_added:
                                 # Build metadata dict similar to Milvus approach
                                 metadata_dict = {}
                                 # Copy relevant metadata fields, excluding vector data
-                                for key, value in doc['metadata'].items():
-                                    if key not in ['vector', 'embedding']:  # Skip vector data
+                                for key, value in metadata.items():
+                                    if key not in ['vector', 'embedding', '_content']:  # Skip vector data and internal content field
                                         metadata_dict[key] = value
                                 
                                 documents_list.append({
