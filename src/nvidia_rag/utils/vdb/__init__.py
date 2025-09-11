@@ -98,5 +98,27 @@ def _get_vdb_op(
             csv_file_path=csv_file_path,
         )
 
+    elif CONFIG.vector_store.name == "cyborgdb":
+        from nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb import CyborgDBVDB
+
+        # Get CyborgDB specific configuration
+        api_key = CONFIG.vector_store.api_key or os.getenv('CYBORGDB_API_KEY')
+        index_key = getattr(CONFIG.vector_store, 'index_key', None)
+        
+        if not api_key:
+            raise ValueError("CyborgDB API key is required. Set it in config or CYBORGDB_API_KEY env var")
+
+        return CyborgDBVDB(
+            collection_name=collection_name,
+            cyborgdb_uri=vdb_endpoint or CONFIG.vector_store.url,
+            api_key=api_key,
+            index_key=index_key,
+            embedding_model=embedding_model,
+            # Additional metadata support if needed
+            csv_file_path=csv_file_path,
+            meta_source_field=meta_source_field,
+            meta_fields=meta_fields,
+        )
+
     else:
         raise ValueError(f"Invalid vector store name: {CONFIG.vector_store.name}")
