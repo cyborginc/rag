@@ -155,6 +155,13 @@ class CyborgDBVDB(VDB, VDBRag):
                 logger.info(f"Collection '{collection_name}' already exists in CyborgDB")
                 return
             
+            # Prepare index config params
+            index_config_params = {}
+            if hasattr(CONFIG.vector_store, 'pq_dim'):
+                index_config_params['pq_dim'] = CONFIG.vector_store.pq_dim
+            if hasattr(CONFIG.vector_store, 'pq_bits'):
+                index_config_params['pq_bits'] = CONFIG.vector_store.pq_bits
+            
             # Create the vectorstore which will create the index
             vectorstore = CyborgVectorStore(
                 index_name=collection_name,
@@ -163,6 +170,7 @@ class CyborgDBVDB(VDB, VDBRag):
                 base_url=self.vdb_endpoint,
                 embedding=self.embedding_model,
                 index_type=CONFIG.vector_store.index_type.lower() if hasattr(CONFIG.vector_store, 'index_type') else "ivfflat",
+                index_config_params=index_config_params if index_config_params else None,
                 dimension=dimension,
                 metric=CONFIG.vector_store.metric if hasattr(CONFIG.vector_store, 'metric') else "cosine"
             )
@@ -501,6 +509,20 @@ class CyborgDBVDB(VDB, VDBRag):
                 logger.warning(f"Collection {collection_name} does not exist")
                 return None
             
+            # Prepare index config params
+            index_config_params = {}
+            if hasattr(CONFIG.vector_store, 'nlist'):
+                index_config_params['n_lists'] = CONFIG.vector_store.nlist
+            if hasattr(CONFIG.vector_store, 'pq_dim'):
+                index_config_params['pq_dim'] = CONFIG.vector_store.pq_dim
+            if hasattr(CONFIG.vector_store, 'pq_bits'):
+                index_config_params['pq_bits'] = CONFIG.vector_store.pq_bits
+            
+            # Get dimension from config if available
+            dimension = None
+            if hasattr(CONFIG.embeddings, 'dimensions'):
+                dimension = CONFIG.embeddings.dimensions
+            
             # Create vectorstore instance
             vectorstore = CyborgVectorStore(
                 index_name=collection_name,
@@ -509,6 +531,8 @@ class CyborgDBVDB(VDB, VDBRag):
                 base_url=self.vdb_endpoint,
                 embedding=self.embedding_model,
                 index_type=CONFIG.vector_store.index_type.lower() if hasattr(CONFIG.vector_store, 'index_type') else "ivfflat",
+                index_config_params=index_config_params if index_config_params else None,
+                dimension=dimension,
                 metric=CONFIG.vector_store.metric if hasattr(CONFIG.vector_store, 'metric') else "cosine"
             )
             
