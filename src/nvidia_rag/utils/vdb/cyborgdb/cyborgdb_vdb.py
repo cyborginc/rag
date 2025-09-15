@@ -41,11 +41,13 @@ Retrieval Operations:
 import json
 import logging
 import os
+import time
 from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
 
 from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStore
+from langchain_core.runnables import RunnableAssign, RunnableLambda
 
 from nvidia_rag.utils.common import get_config
 from nvidia_rag.utils.vdb.vdb_base import VDBRag
