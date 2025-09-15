@@ -102,11 +102,8 @@ def _get_vdb_op(
         from nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb import CyborgDBVDB
 
         # Get CyborgDB specific configuration
-        api_key = CONFIG.vector_store.api_key or os.getenv('CYBORGDB_API_KEY')
-        index_key = getattr(CONFIG.vector_store, 'index_key', None)
-        
-        if not api_key:
-            raise ValueError("CyborgDB API key is required. Set it in config or CYBORGDB_API_KEY env var")
+        api_key = CONFIG.vector_store.api_key
+        index_key = CONFIG.vector_store.index_key
 
         return CyborgDBVDB(
             collection_name=collection_name,

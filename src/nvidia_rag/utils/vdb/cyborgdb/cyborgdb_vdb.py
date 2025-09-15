@@ -70,32 +70,39 @@ except ImportError:
 CONFIG = get_config()
 
 
-class CyborgDBVDB(VDB, VDBRag):
-    def __init__(self, **kwargs):
-        self.embedding_model = kwargs.pop("embedding_model")  # Needed for retrieval
-        if VDB != object:
-            super().__init__(**kwargs)
+class CyborgDBVDB(VDBRag):
+    def __init__(
+        self,
+        collection_name: str,
+        cyborgdb_uri: str,
+        api_key: str,
+        index_key: bytes,
+        meta_source_field: str = None,
+        meta_fields: list[str] = None,
+        embedding_model: str = None,
+        csv_file_path: str = None,
+    ):
+        self.embedding_model = embedding_model
         
         # CyborgDB specific parameters
-        self.vdb_endpoint = kwargs.get("cyborgdb_uri", kwargs.get("api_url", kwargs.get("base_url")))
-        self._collection_name = kwargs.get("collection_name", kwargs.get("index_name"))
-        self.api_key = kwargs.get("api_key") or os.getenv('CYBORGDB_API_KEY')
-        self.index_key = kwargs.get("index_key", None)
-        
+        self.vdb_endpoint = cyborgdb_uri
+        self._collection_name = collection_name
+        self.api_key = api_key
+        self.index_key = index_key
+
         # Validate required parameters
         if not self.api_key:
             raise ValueError("CyborgDB API key is required. Set it in config or CYBORGDB_API_KEY env var")
         
         if not self.index_key:
-            # Generate a secure key if not provided
-            self.index_key = generate_key()
-            logger.warning("No index_key provided, generated a new one. Store this key securely for future access.")
+            raise ValueError("CyborgDB index key is required. Set it in config or provide a valid index key")
         
         # Create CyborgDB client
         try:
             self.client = Client(
                 base_url=self.vdb_endpoint,
-                api_key=self.api_key
+                api_key=self.api_key,
+                verify_ssl=False # Set to True in production with valid SSL certificates
             )
             self._connected = True
             logger.debug(f"Connected to CyborgDB at {self.vdb_endpoint}")
@@ -109,29 +116,15 @@ class CyborgDBVDB(VDB, VDBRag):
         # Connection alias for compatibility
         self.connection_alias = f"cyborgdb_{str(uuid4())[:8]}"
 
-    def close(self):
-        """Close the CyborgDB connection."""
-        if self._connected:
-            try:
-                # CyborgDB client doesn't have explicit disconnect
-                self._connected = False
-                logger.debug(f"Closed CyborgDB client for {self.vdb_endpoint}")
-            except Exception as e:
-                logger.warning(f"Error closing CyborgDB client: {e}")
-
-    def __enter__(self):
-        """Enter the runtime context (for use as context manager)."""
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Exit the runtime context."""
-        self.close()
+        kwargs = locals().copy()
+        kwargs.pop("self", None)
+        super().__init__(**kwargs)
 
     @property
     def collection_name(self) -> str:
         """Get the collection name."""
         return self._collection_name
-
+    
     @collection_name.setter
     def collection_name(self, collection_name: str) -> None:
         """Set the collection name."""
@@ -148,40 +141,11 @@ class CyborgDBVDB(VDB, VDBRag):
         """
         Create a new collection (index) in CyborgDB.
         """
-        try:
-            # Check if index already exists
-            existing_indexes = self.client.list_indexes()
-            if collection_name in existing_indexes:
-                logger.info(f"Collection '{collection_name}' already exists in CyborgDB")
-                return
-            
-            # Prepare index config params
-            index_config_params = {}
-            if hasattr(CONFIG.vector_store, 'pq_dim'):
-                index_config_params['pq_dim'] = CONFIG.vector_store.pq_dim
-            if hasattr(CONFIG.vector_store, 'pq_bits'):
-                index_config_params['pq_bits'] = CONFIG.vector_store.pq_bits
-            
-            # Create the vectorstore which will create the index
-            vectorstore = CyborgVectorStore(
-                index_name=collection_name,
-                index_key=self.index_key,
-                api_key=self.api_key,
-                base_url=self.vdb_endpoint,
-                embedding=self.embedding_model,
-                index_type=CONFIG.vector_store.index_type.lower() if hasattr(CONFIG.vector_store, 'index_type') else "ivfflat",
-                index_config_params=index_config_params if index_config_params else None,
-                dimension=dimension,
-                metric=CONFIG.vector_store.metric if hasattr(CONFIG.vector_store, 'metric') else "cosine"
-            )
-            
-            # Store the vectorstore for later use
-            self._vectorstores[collection_name] = vectorstore
-            
-            logger.info(f"Created CyborgDB collection '{collection_name}' with dimension {dimension}")
-        except Exception as e:
-            logger.error(f"Failed to create CyborgDB collection {collection_name}: {str(e)}")
-            raise
+        self._get_or_create_vectorstore(
+            collection_name=collection_name, 
+            dimension=dimension,
+            get_only=False
+        )
 
     def check_collection_exists(self, collection_name: str) -> bool:
         """
@@ -229,26 +193,26 @@ class CyborgDBVDB(VDB, VDBRag):
         
         for collection_name in collection_names:
             try:
-                # Get or create vectorstore for this collection
+                # Get the vectorstore for this collection
                 vectorstore = self._get_or_create_vectorstore(collection_name)
-                
-                if vectorstore:
-                    # Delete the entire index
-                    if vectorstore.delete(delete_index=True):
-                        deleted_collections.append(collection_name)
-                        logger.info(f"Deleted CyborgDB collection: {collection_name}")
-                        # Remove from cache
-                        if collection_name in self._vectorstores:
-                            del self._vectorstores[collection_name]
-                    else:
-                        failed_collections.append({
-                            "collection_name": collection_name,
-                            "error_message": "Failed to delete index"
-                        })
+
+                if not vectorstore:
+                    failed_collections.append({
+                        "collection_name": collection_name,
+                        "error_message": "Collection not found"
+                    })
+                    continue
+
+                if vectorstore.delete(delete_index=True):
+                    deleted_collections.append(collection_name)
+                    logger.info(f"Deleted CyborgDB collection: {collection_name}")
+                    # Remove from cache
+                    if collection_name in self._vectorstores:
+                        del self._vectorstores[collection_name]
                 else:
                     failed_collections.append({
                         "collection_name": collection_name,
-                        "error_message": "Collection not found or unable to access"
+                        "error_message": "Failed to delete index"
                     })
             except Exception as e:
                 failed_collections.append({
@@ -270,86 +234,54 @@ class CyborgDBVDB(VDB, VDBRag):
         Get the list of documents in a collection.
         """
         try:
-            vectorstore = self._get_or_create_vectorstore(collection_name)
-            
+            vectorstore = self._get_or_create_vectorstore(collection_name, get_only=True)
+
             if not vectorstore:
                 logger.warning(f"Collection {collection_name} not found")
                 return []
             
             # Use list_ids to get all document IDs
-            if hasattr(vectorstore, 'list_ids'):
-                all_ids = vectorstore.list_ids()
-                logger.info(f"Retrieved {len(all_ids)} document IDs from CyborgDB collection {collection_name}")
-                
-                if not all_ids:
-                    return []
-                
-                # Process documents in batches
-                batch_size = 1000
-                documents_list = []
-                filepaths_added = set()
-                
-                for i in range(0, len(all_ids), batch_size):
-                    batch_ids = all_ids[i:i + batch_size]
-                    
-                    # Get documents using the get method
-                    if hasattr(vectorstore, 'get'):
-                        batch_docs = vectorstore.get(batch_ids)
-                    elif hasattr(vectorstore, 'index') and hasattr(vectorstore.index, 'get'):
-                        # Fallback to using the underlying index
-                        batch_items = vectorstore.index.get(batch_ids, include=["metadata"])
-                        batch_docs = []
-                        for item in batch_items:
-                            if item and item.get('metadata'):
-                                metadata = item['metadata']
-                                if isinstance(metadata, str):
-                                    try:
-                                        metadata = json.loads(metadata)
-                                    except json.JSONDecodeError:
-                                        metadata = {"raw": metadata}
-                                # Extract content from metadata
-                                metadata_copy = metadata.copy() if isinstance(metadata, dict) else {}
-                                content = metadata_copy.pop("_content", "")
-                                batch_docs.append(Document(page_content=content, metadata=metadata_copy))
-                    else:
-                        batch_docs = []
-                    
-                    # Process each document
-                    for doc in batch_docs:
-                        if doc:
-                            try:
-                                # Extract metadata
-                                if hasattr(doc, 'metadata'):
-                                    metadata = doc.metadata
-                                elif isinstance(doc, dict) and 'metadata' in doc:
-                                    metadata = doc['metadata']
-                                else:
-                                    continue
-                                
-                                # Extract filename from source
-                                filename = self._extract_filename(metadata)
-                                
-                                if filename and filename not in filepaths_added:
-                                    # Build metadata dict
-                                    metadata_dict = {}
-                                    for key, value in metadata.items():
-                                        if key not in ['vector', 'embedding', '_content']:
-                                            metadata_dict[key] = value
-                                    
-                                    documents_list.append({
-                                        "document_name": filename,
-                                        "metadata": metadata_dict
-                                    })
-                                    filepaths_added.add(filename)
-                            except Exception as e:
-                                logger.debug(f"Error processing document: {e}")
-                                continue
-                
-                return documents_list
-            else:
-                logger.warning("CyborgDB vectorstore doesn't support list_ids method")
-                return []
-                
+            all_ids = vectorstore.list_ids()
+            logger.info(f"Retrieved {len(all_ids)} document IDs from CyborgDB collection {collection_name}")
+            
+            # Process documents in batches
+            batch_size = 1000
+            documents_list = []
+            filepaths_added = set()
+            
+            for i in range(0, len(all_ids), batch_size):
+                batch_ids = all_ids[i:i + batch_size]
+                batch_docs = vectorstore.get(ids=batch_ids)
+
+                # Process each document
+                for doc in batch_docs:
+                    try:
+                        metadata = doc.metadata if doc.metadata else {}
+
+                        # Extract filename from source
+                        filename = self._extract_filename(metadata)
+                        
+                        if filename and filename not in filepaths_added:
+                            # Build metadata dict
+                            # Should we be using metadata schema here?
+                            metadata_dict = {}
+                            for key, value in metadata.items():
+                                if key not in ['vector', 'embedding', '_content']:
+                                    metadata_dict[key] = value
+                            
+                            documents_list.append({
+                                "document_name": filename,
+                                "metadata": metadata_dict
+                            })
+                            filepaths_added.add(filename)
+                        elif not filename:
+                            raise ValueError("Filename could not be extracted from metadata")
+                    except Exception as e:
+                        logger.debug(f"Error processing document: {e}")
+                        continue
+            
+            return documents_list
+            
         except Exception as e:
             logger.error(f"Error retrieving documents from CyborgDB collection {collection_name}: {e}")
             return []
@@ -365,8 +297,8 @@ class CyborgDBVDB(VDB, VDBRag):
         so we need to find document IDs first.
         """
         try:
-            vectorstore = self._get_or_create_vectorstore(collection_name)
-            
+            vectorstore = self._get_or_create_vectorstore(collection_name, get_only=True)
+
             if not vectorstore:
                 logger.warning(f"Collection {collection_name} not found")
                 return False
@@ -425,60 +357,44 @@ class CyborgDBVDB(VDB, VDBRag):
         """
         Get the vectorstore for a collection.
         """
-        return self._get_or_create_vectorstore(collection_name)
+        return self._get_or_create_vectorstore(collection_name, get_only=True)
 
     def retrieval_langchain(
         self,
         query: str,
         collection_name: str,
+        vectorstore: CyborgVectorStore = None,
         top_k: int = 10,
         filter_expr: Union[str, List[Dict[str, Any]]] = "",
     ) -> List[Dict[str, Any]]:
         """
-        Perform semantic search and return top-k relevant documents.
+        Retrieve documents from a collection using langchain
         """
-        try:
-            vectorstore = self._get_or_create_vectorstore(collection_name)
-            
-            if not vectorstore:
-                logger.warning(f"Collection {collection_name} not found")
-                return []
-            
-            # Convert filter expression to CyborgDB format if needed
-            filter_dict = None
-            if filter_expr and isinstance(filter_expr, str):
-                # CyborgDB uses dict filters, not string expressions
-                # This would need custom parsing logic based on your filter format
-                logger.warning("String filter expressions not yet implemented for CyborgDB")
-            elif filter_expr and isinstance(filter_expr, list):
-                # Convert list of dicts to single dict
-                filter_dict = {}
-                for f in filter_expr:
-                    filter_dict.update(f)
-            
-            # Perform similarity search
-            docs = vectorstore.similarity_search(
-                query=query,
-                k=top_k,
-                filter=filter_dict
+        if vectorstore is None:
+            vectorstore = self.get_langchain_vectorstore(collection_name)
+
+        start_time = time.time()
+
+        retriever = vectorstore.as_retriever(search_kwargs={"k": top_k})
+
+        retriever_lambda = RunnableLambda(
+            lambda x: retriever.invoke(
+                x,
+                expr=filter_expr,
             )
-            
-            # Convert documents to expected format
-            results = []
-            for doc in docs:
-                result = {
-                    "page_content": doc.page_content,
-                    "metadata": doc.metadata.copy() if doc.metadata else {}
-                }
-                # Add collection name to metadata
-                result["metadata"]["collection_name"] = collection_name
-                results.append(result)
-            
-            return results
-            
-        except Exception as e:
-            logger.error(f"Error during CyborgDB retrieval: {e}")
-            return []
+        )
+        retriever_chain = {"context": retriever_lambda} | RunnableAssign(
+            {"context": lambda input: input["context"]}
+        )
+        retriever_docs = retriever_chain.invoke(query, config={"run_name": "retriever"})
+        docs = retriever_docs.get("context", [])
+        collection_name = retriever.vectorstore.collection_name
+
+        end_time = time.time()
+        latency = end_time - start_time
+        logger.info(f" CyborgDB Retrieval latency: {latency:.4f} seconds")
+
+        return self._add_collection_name_to_retrieved_docs(docs, collection_name)
 
     # ----------------------------------------------------------------------------------------------
     # Helper methods
@@ -643,52 +559,42 @@ class CyborgDBVDB(VDB, VDBRag):
         
         logger.info("CyborgDB ingestion pipeline completed")
     
-    def _get_or_create_vectorstore(self, collection_name: str) -> Optional[CyborgVectorStore]:
+    def _get_or_create_vectorstore(self, collection_name: str, dimension: Optional[int] = None, get_only: bool = False) -> CyborgVectorStore | None:
         """
         Get existing vectorstore or create a new one for the collection.
         """
         # Check cache first
         if collection_name in self._vectorstores:
             return self._vectorstores[collection_name]
-        
-        try:
-            # Check if index exists
-            existing_indexes = self.client.list_indexes()
-            if collection_name not in existing_indexes:
-                logger.warning(f"Collection {collection_name} does not exist")
-                return None
-            
-            # Prepare index config params
-            index_config_params = {}
-            if hasattr(CONFIG.vector_store, 'nlist'):
-                index_config_params['n_lists'] = CONFIG.vector_store.nlist
-            if hasattr(CONFIG.vector_store, 'pq_dim'):
-                index_config_params['pq_dim'] = CONFIG.vector_store.pq_dim
-            if hasattr(CONFIG.vector_store, 'pq_bits'):
-                index_config_params['pq_bits'] = CONFIG.vector_store.pq_bits
-            
-            # Get dimension from config if available
-            dimension = None
-            if hasattr(CONFIG.embeddings, 'dimensions'):
-                dimension = CONFIG.embeddings.dimensions
-            
-            # Create vectorstore instance
-            vectorstore = CyborgVectorStore(
-                index_name=collection_name,
-                index_key=self.index_key,
-                api_key=self.api_key,
-                base_url=self.vdb_endpoint,
-                embedding=self.embedding_model,
-                index_type=CONFIG.vector_store.index_type.lower() if hasattr(CONFIG.vector_store, 'index_type') else "ivfflat",
-                index_config_params=index_config_params if index_config_params else None,
-                dimension=dimension,
-                metric=CONFIG.vector_store.metric if hasattr(CONFIG.vector_store, 'metric') else "cosine"
-            )
-            
-            # Cache it
-            self._vectorstores[collection_name] = vectorstore
-            return vectorstore
-            
-        except Exception as e:
-            logger.error(f"Failed to create vectorstore for collection {collection_name}: {e}")
+
+        # If only getting existing, check if collection exists
+        if get_only and not self.check_collection_exists(collection_name):
             return None
+        
+        # Create/load vectorstore instance
+        vectorstore = CyborgVectorStore(
+            index_name=collection_name,
+            index_key=self.index_key,
+            api_key=self.api_key,
+            base_url=self.vdb_endpoint,
+            embedding=self.embedding_model,
+            dimension=dimension,
+        )
+        
+        # Cache it
+        self._vectorstores[collection_name] = vectorstore
+        return vectorstore
+    
+    @staticmethod
+    def _add_collection_name_to_retrieved_docs(
+        docs: List[Document],
+        collection_name: str
+    ) -> list[Document]:
+        """
+        Add the collection name to the retrieved documents.
+        This is done to ensure the collection name is available in the
+        metadata of the documents for preparing citations in case of multi-collection retrieval.
+        """
+        for doc in docs:
+            doc.metadata["collection_name"] = collection_name
+        return docs
