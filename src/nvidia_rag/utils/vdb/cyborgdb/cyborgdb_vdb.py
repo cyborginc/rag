@@ -493,7 +493,156 @@ class CyborgDBVDB(VDB, VDBRag):
             elif isinstance(metadata['source'], dict) and 'source_name' in metadata['source']:
                 return os.path.basename(metadata['source']['source_name'])
         return None
+    
+    @staticmethod
+    def _preprocess_metadata(metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Preprocess metadata before insertion, following best practices from cyborg.py.
+        
+        This includes:
+        - Renaming 'content' to '_content' to avoid conflicts
+        - Truncating content to prevent issues
+        - Handling source_metadata field
+        """
+        processed = metadata.copy()
+        
+        # Rename 'content' -> '_content' if it exists and truncate if needed
+        if "content" in processed:
+            content = processed.pop("content")
+            # Get max content length from env or use default (2000 chars to prevent reranker issues)
+            max_content_length = int(os.getenv('MAX_DOCUMENT_CONTENT_LENGTH', '2000'))
+            # Use the smaller of env setting or CyborgDB limit
+            max_length = min(max_content_length, 65535)
+            if content and len(content) > max_length:
+                logger.warning(f"Truncating content from {len(content)} to {max_length} chars")
+                content = content[:max_length] + "...[truncated]"
+            processed["_content"] = content
+        
+        # Handle source_metadata field
+        if "source_metadata" in processed:
+            processed["source"] = processed.pop("source_metadata")
+        
+        return processed
 
+    def write_to_index(self, records: List[Dict[str, Any]], **kwargs):
+        """
+        Write records to the CyborgDB index.
+        Based on implementation from cyborg.py.
+        
+        Args:
+            records: List of records to insert
+            **kwargs: Additional parameters
+        """
+        logger.info(f"Writing {len(records)} records to CyborgDB index")
+        
+        collection_name = kwargs.get("collection_name", self._collection_name)
+        vectorstore = self._get_or_create_vectorstore(collection_name)
+        
+        if not vectorstore:
+            raise ValueError(f"Failed to get vectorstore for collection {collection_name}")
+        
+        # Convert records to Document format for LangChain
+        documents = []
+        for idx, record in enumerate(records):
+            # Extract text content
+            text = record.get("text", "")
+            if not text and "metadata" in record:
+                text = record["metadata"].get("content", "")
+                if not text:
+                    text = record["metadata"].get("_content", "")
+            
+            # Prepare metadata
+            metadata = {}
+            
+            # Handle metadata field
+            if "metadata" in record:
+                metadata.update(record["metadata"])
+            
+            # Handle source field
+            if "source" in record:
+                metadata["source"] = record["source"]
+            elif "source_metadata" in record:
+                metadata["source"] = record["source_metadata"]
+            
+            # Handle content_metadata
+            if "content_metadata" in record:
+                metadata["content_metadata"] = record["content_metadata"]
+            
+            # Handle vector/embedding (will be used by vectorstore if provided)
+            if "vector" in record:
+                metadata["embedding"] = record["vector"]
+            elif "embedding" in record:
+                metadata["embedding"] = record["embedding"]
+            
+            # Apply preprocessing to metadata
+            processed_metadata = self._preprocess_metadata(metadata)
+            
+            # Create Document
+            doc = Document(
+                page_content=text,
+                metadata=processed_metadata
+            )
+            documents.append(doc)
+        
+        # Batch insert documents
+        batch_size = kwargs.get("batch_size", 100)
+        total_docs = len(documents)
+        
+        logger.info(f"Inserting {total_docs} documents in batches of {batch_size}")
+        
+        for i in range(0, total_docs, batch_size):
+            batch = documents[i:i + batch_size]
+            try:
+                # Use the vectorstore to add documents
+                # If embeddings are in metadata, the vectorstore should use them
+                ids = vectorstore.add_documents(batch)
+                logger.debug(f"Inserted batch {i//batch_size + 1}, {len(ids)} documents")
+            except Exception as e:
+                logger.error(f"Failed to insert batch starting at index {i}: {e}")
+                raise
+        
+        logger.info(f"Successfully inserted {total_docs} documents into CyborgDB")
+    
+    def create_index(self):
+        """
+        Create an index (collection) in CyborgDB if it doesn't exist.
+        Similar to Elasticsearch's create_index method.
+        """
+        logger.info(f"Creating CyborgDB index if not exists: {self._collection_name}")
+        
+        if not self.check_collection_exists(self._collection_name):
+            # Use default dimension from config or embedding model
+            dimension = self.dense_dim or getattr(CONFIG.embeddings, 'dimensions', 1536)
+            logger.info(f"Creating new collection: {self._collection_name} with dimension {dimension}")
+            self.create_collection(
+                self._collection_name,
+                dimension=dimension,
+                collection_type="text"
+            )
+        else:
+            logger.info(f"Collection {self._collection_name} already exists")
+    
+    def run(self, records: List[Dict[str, Any]]) -> None:
+        """
+        Run the process of ingestion of records to the CyborgDB index.
+        Follows the same pattern as Elasticsearch implementation.
+        
+        Args:
+            records: List of records to process
+        """
+        logger.info("Running CyborgDB ingestion pipeline")
+        
+        # Step 1: Create index if it doesn't exist
+        self.create_index()
+        
+        # Step 2: Write records to index
+        if records:
+            self.write_to_index(records)
+        else:
+            logger.warning("No records provided to process")
+        
+        logger.info("CyborgDB ingestion pipeline completed")
+    
     def _get_or_create_vectorstore(self, collection_name: str) -> Optional[CyborgVectorStore]:
         """
         Get existing vectorstore or create a new one for the collection.
