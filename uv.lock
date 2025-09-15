@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'darwin'",
@@ -418,6 +418,22 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f2/2e/e2dbd629481b499b14516eed933f3276eb3239f7cee2dcfa4ee6b44d4711/cryptography-45.0.5-cp37-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:7259038202a47fdecee7e62e0fd0b0738b6daa335354396c6ddebdbe1206af2a", size = 4554189, upload-time = "2025-07-02T13:05:46.045Z" },
     { url = "https://files.pythonhosted.org/packages/f8/ea/a78a0c38f4c8736287b71c2ea3799d173d5ce778c7d6e3c163a95a05ad2a/cryptography-45.0.5-cp37-abi3-win32.whl", hash = "sha256:1e1da5accc0c750056c556a93c3e9cb828970206c68867712ca5805e46dc806f", size = 2911769, upload-time = "2025-07-02T13:05:48.329Z" },
     { url = "https://files.pythonhosted.org/packages/79/b3/28ac139109d9005ad3f6b6f8976ffede6706a6478e21c889ce36c840918e/cryptography-45.0.5-cp37-abi3-win_amd64.whl", hash = "sha256:90cb0a7bb35959f37e23303b7eed0a32280510030daba3f7fdfbb65defde6a97", size = 3390016, upload-time = "2025-07-02T13:05:50.811Z" },
+]
+
+[[package]]
+name = "cyborgdb"
+version = "0.12.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "python-dateutil" },
+    { name = "python-dotenv" },
+    { name = "typing-extensions" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a4/06/64abb799a8362d7f90a31990bcd8f3d1c4d5752850d8872e4dfb746763c5/cyborgdb-0.12.0.tar.gz", hash = "sha256:7dca3120631b8ca59d2bc1743fd5837b279cac12154a78b8d7099c2087c0c2b1", size = 11919289, upload-time = "2025-09-10T17:40:39.194Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/52/e3/2ee4c2730e01b12c162766f4ecf9b6b71ae45c44d14ab12f1ebfca9a1d89/cyborgdb-0.12.0-py3-none-any.whl", hash = "sha256:f6c4e46298c0609d20c48df0a4375333140118c1ac180713365c3e412afa8c31", size = 92435, upload-time = "2025-09-10T17:40:37.445Z" },
 ]
 
 [[package]]
@@ -1466,6 +1482,7 @@ version = "2.3.0.dev0"
 source = { virtual = "." }
 dependencies = [
     { name = "bleach" },
+    { name = "cyborgdb" },
     { name = "dataclass-wizard" },
     { name = "fastapi" },
     { name = "langchain" },
@@ -1547,6 +1564,7 @@ requires-dist = [
     { name = "azure-storage-blob", marker = "extra == 'ingest'", specifier = ">=12.26.0" },
     { name = "azure-storage-blob", marker = "extra == 'rag'", specifier = ">=12.26.0" },
     { name = "bleach", specifier = "==6.2.0" },
+    { name = "cyborgdb", specifier = "==0.12.0" },
     { name = "dataclass-wizard", specifier = "==0.27.0" },
     { name = "fastapi", specifier = "==0.115.5" },
     { name = "langchain", specifier = ">=0.3.27" },
