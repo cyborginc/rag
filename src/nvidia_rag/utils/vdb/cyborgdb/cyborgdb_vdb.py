@@ -290,7 +290,45 @@ class CyborgDBVDB(VDBRag):
 
 
     # ----------------------------------------------------------------------------------------------
-    # Implementations of the abstract methods specific to VDBRag class for ingestion
+    # Implementations of the abstract methods specific to VDBRag class for ingestion\
+    async def check_health(self) -> dict[str, Any]:
+        """
+        Check CyborgDB health
+        """
+        status = {
+            "service": "CyborgDB",
+            "url": self.vdb_endpoint,
+            "status": "unknown",
+            "error": None
+        }
+
+        if not self.vdb_endpoint:
+            status["status"] = "skipped"
+            status["error"] = "No URL provided"
+            return status
+        
+        try:
+            start_time = time.time()
+            health = self.client.get_health()
+
+            if health.get("status") == "healthy":
+                status["status"] = "healthy"
+            else:
+                status["status"] = "unhealthy"
+                status["error"] = f"Health check returned: {health}"
+
+            status["latency_ms"] = round((time.time() - start_time) * 1000, 2)
+
+        except ImportError:
+            status["status"] = "error"
+            status["error"] = "CyborgDB client library not installed"
+
+        except Exception as e:
+            status["status"] = "error"
+            status["error"] = str(e)
+
+        return status
+
     def create_collection(
         self,
         collection_name: str,
