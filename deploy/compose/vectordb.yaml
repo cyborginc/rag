@@ -97,6 +97,45 @@ services:
       retries: 10
     profiles: ["elasticsearch"]
 
+  cyborgdb:
+    container_name: cyborgdb
+    image: cyborginc/cyborgdb-service:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - CYBORGDB_DB_TYPE=redis
+      - CYBORGDB_CONNECTION_STRING=host:cyborgdb-redis,port:6379,db:0
+      - CYBORGDB_API_KEY=${CYBORGDB_API_KEY:-}
+      - PORT=8000
+    depends_on:
+      cyborgdb-redis:
+        condition: service_healthy
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    profiles: ["cyborgdb"]
+
+  cyborgdb-redis:
+    container_name: cyborgdb-redis
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/redis:/data
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    profiles: ["cyborgdb"]
+
 networks:
   default:
     name: nvidia-rag
