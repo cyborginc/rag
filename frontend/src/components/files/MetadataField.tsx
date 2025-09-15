@@ -1,11 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { UIMetadataField } from "../../types/collections";
 
 interface MetadataFieldProps {
   fileName: string;
   field: UIMetadataField;
-  value: string;
-  onChange: (fieldName: string, value: string, fieldType: string) => void;
+  value: unknown;
+  onChange: (fieldName: string, value: unknown, fieldType: string) => void;
 }
 
 export const MetadataField = ({ 
@@ -15,9 +15,24 @@ export const MetadataField = ({
 }: MetadataFieldProps) => {
   const [arrayInputValue, setArrayInputValue] = useState("");
   
-  // Parse array value (stored as JSON string)
-  const arrayValue = field.type === "array" ? 
-    (value ? JSON.parse(value || "[]") : []) : null;
+  // Parse array value - wrapped in useMemo to prevent useCallback deps from changing
+  const arrayValue = useMemo(() => {
+    if (field.type !== "array") return null;
+    
+    if (Array.isArray(value)) {
+      return value;
+    }
+    
+    if (typeof value === "string") {
+      try {
+        return JSON.parse(value || "[]");
+      } catch {
+        return [];
+      }
+    }
+    
+    return [];
+  }, [field.type, value]);
 
   const handleArrayAdd = useCallback(() => {
     if (!arrayInputValue.trim() || !arrayValue) return;
@@ -38,14 +53,14 @@ export const MetadataField = ({
     }
     
     const newArray = [...arrayValue, processedValue];
-    onChange(field.name, JSON.stringify(newArray), field.type);
+    onChange(field.name, newArray, field.type);
     setArrayInputValue("");
   }, [arrayInputValue, arrayValue, field, onChange]);
 
   const handleArrayRemove = useCallback((index: number) => {
     if (!arrayValue) return;
-    const newArray = arrayValue.filter((_: any, i: number) => i !== index);
-    onChange(field.name, JSON.stringify(newArray), field.type);
+    const newArray = arrayValue.filter((_: unknown, i: number) => i !== index);
+    onChange(field.name, newArray, field.type);
   }, [arrayValue, field, onChange]);
 
   const getInputType = () => {
@@ -78,15 +93,15 @@ export const MetadataField = ({
   // Boolean field
   if (field.type === "boolean") {
     return (
-      <div>
-        <label className="flex items-start gap-3 text-xs">
+      <div className="mb-5">
+        <label className="flex items-start gap-3 text-xs mb-2">
           <input
             type="checkbox"
-            checked={value === "true"}
-            onChange={(e) => onChange(field.name, e.target.checked.toString(), field.type)}
+            checked={Boolean(value)}
+            onChange={(e) => onChange(field.name, e.target.checked, field.type)}
             className="mt-0.5 rounded border-neutral-600 bg-neutral-700 text-[var(--nv-green)] focus:ring-2 focus:ring-[var(--nv-green)]/50"
           />
-          <div>
+          <div className="mb-5">
             <span className="font-medium text-neutral-300">{displayLabel}</span>
             {field.description && (
               <div className="text-neutral-500 mt-1 leading-relaxed">
@@ -104,7 +119,7 @@ export const MetadataField = ({
     // Special handling for boolean arrays
     if (field.array_type === "boolean") {
       return (
-        <div>
+        <div className="mb-5">
           <label className="block text-xs font-medium text-neutral-300 mb-2">
             {displayLabel}
             {field.description && (
@@ -175,8 +190,8 @@ export const MetadataField = ({
 
     // Standard array implementation for non-boolean types
     return (
-      <div>
-        <label className="block text-xs font-medium text-neutral-300 mb-2">
+      <div className="mb-5">
+        <label className="block text-xs font-medium text-neutral-300 mt-4">
           {displayLabel}
           {field.description && (
             <div className="text-neutral-500 font-normal mt-1 leading-relaxed">
@@ -206,7 +221,7 @@ export const MetadataField = ({
           
           {arrayValue && arrayValue.length > 0 && (
             <div className="space-y-1">
-              {arrayValue.map((item: any, index: number) => (
+              {arrayValue.map((item: unknown, index: number) => (
                 <div key={index} className="flex items-center gap-2 p-2 bg-neutral-800 rounded-md">
                   <span className="flex-1 text-xs text-white">{String(item)}</span>
                   <button
@@ -227,7 +242,7 @@ export const MetadataField = ({
 
   // Regular input fields
   return (
-    <div>
+    <div className="mb-5">
       <label className="block text-xs font-medium text-neutral-300 mb-2">
         {displayLabel}
         {field.description && (
@@ -238,13 +253,38 @@ export const MetadataField = ({
       </label>
       <input
         type={getInputType()}
-        value={value}
+        value={typeof value === 'string' ? value : String(value || '')}
         onChange={(e) => {
-          let processedValue = e.target.value;
+          let processedValue: unknown = e.target.value;
           
-          // Process datetime to ensure proper format
-          if (field.type === "datetime" && processedValue && processedValue.length === 16) {
-            processedValue = `${processedValue}:00`;
+          // Convert to proper types based on field type
+          switch (field.type) {
+            case "datetime":
+              // Process datetime to ensure proper format
+              if (processedValue && typeof processedValue === "string" && processedValue.length === 16) {
+                processedValue = `${processedValue}:00`;
+              }
+              break;
+              
+            case "integer":
+              if (processedValue && typeof processedValue === "string") {
+                const numValue = parseInt(processedValue.trim());
+                processedValue = isNaN(numValue) ? processedValue : numValue;
+              }
+              break;
+              
+            case "float":
+            case "number":
+              if (processedValue && typeof processedValue === "string") {
+                const numValue = parseFloat(processedValue.trim());
+                processedValue = isNaN(numValue) ? processedValue : numValue;
+              }
+              break;
+              
+            case "string":
+            default:
+              // Keep as string for string and datetime types
+              break;
           }
           
           onChange(field.name, processedValue, field.type);
@@ -263,7 +303,7 @@ export const MetadataField = ({
       
       {field.max_length && field.type === "string" && (
         <div className="text-xs text-neutral-500 mt-1">
-          {value.length}/{field.max_length} characters
+          {typeof value === 'string' ? value.length : String(value || '').length}/{field.max_length} characters
         </div>
       )}
     </div>

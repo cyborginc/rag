@@ -96,8 +96,11 @@ class ElasticVDB(VDBRag):
     ):
         self.index_name = index_name
         self.es_url = es_url
-        self._es_connection = Elasticsearch(hosts=[self.es_url])
+        self._es_connection = Elasticsearch(hosts=[self.es_url]).options(
+            request_timeout=int(os.environ.get("ES_REQUEST_TIMEOUT", 600))
+        )
         self._embedding_model = embedding_model
+        self.hybrid = hybrid
 
         # Metadata fields specific to NV-Ingest Client
         self.meta_dataframe = meta_dataframe
@@ -106,13 +109,10 @@ class ElasticVDB(VDBRag):
         self.csv_file_path = csv_file_path
 
         # Initialize the Elasticsearch vector store
-        self.es_store = VectorStore(
-            client=self._es_connection,
-            index=self.index_name,
-            num_dimensions=CONFIG.embeddings.dimensions,
-            text_field="text",
-            vector_field="vector",
-            retrieval_strategy=DenseVectorStrategy(hybrid=hybrid),
+        self.es_store = self._get_es_store(
+            index_name=self.index_name,
+            dimensions=CONFIG.embeddings.dimensions,
+            hybrid=self.hybrid,
         )
 
         kwargs = locals().copy()
@@ -128,6 +128,22 @@ class ElasticVDB(VDBRag):
     def collection_name(self, collection_name: str) -> None:
         """Set the collection name."""
         self.index_name = collection_name
+
+    def _get_es_store(
+        self,
+        index_name: str,
+        dimensions: int,
+        hybrid: bool = False,
+    ):
+        """Get the Elasticsearch vector store."""
+        return VectorStore(
+            client=self._es_connection,
+            index=index_name,
+            num_dimensions=dimensions,
+            text_field="text",
+            vector_field="vector",
+            retrieval_strategy=DenseVectorStrategy(hybrid=hybrid),
+        )
 
     # ----------------------------------------------------------------------------------------------
     # Implementations of the abstract methods of the NV-Ingest Client VDB class
@@ -146,7 +162,7 @@ class ElasticVDB(VDBRag):
 
     def write_to_index(self, records: list, **kwargs) -> None:
         """
-        Write records to the Elasticsearch index.
+        Write records to the Elasticsearch index in batches.
         """
         # Clean up and flatten records to pull appropriate fields from the records
         cleaned_records = cleanup_records(
@@ -168,14 +184,41 @@ class ElasticVDB(VDBRag):
                 }
             )
 
-        # Add texts, embeddings, and metadatas to the Elasticsearch index
-        self.es_store.add_texts(
-            texts=texts,
-            vectors=embeddings,
-            metadatas=metadatas,
-        )
+        total_records = len(texts)
+        batch_size = 200
+        uploaded_count = 0
+
         logger.info(
-            f"Added {len(texts)} records to Elasticsearch index {self.index_name}"
+            f"Commencing Elasticsearch ingestion process for {total_records} records..."
+        )
+
+        # Process records in batches of batch_size
+        for i in range(0, total_records, batch_size):
+            end_idx = min(i + batch_size, total_records)
+            batch_texts = texts[i:end_idx]
+            batch_embeddings = embeddings[i:end_idx]
+            batch_metadatas = metadatas[i:end_idx]
+
+            # Upload current batch to Elasticsearch
+            self.es_store.add_texts(
+                texts=batch_texts,
+                vectors=batch_embeddings,
+                metadatas=batch_metadatas,
+            )
+
+            uploaded_count += len(batch_texts)
+
+            # Log progress every 5 batches (5000 records)
+            if (
+                uploaded_count % (5 * batch_size) == 0
+                or uploaded_count == total_records
+            ):
+                logger.info(
+                    f"Successfully ingested {uploaded_count} records into Elasticsearch index {self.index_name}"
+                )
+
+        logger.info(
+            f"Elasticsearch ingestion completed. Total records processed: {uploaded_count}"
         )
         self._es_connection.indices.refresh(index=self.index_name)
 
@@ -205,6 +248,42 @@ class ElasticVDB(VDBRag):
 
     # ----------------------------------------------------------------------------------------------
     # Implementations of the abstract methods specific to VDBRag class for ingestion
+    async def check_health(self) -> dict[str, Any]:
+        """Check Elasticsearch database health"""
+        status = {
+            "service": "Elasticsearch",
+            "url": self.es_url,
+            "status": "unknown",
+            "error": None,
+        }
+
+        if not self.es_url:
+            status["status"] = "skipped"
+            status["error"] = "No URL provided"
+            return status
+
+        try:
+            start_time = time.time()
+
+            cluster_health = self._es_connection.cluster.health()
+            indices = self._es_connection.cat.indices(format="json")
+
+            status["status"] = "healthy"
+            status["latency_ms"] = round((time.time() - start_time) * 1000, 2)
+            status["indices"] = len(indices)
+            status["cluster_status"] = cluster_health.get("status", "unknown")
+
+        except ImportError:
+            status["status"] = "error"
+            status["error"] = (
+                "Elasticsearch client not available (elasticsearch library not installed)"
+            )
+        except Exception as e:
+            status["status"] = "error"
+            status["error"] = str(e)
+
+        return status
+
     def create_collection(
         self,
         collection_name: str,
@@ -214,10 +293,16 @@ class ElasticVDB(VDBRag):
         """
         Create a new collection in the Elasticsearch index.
         """
-        self.create_index()
+        es_store = self._get_es_store(
+            index_name=collection_name,
+            dimensions=dimension,
+            hybrid=self.hybrid,
+        )
+        es_store._create_index_if_not_exists()
+
         # Wait for the index to be ready
         self._es_connection.cluster.health(
-            index=self.index_name, wait_for_status="yellow", timeout="5s"
+            index=collection_name, wait_for_status="yellow", timeout="5s"
         )
 
     def check_collection_exists(self, collection_name: str) -> bool:

@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV DEBIAN_FRONTEND noninteractive
 
 # Install uv https://docs.astral.sh/uv/guides/integration/docker/#installing-uv
-COPY --from=ghcr.io/astral-sh/uv:0.7.4 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.8.12 /uv /uvx /bin/
 
 WORKDIR /build
 

@@ -21,6 +21,7 @@ import { useCallback } from "react";
 interface FileValidationOptions {
   acceptedTypes: string[];
   maxFileSize: number; // in MB
+  audioFileMaxSize?: number; // in MB, defaults to maxFileSize if not provided
 }
 
 /**
@@ -38,7 +39,7 @@ interface FileValidationOptions {
  * const error = validateFile(file);
  * ```
  */
-export const useFileValidation = ({ acceptedTypes, maxFileSize }: FileValidationOptions) => {
+export const useFileValidation = ({ acceptedTypes, maxFileSize, audioFileMaxSize }: FileValidationOptions) => {
   
   const validateFile = useCallback((file: File): string | null => {
     const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
@@ -47,12 +48,19 @@ export const useFileValidation = ({ acceptedTypes, maxFileSize }: FileValidation
       return `File type not supported. Accepted: ${acceptedTypes.join(', ')}`;
     }
     
-    if (file.size > maxFileSize * 1024 * 1024) {
+    // Check if this is an audio file
+    const isAudioFile = ['.mp3', '.wav'].includes(fileExtension);
+    const sizeLimit = isAudioFile ? (audioFileMaxSize || maxFileSize) : maxFileSize;
+    
+    if (file.size > sizeLimit * 1024 * 1024) {
+      if (isAudioFile && audioFileMaxSize) {
+        return `Audio file too large. Max size for audio files: ${audioFileMaxSize}MB`;
+      }
       return `File too large. Max size: ${maxFileSize}MB`;
     }
     
     return null;
-  }, [acceptedTypes, maxFileSize]);
+  }, [acceptedTypes, maxFileSize, audioFileMaxSize]);
 
   const validateFiles = useCallback((files: File[]): { valid: File[]; invalid: Array<{ file: File; error: string }> } => {
     const valid: File[] = [];

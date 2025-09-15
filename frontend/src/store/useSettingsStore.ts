@@ -15,43 +15,49 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useHealthStatus } from "../api/useHealthApi";
 
 /**
  * Interface defining the shape of the settings state.
  * Contains RAG configuration, feature toggles, model settings, and endpoints.
+ * Most fields are optional to avoid sending unnecessary defaults in API calls.
  */
 interface SettingsState {
-  // RAG Configuration
-  temperature: number;
-  topP: number;
-  maxTokens: number;
-  vdbTopK: number;
-  rerankerTopK: number;
+  // RAG Configuration - All optional, only sent if user has configured them
+  temperature?: number;
+  topP?: number;
+  maxTokens?: number;
+  vdbTopK?: number;
+  rerankerTopK?: number;
   confidenceScoreThreshold?: number;
   
-  // Feature Toggles
-  enableQueryRewriting: boolean;
+  // Feature Toggles - Only enableReranker and includeCitations default to true
+  enableQueryRewriting?: boolean;
   enableReranker: boolean;
-  useGuardrails: boolean;
+  useGuardrails?: boolean;
   includeCitations: boolean;
-  enableVlmInference: boolean;
-  enableFilterGenerator: boolean;
+  enableVlmInference?: boolean;
+  enableFilterGenerator?: boolean;
   
-  // Models
-  model: string;
-  embeddingModel: string;
-  rerankerModel: string;
-  vlmModel: string;
+  // Models - All optional, populated from health endpoint or user input
+  model?: string;
+  embeddingModel?: string;
+  rerankerModel?: string;
+  vlmModel?: string;
   
-  // Endpoints
-  llmEndpoint: string;
-  embeddingEndpoint: string;
-  rerankerEndpoint: string;
-  vlmEndpoint: string;
-  vdbEndpoint: string;
+  // Endpoints - All optional, populated from health endpoint or user input
+  llmEndpoint?: string;
+  embeddingEndpoint?: string;
+  rerankerEndpoint?: string;
+  vlmEndpoint?: string;
+  vdbEndpoint?: string;
   
-  // Other
-  stopTokens: string[];
+  // Theme - Required
+  theme: 'light' | 'dark';
+  
+  // Other - Optional
+  stopTokens?: string[];
+  useLocalStorage?: boolean;
   
   set: (values: Partial<SettingsState>) => void;
 }
@@ -73,42 +79,102 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      // RAG Configuration
-      temperature: 0,
-      topP: 0.1,
-      maxTokens: 32768,
-      vdbTopK: 100,
-      rerankerTopK: 10,
+      // RAG Configuration - All start undefined (empty)
+      temperature: undefined,
+      topP: undefined,
+      maxTokens: undefined,
+      vdbTopK: undefined,
+      rerankerTopK: undefined,
       confidenceScoreThreshold: undefined,
       
-      // Feature Toggles
-      enableQueryRewriting: false,
+      // Feature Toggles - Only enableReranker and includeCitations default to true
+      enableQueryRewriting: undefined,
       enableReranker: true,
-      useGuardrails: false,
+      useGuardrails: undefined,
       includeCitations: true,
-      enableVlmInference: false,
-      enableFilterGenerator: false,
+      enableVlmInference: undefined,
+      enableFilterGenerator: undefined,
       
-      // Models
-      model: "nvdev/nvidia/llama-3.3-nemotron-super-49b-v1",
-      embeddingModel: "nvdev/nvidia/llama-3.2-nv-embedqa-1b-v2",
-      rerankerModel: "nvdev/nvidia/llama-3.2-nv-rerankqa-1b-v2",
-      vlmModel: "nvidia/llama-3.1-nemotron-nano-vl-8b-v1",
+      // Models - All start undefined, will be populated from health endpoint
+      model: undefined,
+      embeddingModel: undefined,
+      rerankerModel: undefined,
+      vlmModel: undefined,
       
-      // Endpoints
-      llmEndpoint: "",
-      embeddingEndpoint: "",
-      rerankerEndpoint: "https://ai.api.nvidia.com/v1/nvdev/retrieval/nvidia/llama-3_2-nv-rerankqa-1b-v2/reranking/v1",
-      vlmEndpoint: "http://vlm-ms:8000/v1",
-      vdbEndpoint: "http://milvus:19530",
+      // Endpoints - All start undefined, will be populated from health endpoint
+      llmEndpoint: undefined,
+      embeddingEndpoint: undefined,
+      rerankerEndpoint: undefined,
+      vlmEndpoint: undefined,
+      vdbEndpoint: undefined,
       
-      // Other
-      stopTokens: [],
+      // Theme - Required field
+      theme: 'dark' as const,
+      
+      // Other - Optional
+      stopTokens: undefined,
+      useLocalStorage: undefined,
       
       set: (values) => set(values),
     }),
     {
       name: "rag-settings",
+      storage: {
+        getItem: (name) => {
+          const str = localStorage.getItem(name);
+          if (!str) return null;
+          return JSON.parse(str);
+        },
+        setItem: (name, value) => {
+          // Only save if useLocalStorage is explicitly enabled
+          const state = JSON.parse(JSON.stringify(value.state));
+          if (state?.useLocalStorage === true) {
+            localStorage.setItem(name, JSON.stringify(value));
+          } else {
+            // Clear localStorage if disabled or undefined
+            localStorage.removeItem(name);
+          }
+        },
+        removeItem: (name) => localStorage.removeItem(name),
+      },
     }
   )
 );
+
+
+/**
+ * Hook to get application health status.
+ * Used for monitoring service health without performing any settings initialization.
+ * Models and endpoints remain empty until explicitly set by users.
+ */
+export function useAppHealthStatus() {
+  const { data: health, isLoading, error } = useHealthStatus();
+
+  // Returns health status data for application monitoring
+  return { health, isLoading, error };
+}
+
+/**
+ * Hook to check if health-dependent features should be disabled.
+ * Returns true if health checks are loading or have failed.
+ */
+export function useHealthDependentFeatures() {
+  const { data: health, isLoading, error } = useHealthStatus();
+  
+  const isHealthLoading = isLoading;
+  const hasHealthError = !!error;
+  const hasHealthData = !!health;
+  
+  // Disable features if health is loading or has error
+  const shouldDisableHealthFeatures = isHealthLoading || hasHealthError || !hasHealthData;
+  
+  return {
+    isHealthLoading,
+    hasHealthError, 
+    hasHealthData,
+    shouldDisableHealthFeatures,
+    health,
+    error
+  };
+}
+

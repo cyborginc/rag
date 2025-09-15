@@ -98,7 +98,7 @@ describe('CitationTextContent', () => {
       
       render(<CitationTextContent text="source text" />);
       
-      expect(mockToMarkdown).toHaveBeenCalledBefore(mockRenderMarkdown as any);
+      expect(mockToMarkdown).toHaveBeenCalledBefore(mockRenderMarkdown);
     });
   });
 }); 

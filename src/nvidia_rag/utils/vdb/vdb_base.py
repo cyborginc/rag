@@ -54,6 +54,11 @@ class VDBRag(VDB):
         """Get the collection name."""
         pass
 
+    @abstractmethod
+    async def check_health(self) -> dict[str, Any]:
+        """Check the health of the VDB."""
+        pass
+
     # ----------------------------------------------------------------------------------------------
     # Abstract methods for the VDBRag class for ingestion
     @abstractmethod

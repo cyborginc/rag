@@ -74,7 +74,7 @@ You use sample Jupyter notebooks with the JupyterLab service to interact with th
 The Blueprint contains sample data from the [NVIDIA Developer Blog](https://github.com/NVIDIA-AI-Blueprints/rag/blob/main/data/dataset.zip) and also some [sample multimodal data](./data/multimodal/).
 You can build on this blueprint by customizing the RAG application to your specific use case.
 
-We also provide a sample user interface named `rag-playground`.
+We also provide a sample user interface named `rag-frontend`.
 
 
 ### Technical Diagram
@@ -156,6 +156,7 @@ The following are some of the features that you can enable:
 - [Enable PDF extraction with Nemoretriever Parse](docs/nemoretriever-parse-extraction.md)
 - [Enable NeMo Retriever OCR for enhanced text extraction](docs/nemoretriever-ocr.md)
 - [Enable standalone NV-Ingest for direct document ingestion without ingestor server](docs/nv-ingest-standalone.md)
+- [Mount ingestor server volume for direct filesystem access to extraction results](docs/mount-ingestor-volume.md)
 - [Enable query rewriting to improve the accuracy of multi-turn conversations](docs/query_rewriter.md)
 - [Enable reasoning in Nemotron model](docs/enable-nemotron-thinking.md)
 - [Enable self-reflection to improve accuracy](docs/self-reflection.md)
@@ -174,8 +175,6 @@ To troubleshoot issues that arise when you work with the NVIDIA RAG Blueprint, s
 > **⚠️ Important B200 Limitation Notice:**
 >
 > B200 GPUs are **not supported** for the following advanced features:
-> - Self-Reflection to improve accuracy
-> - Query rewriting to Improve accuracy of Multi-Turn Conversations
 > - Image captioning support for ingested documents
 > - NeMo Guardrails for guardrails at input/output
 > - VLM based inferencing in RAG

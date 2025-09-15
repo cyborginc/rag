@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { Badge } from "@kui/react";
+
 /**
  * Props for the NotificationBadge component.
  */
@@ -38,19 +40,27 @@ const BellIcon = () => (
 /**
  * Notification badge component that displays a bell icon with optional count badge.
  * 
- * Shows a bell icon and conditionally displays a green badge with the notification
+ * Shows a bell icon and conditionally displays a KUI Badge with the notification
  * count when there are unread notifications.
  * 
  * @param props - Component props with notification count
- * @returns Bell icon with optional notification count badge
+ * @returns Bell icon with optional notification count badge using KUI Badge
  */
 export const NotificationBadge = ({ count }: NotificationBadgeProps) => (
-  <>
+  <div className="relative">
     <BellIcon />
     {count > 0 && (
-      <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--nv-green)] text-xs font-medium text-black">
-        {count}
-      </span>
+      <div 
+        className="absolute" 
+        style={{ 
+          top: '-4px', 
+          right: '-24px'
+        }}
+      >
+        <Badge kind="solid" color="green">
+          {count}
+        </Badge>
+      </div>
     )}
-  </>
+  </div>
 ); 

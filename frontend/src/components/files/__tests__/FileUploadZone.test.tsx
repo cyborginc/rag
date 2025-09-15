@@ -51,7 +51,7 @@ describe('FileUploadZone', () => {
       const { container } = render(<FileUploadZone {...defaultProps} />);
       
       const hiddenInput = container.querySelector('input[type="file"]');
-      const mockFiles = [new File([''], 'test.pdf')] as any;
+      const mockFiles = [new File([''], 'test.pdf')];
       
       fireEvent.change(hiddenInput!, { target: { files: mockFiles } });
       
@@ -80,7 +80,7 @@ describe('FileUploadZone', () => {
       const { container } = render(<FileUploadZone {...defaultProps} />);
       
       const hiddenInput = container.querySelector('input[type="file"]') as HTMLInputElement;
-      const mockFiles = [new File([''], 'test.pdf')] as any;
+      const mockFiles = [new File([''], 'test.pdf')];
       
       // Set initial value (this simulates user selecting a file)
       Object.defineProperty(hiddenInput, 'value', { writable: true });

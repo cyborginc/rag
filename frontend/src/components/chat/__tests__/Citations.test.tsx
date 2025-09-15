@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '../../../test/utils';
 import Citations from '../Citations';
+import type { Citation } from '../../../types/chat';
 
 // Mock CitationItem component
 vi.mock('../../citations/CitationItem', () => ({
-  default: ({ citation, index }: { citation: any; index: number }) => (
+  default: ({ citation, index }: { citation: Citation; index: number }) => (
     <div data-testid="citation-item">
       Citation {index + 1}: {citation.source}
     </div>

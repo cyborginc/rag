@@ -3,9 +3,11 @@ import { render, screen, fireEvent } from '../../../test/utils';
 import { ModelsSection } from '../ModelsSection';
 
 const mockUseSettingsStore = vi.fn();
+const mockUseHealthDependentFeatures = vi.fn();
 
 vi.mock('../../../store/useSettingsStore', () => ({
-  useSettingsStore: () => mockUseSettingsStore()
+  useSettingsStore: () => mockUseSettingsStore(),
+  useHealthDependentFeatures: () => mockUseHealthDependentFeatures()
 }));
 
 describe('ModelsSection', () => {
@@ -19,6 +21,10 @@ describe('ModelsSection', () => {
       rerankerModel: '',
       vlmModel: '',
       set: mockSetSettings
+    });
+    mockUseHealthDependentFeatures.mockReturnValue({
+      isHealthLoading: false,
+      shouldDisableHealthFeatures: false
     });
   });
 
@@ -108,7 +114,7 @@ describe('ModelsSection', () => {
       const modelInput = screen.getByDisplayValue('existing-model');
       fireEvent.change(modelInput, { target: { value: '' } });
       
-      expect(mockSetSettings).toHaveBeenCalledWith({ model: '' });
+      expect(mockSetSettings).toHaveBeenCalledWith({ model: undefined });
     });
   });
 

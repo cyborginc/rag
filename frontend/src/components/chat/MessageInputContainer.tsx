@@ -16,13 +16,14 @@
 import { MessageTextarea } from "./MessageTextarea";
 import { MessageActions } from "./MessageActions";
 import { ChatActionsMenu } from "./ChatActionsMenu";
+import { Block } from "@kui/react";
 
 export const MessageInputContainer = () => (
-  <div className="relative">
+  <Block style={{ position: 'relative' }}>
     <MessageTextarea />
-    <div className="absolute left-3 top-3">
+    <Block style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}>
       <ChatActionsMenu />
-    </div>
+    </Block>
     <MessageActions />
-  </div>
+  </Block>
 ); 

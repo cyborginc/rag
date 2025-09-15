@@ -17,15 +17,50 @@ import { useNavigate } from "react-router-dom";
 import { useNewCollectionStore } from "../../store/useNewCollectionStore";
 import { useSubmitNewCollection } from "../../hooks/useSubmitNewCollection";
 import { useCollections } from "../../api/useCollectionsApi";
-import { useState, useEffect, useRef } from "react";
+import type { Collection } from "../../types/collections";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { 
+  Button, 
+  Flex, 
+  Block, 
+  Notification,
+  Spinner
+} from "@kui/react";
+
+// Custom hook for responsive screen detection
+const useResponsiveScreen = () => {
+  const [screenSize, setScreenSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1024,
+    height: typeof window !== 'undefined' ? window.innerHeight : 768
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setScreenSize({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = screenSize.width < 768;
+  const isTablet = screenSize.width >= 768 && screenSize.width < 1024;
+  const isDesktop = screenSize.width >= 1024;
+
+  return { screenSize, isMobile, isTablet, isDesktop };
+};
 
 export default function NewCollectionButtons() {
   const navigate = useNavigate();
-  const { collectionName, collectionNameTouched, metadataSchema, fileMetadata, selectedFiles, isLoading, setError } =
+  const { collectionName, collectionNameTouched, metadataSchema, fileMetadata, selectedFiles, isLoading, hasInvalidFiles, setError } =
     useNewCollectionStore();
 
   const { submit } = useSubmitNewCollection();
   const { data: existing = [] } = useCollections();
+  const { isMobile, isTablet } = useResponsiveScreen();
 
   const [nameError, setNameError] = useState<string | null>(null);
   const isSubmittingRef = useRef(false);
@@ -51,7 +86,7 @@ export default function NewCollectionButtons() {
       return;
     }
 
-    const dup = existing.some((c: any) => c.collection_name === trimmed);
+    const dup = existing.some((c: Collection) => c.collection_name === trimmed);
     if (dup) {
       setNameError("A collection with this name already exists");
       return;
@@ -75,13 +110,29 @@ export default function NewCollectionButtons() {
       
       // For boolean fields, both "true" and "false" are valid values
       if (field.type === "boolean") {
-        const lowerValue = (value || "").toLowerCase().trim();
+        if (typeof value === "boolean") return false; // Valid boolean value
+        if (typeof value !== "string") return true; // Invalid type for boolean field
+        const lowerValue = value.toLowerCase().trim();
         const validBooleanValues = ["true", "false", "1", "0", "yes", "no", "on", "off"];
         return !lowerValue || !validBooleanValues.includes(lowerValue);
       }
       
-      // For other field types, check if value is empty
-      return !value?.trim();
+      // For string fields, check if value is empty
+      if (field.type === "string" || field.type === "datetime") {
+        return !value || (typeof value === "string" && !value.trim());
+      }
+      
+      // For numeric fields, check if null/undefined  
+      if (field.type === "integer" || field.type === "float" || field.type === "number") {
+        return value === null || value === undefined;
+      }
+      
+      // For arrays, check if empty
+      if (field.type === "array") {
+        return !Array.isArray(value) || value.length === 0;
+      }
+      
+      return false;
     })
   );
 
@@ -105,6 +156,10 @@ export default function NewCollectionButtons() {
       return "Please enter a collection name";
     }
     
+    if (hasInvalidFiles) {
+      return "Please remove or fix invalid files before creating the collection";
+    }
+    
     if (hasMissingRequired) {
       // Find which files have missing required fields
       const filesWithMissing = selectedFiles.filter((file) =>
@@ -113,12 +168,29 @@ export default function NewCollectionButtons() {
           const value = fileMetadata[file.name]?.[field.name];
           
           if (field.type === "boolean") {
-            const lowerValue = (value || "").toLowerCase().trim();
+            if (typeof value === "boolean") return false; // Valid boolean value
+            if (typeof value !== "string") return true; // Invalid type for boolean field
+            const lowerValue = value.toLowerCase().trim();
             const validBooleanValues = ["true", "false", "1", "0", "yes", "no", "on", "off"];
             return !lowerValue || !validBooleanValues.includes(lowerValue);
           }
           
-          return !value?.trim();
+          // For string fields, check if value is empty
+          if (field.type === "string" || field.type === "datetime") {
+            return !value || (typeof value === "string" && !value.trim());
+          }
+          
+          // For numeric fields, check if null/undefined  
+          if (field.type === "integer" || field.type === "float" || field.type === "number") {
+            return value === null || value === undefined;
+          }
+          
+          // For arrays, check if empty
+          if (field.type === "array") {
+            return !Array.isArray(value) || value.length === 0;
+          }
+          
+          return false;
         })
       );
       
@@ -135,34 +207,101 @@ export default function NewCollectionButtons() {
 
   const validationMessage = getValidationMessage();
 
+  // Responsive styles for the button bar
+  const buttonBarStyles = useMemo(() => {
+    const baseStyles = {
+      backgroundColor: 'var(--background-color-surface-base)',
+      borderTop: '1px solid var(--border-color-subtle)',
+    };
+
+    if (isMobile) {
+      return {
+        ...baseStyles,
+        position: 'sticky' as const,  // Sticky positioning for mobile to work with keyboards
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,  // Higher z-index for mobile to ensure visibility above content
+        boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',  // Add shadow for visual separation
+        // Add safe-area-inset for devices with notches
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+      };
+    }
+
+    if (isTablet) {
+      return {
+        ...baseStyles,
+        position: 'fixed' as const,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 50,  // Medium z-index for tablets
+        boxShadow: '0 -1px 4px rgba(0, 0, 0, 0.05)'
+      };
+    }
+
+    // Desktop styles
+    return {
+      ...baseStyles,
+      position: 'fixed' as const,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      zIndex: 10  // Lower z-index for desktop
+    };
+  }, [isMobile, isTablet]);
+
   return (
-    <div className="mt-6 space-y-3" data-testid="new-collection-buttons">
+    <>
+      {/* Error notification - positioned normally */}
       {(nameError || validationMessage) && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-red-900/20 border border-red-800/30 rounded-lg text-sm text-red-300" data-testid="error-message">
-          <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
-          <span>{nameError || validationMessage}</span>
-        </div>
+        <Block padding="4" data-testid="new-collection-buttons">
+          <Notification
+            status="error"
+            slotHeading="Validation Error"
+            slotSubheading={nameError || validationMessage}
+            data-testid="error-message"
+          />
+        </Block>
       )}
       
-      <div className="flex justify-end space-x-4" data-testid="button-container">
-        <button
-          onClick={() => navigate("/")}
-          className="px-4 py-2 text-sm rounded border border-neutral-600 hover:bg-neutral-800 transition-colors"
-          data-testid="cancel-button"
+      {/* Spacer to prevent content from being hidden behind the button bar */}
+      <Block style={{ height: isMobile ? '80px' : '72px' }} />
+      
+      {/* Responsive bottom button bar */}
+      <Block
+        style={buttonBarStyles}
+        padding={isMobile ? "3" : "4"}
+        data-testid="button-container"
+      >
+        <Flex 
+          gap={isMobile ? "2" : "3"} 
+          justify="end" 
+          align="center"
+          direction={isMobile ? "col" : "row"}
         >
-          Cancel
-        </button>
-        <button
-          disabled={!collectionName.trim() || hasMissingRequired || isLoading || !!nameError}
-          onClick={handleSubmit}
-          className="px-4 py-2 text-sm rounded bg-[var(--nv-green)] hover:bg-opacity-90 disabled:opacity-50 transition-colors"
-          data-testid="create-button"
-        >
-          {isLoading ? "Processing..." : "Create Collection"}
-        </button>
-      </div>
-    </div>
+          <Button
+            kind="secondary"
+            onClick={() => navigate("/")}
+            data-testid="cancel-button"
+            size={isMobile ? "medium" : "medium"}
+            style={{ width: isMobile ? '100%' : 'auto' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            color="brand"
+            kind={isLoading ? "tertiary" : "primary"}
+            disabled={!collectionName.trim() || hasMissingRequired || hasInvalidFiles || isLoading || !!nameError}
+            onClick={handleSubmit}
+            data-testid="create-button"
+            size={isMobile ? "medium" : "medium"}
+            style={{ width: isMobile ? '100%' : 'auto' }}
+          >
+            {isLoading ? <Spinner description="" size="small" /> : "Create Collection"}
+          </Button>
+        </Flex>
+      </Block>
+    </>
   );
 }

@@ -15,20 +15,43 @@
 
 /**
  * Request payload for the generate chat API endpoint.
+ * Most fields are optional to avoid sending unnecessary defaults.
+ * Only messages and use_knowledge_base are required.
  */
 export interface GenerateRequest {
+  // Required fields
   messages: { role: "user" | "assistant"; content: string }[];
-  collection_names: string[];
-  temperature: number;
-  top_p: number;
-  reranker_top_k: number;
-  vdb_top_k: number;
-  confidence_threshold?: number;
   use_knowledge_base: boolean;
-  enable_citations: boolean;
-  enable_guardrails: boolean;
-  filter_expr?: string;
+  
+  // Optional RAG configuration
+  collection_names?: string[];
+  temperature?: number;
+  top_p?: number;
+  max_tokens?: number;
+  reranker_top_k?: number;
+  vdb_top_k?: number;
+  confidence_threshold?: number;
+  
+  // Optional feature toggles
+  enable_citations?: boolean;
+  enable_guardrails?: boolean;
+  enable_query_rewriting?: boolean;
+  enable_reranker?: boolean;
+  enable_vlm_inference?: boolean;
+  enable_filter_generator?: boolean;
+  
+  // Optional models and endpoints
   model?: string;
   embedding_model?: string;
   reranker_model?: string;
+  vlm_model?: string;
+  llm_endpoint?: string;
+  embedding_endpoint?: string;
+  reranker_endpoint?: string;
+  vlm_endpoint?: string;
+  vdb_endpoint?: string;
+  
+  // Optional other fields
+  filter_expr?: string;
+  stop?: string[];
 }

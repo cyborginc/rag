@@ -20,7 +20,7 @@ For enhanced optical character recognition capabilities, you can use the NeMo Re
    export OCR_GRPC_ENDPOINT=nemoretriever-ocr:8001
    export OCR_HTTP_ENDPOINT=http://nemoretriever-ocr:8000/v1/infer
    export OCR_INFER_PROTOCOL=grpc
-   export OCR_MODEL_NAME=scene_text
+   export OCR_MODEL_NAME=scene_text_ensemble
    ```
 
    > [!Important]
@@ -65,7 +65,7 @@ For enhanced optical character recognition capabilities, you can use the NeMo Re
    ```bash
    export OCR_HTTP_ENDPOINT=https://ai.api.nvidia.com/v1/cv/nvidia/nemoretriever-ocr
    export OCR_INFER_PROTOCOL=http
-   export OCR_MODEL_NAME=scene_text
+   export OCR_MODEL_NAME=scene_text_ensemble
    ```
 
 2. Deploy the ingestion-server and rag-server containers following the remaining steps in the quickstart guide.
@@ -80,19 +80,13 @@ For enhanced optical character recognition capabilities, you can use the NeMo Re
 To enable NeMo Retriever OCR using Helm, you need to enable the NeMo Retriever OCR service and disable Paddle OCR to save GPU resources:
 
 ```bash
-helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc1.tgz \
+# Apply following cmd to a fresh deployment, recommended to uninstall all deployments 1st if already present - `helm uninstall rag -n rag`
+helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \
   --username '$oauthtoken' \
   --password "${NGC_API_KEY}" \
-  --set nim-llm.enabled=true \
-  --set nvidia-nim-llama-32-nv-embedqa-1b-v2.enabled=true \
-  --set text-reranking-nim.enabled=true \
-  --set ingestor-server.enabled=true \
-  --set ingestor-server.nv-ingest.paddleocr-nim.deployed=false \
-  --set ingestor-server.nv-ingest.nemoretriever-ocr.deployed=true \
-  --set ingestor-server.envVars.OCR_GRPC_ENDPOINT="nemoretriever-ocr:8001" \
-  --set ingestor-server.envVars.OCR_HTTP_ENDPOINT="http://nemoretriever-ocr:8000/v1/infer" \
-  --set ingestor-server.envVars.OCR_INFER_PROTOCOL="grpc" \
-  --set ingestor-server.envVars.OCR_MODEL_NAME="scene_text" \
+  --set nv-ingest.paddleocr-nim.deployed=false \
+  --set nv-ingest.nemoretriever-ocr.deployed=true \
+  --set nv-ingest.envVars.OCR_MODEL_NAME="scene_text_ensemble" \
   --set imagePullSecret.password=$NGC_API_KEY \
   --set ngcApiSecret.password=$NGC_API_KEY
 ```

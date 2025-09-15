@@ -22,7 +22,7 @@ export interface CreateCollectionPayload {
   collection_name: string;
   embedding_dimension: number;
   metadata_schema: APIMetadataField[];
-  vdb_endpoint: string;
+  vdb_endpoint?: string;
 }
 
 /**
@@ -63,6 +63,56 @@ export interface IngestionTask {
       document_name: string;
       error_message?: string;
     }[];
-    validation_errors?: any[]; // Fill in if needed
+    validation_errors?: unknown[]; // Fill in if needed
   };
+}
+
+/**
+ * Health check response from the ingestor server.
+ */
+export interface HealthResponse {
+  message: string;
+  databases: Array<{
+    service: string;
+    url: string;
+    status: string;
+    latency_ms: number;
+    error: string | null;
+    collections: unknown;
+  }>;
+  object_storage: Array<{
+    service: string;
+    url: string;
+    status: string;
+    latency_ms: number;
+    error: string | null;
+    buckets: number;
+    message: string | null;
+  }>;
+  nim: Array<{
+    service: string;
+    url: string;
+    status: string;
+    latency_ms: number;
+    error: string | null;
+    model: string;
+    message: string | null;
+    http_status: number | null;
+  }>;
+  processing: Array<{
+    service: string;
+    url: string;
+    status: string;
+    latency_ms: number;
+    error: string | null;
+    http_status: number;
+  }>;
+  task_management: Array<{
+    service: string;
+    url: string;
+    status: string;
+    latency_ms: number;
+    error: string | null;
+    message: string | null;
+  }>;
 }

@@ -72,7 +72,7 @@ describe('CitationButton', () => {
     it('displays formatted citation count', () => {
       mockFormatCitationCount.mockReturnValue('3 sources');
       
-      render(<CitationButton citations={[{}, {}, {}] as any} />);
+      render(<CitationButton citations={[{ text: '', source: '', document_type: 'text' }, { text: '', source: '', document_type: 'text' }, { text: '', source: '', document_type: 'text' }]} />);
       
       expect(screen.getByText('3 sources')).toBeInTheDocument();
     });
@@ -106,7 +106,7 @@ describe('CitationButton', () => {
     it('contains formatted count text', () => {
       mockFormatCitationCount.mockReturnValue('View 5 citations');
       
-      render(<CitationButton citations={[{}, {}, {}, {}, {}] as any} />);
+      render(<CitationButton citations={[{ text: '', source: '', document_type: 'text' }, { text: '', source: '', document_type: 'text' }, { text: '', source: '', document_type: 'text' }, { text: '', source: '', document_type: 'text' }, { text: '', source: '', document_type: 'text' }]} />);
       
       expect(screen.getByText('View 5 citations')).toBeInTheDocument();
     });

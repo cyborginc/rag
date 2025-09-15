@@ -15,6 +15,8 @@
 
 import type { JSX } from "react";
 import Header from "./Header";
+import { ThemeProvider } from "@kui/react";
+import { useTheme } from "../../hooks/useTheme";
 
 /**
  * Main layout component that provides the application structure.
@@ -26,12 +28,18 @@ import Header from "./Header";
  * @returns Layout wrapper with header and main content area
  */
 const Layout = ({ children }: { children: JSX.Element | JSX.Element[] }) => {
+  const { theme } = useTheme();
+  
   return (
-    <div className="flex flex-col min-h-screen bg-nvidia-dark">
+    <ThemeProvider theme={theme}>
       <Header/>
-
-      {children}
-    </div>
+      <div style={{ 
+        background: "var(--background-color-surface-base)",
+        minHeight: "calc(100vh - 48px)",
+      }}>
+        {children}
+      </div>
+    </ThemeProvider>
   )
 }
 

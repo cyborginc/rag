@@ -19,7 +19,7 @@ const VISUAL_TYPES = ["image", "chart", "table"] as const;
 
 export const useCitationUtils = () => {
   const isVisualType = useMemo(() => 
-    (documentType: string) => VISUAL_TYPES.includes(documentType as any),
+    (documentType: string) => VISUAL_TYPES.includes(documentType as typeof VISUAL_TYPES[number]),
     []
   );
 

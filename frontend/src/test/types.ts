@@ -41,7 +41,7 @@ export interface MockLocation {
 /**
  * Helper type for test component props with optional data-testid.
  */
-export type TestComponentProps<T = {}> = T & {
+export type TestComponentProps<T = Record<string, unknown>> = T & {
   'data-testid'?: string;
 };
 

@@ -16,10 +16,10 @@
 import { useCallback } from "react";
 
 interface TaskResult {
-  documents?: any[];
-  failed_documents?: any[];
+  documents?: { document_id: string; document_name: string; size_bytes?: number }[];
+  failed_documents?: { document_name: string; error_message?: string }[];
   total_documents?: number;
-  validation_errors?: any[];
+  validation_errors?: unknown[];
   message?: string;
 }
 
@@ -48,7 +48,7 @@ export const useTaskUtils = () => {
       case "PENDING":
         return {
           text: "Processing",
-          color: "text-[var(--nv-green)]",
+          color: "text-brand",
           isPartial: false,
           isSuccess: false,
           isFailed: false,
@@ -59,7 +59,7 @@ export const useTaskUtils = () => {
           // Partial completion - some succeeded, some failed
           return {
             text: "Partially Completed",
-            color: "text-yellow-400",
+            color: "text-feedback-warning",
             isPartial: true,
             isSuccess: false,
             isFailed: false,
@@ -68,7 +68,7 @@ export const useTaskUtils = () => {
           // Complete failure - all failed
           return {
             text: "Failed",
-            color: "text-red-400",
+            color: "text-feedback-danger",
             isPartial: false,
             isSuccess: false,
             isFailed: true,
@@ -77,30 +77,30 @@ export const useTaskUtils = () => {
           // Complete success - all succeeded
           return {
             text: "Completed",
-            color: "text-[var(--nv-green)]",
+            color: "text-feedback-success",
             isPartial: false,
             isSuccess: true,
             isFailed: false,
           };
         }
       
-      case "FAILED":
-        return {
-          text: "Failed",
-          color: "text-red-400",
-          isPartial: false,
-          isSuccess: false,
-          isFailed: true,
-        };
+              case "FAILED":
+          return {
+            text: "Failed",
+            color: "text-feedback-danger",
+            isPartial: false,
+            isSuccess: false,
+            isFailed: true,
+          };
       
-      default:
-        return {
-          text: "Unknown",
-          color: "text-gray-400",
-          isPartial: false,
-          isSuccess: false,
-          isFailed: false,
-        };
+              default:
+          return {
+            text: "Unknown",
+            color: "text-secondary",
+            isPartial: false,
+            isSuccess: false,
+            isFailed: false,
+          };
     }
   }, []);
 
@@ -121,13 +121,13 @@ export const useTaskUtils = () => {
   const getStatusColor = useCallback((state: string): string => {
     switch (state) {
       case "PENDING": 
-        return "text-[var(--nv-green)]";
+        return "text-brand";
       case "FINISHED": 
-        return "text-[var(--nv-green)]";
+        return "text-feedback-success";
       case "FAILED": 
-        return "text-red-400";
+        return "text-feedback-danger";
       default: 
-        return "text-gray-400";
+        return "text-secondary";
     }
   }, []);
 

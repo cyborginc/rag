@@ -1,10 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '../../../test/utils';
 import { SettingsSection, AdvancedSettingsSection } from '../SettingsSection';
+import React from 'react';
 
 // Mock all child components to isolate behavior
 vi.mock('../ui/CollapsibleSection', () => ({
-  CollapsibleSection: ({ title, isExpanded, onToggle, children }: any) => (
+  CollapsibleSection: ({ title, isExpanded, onToggle, children }: {
+    title: string;
+    isExpanded: boolean;
+    onToggle: () => void;
+    children: React.ReactNode;
+  }) => (
     <div data-testid="collapsible-section">
       <button onClick={onToggle} data-testid="section-toggle">
         {title} {isExpanded ? '(expanded)' : '(collapsed)'}
@@ -15,10 +21,10 @@ vi.mock('../ui/CollapsibleSection', () => ({
 }));
 
 vi.mock('../SettingControls', () => ({
-  SettingSlider: ({ onChange }: any) => <input data-testid="slider" onChange={(e) => onChange(e.target.value)} />,
-  SettingInput: ({ onChange }: any) => <input data-testid="input" onChange={(e) => onChange(e.target.value)} />,
-  SettingToggle: ({ onChange }: any) => <button data-testid="toggle" onClick={() => onChange(true)} />,
-  SettingTextInput: ({ onChange }: any) => <textarea data-testid="textarea" onChange={(e) => onChange(e.target.value)} />
+  SettingSlider: ({ onChange }: { onChange: (value: string) => void }) => <input data-testid="slider" onChange={(e) => onChange(e.target.value)} />,
+  SettingInput: ({ onChange }: { onChange: (value: string) => void }) => <input data-testid="input" onChange={(e) => onChange(e.target.value)} />,
+  SettingToggle: ({ onChange }: { onChange: (value: boolean) => void }) => <button data-testid="toggle" onClick={() => onChange(true)} />,
+  SettingTextInput: ({ onChange }: { onChange: (value: string) => void }) => <textarea data-testid="textarea" onChange={(e) => onChange(e.target.value)} />
 }));
 
 vi.mock('../../store/useSettingsStore', () => ({

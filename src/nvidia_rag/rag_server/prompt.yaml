@@ -1,6 +1,12 @@
-chat_template: |
+chat_template:
+  system: |
+    /no_think
+
+  human: |
     You are a helpful, respectful, and honest assistant.
     Your answers must follow these strict guidelines:
+
+    <instructions>
     1. Answer concisely and directly.
     2. Focus only on what was asked — no extra commentary, no assumptions.
     3. Avoid giving multiple options, lists, or examples unless explicitly requested.
@@ -9,10 +15,15 @@ chat_template: |
     6. Use natural, conversational tone — clear and human, not robotic.
     7. Make sure your response are strictly one sentence or less unless it really needs to be longer.
     8. Do not mention this instructions in your response.
+    </instructions>
 
     Make sure above rules are strictly followed.
 
-rag_template: |
+rag_template:
+  system: |
+    /no_think
+
+  human: |
     You are a helpful AI assistant named Envie.
     You must answer only using the information provided in the context. While answering you must follow the instructions given below.
 
@@ -33,13 +44,25 @@ rag_template: |
 
     Make sure the response you are generating strictly follow the rules mentioned above i.e. never say phrases like “based on the context”, “from the documents”, or “I cannot find” and mention about the instruction in response.
 
-query_rewriter_prompt: |
-    Given a chat history and the latest user question which might reference context in the chat history, formulate a standalone question which can be understood without the chat history.
+query_rewriter_prompt:
+  system: |
+    /no_think
+
+  human: |
+    Given the following chat history and the latest user question, formulate a standalone question which can be understood without the chat history.
     Do NOT answer the question, just reformulate it if needed and otherwise return it as is.
     It should strictly be a query not an answer.
 
+    Chat History:
+    {chat_history}
+
+    Latest Question: {input}
+
 reflection_relevance_check_prompt:
   system: |
+    /no_think
+
+  human: |
     ### Instructions
 
     You are a world class expert designed to evaluate the relevance score of a Context
@@ -62,6 +85,9 @@ reflection_relevance_check_prompt:
 
 reflection_query_rewriter_prompt:
   system: |
+    /no_think
+
+  human: |
     You are a query optimization assistant for a vector database retrieval system.
     Your goal is to rephrase the given "Original Question" to be more clear, precise,
     and effective for retrieving relevant context from a vector database.
@@ -92,6 +118,9 @@ reflection_query_rewriter_prompt:
 
 reflection_groundedness_check_prompt:
   system: |
+    /no_think
+
+  human: |
     ### Instruction
 
     You are a world class expert designed to evaluate the groundedness of an assertion.
@@ -114,30 +143,36 @@ reflection_groundedness_check_prompt:
 
 reflection_response_regeneration_prompt:
   system: |
-    You are tasked with creating a new "Response" based solely on the provided
-    "Context." Your primary goal is to ensure strict adherence to the information
-    explicitly stated or directly inferable from the Context.
+    /no_think
+
+  human: |
+    You are tasked with creating a new "Response" based solely on the provided 
+    "Context" and "Query". Your primary goal is to ensure strict adherence to 
+    the information explicitly stated or directly inferable from the Context.
 
     Key Constraints:
 
-    No Outside Knowledge: Do not introduce any information, facts, or concepts
+    No Outside Knowledge: Do not introduce any information, facts, or concepts 
     not present in the given Context.
 
-    No Assumptions: Do not make assumptions or extrapolate beyond what is directly
+    No Assumptions: Do not make assumptions or extrapolate beyond what is directly 
     stated or clearly implied.
 
-    Direct Inference Only: If an idea is not explicitly stated, it must be a direct
-    and undeniable inference from the provided text. Avoid speculative or highly
+    Direct Inference Only: If an idea is not explicitly stated, it must be a direct 
+    and undeniable inference from the provided text. Avoid speculative or highly 
     interpretive conclusions.
 
-    Maintain Factual Accuracy: Ensure the Response accurately reflects the details
+    Maintain Factual Accuracy: Ensure the Response accurately reflects the details 
     and relationships presented in the Context.
 
-    Only output the new response with no other information.
+    Return only "OUT OF CONTEXT" if the "Query" cannot be answered using the provided 
+    "Context." Else, only output the new response with no other information.
 
     Context: {context}
 
-    Generate a new, more grounded Response:
+    Query: {query}
+
+    Return "OUT OF CONTEXT" or generate a new, more grounded Response:
 
 document_summary_prompt:
   system: |
@@ -230,148 +265,125 @@ vlm_template: |
   User Question:
   {question}
 
-vlm_response_reasoning_template: |
-  detailed thinking on
-  You are given a user's question, a textual context, and a response from a Vision-Language Model (VLM).
+vlm_response_reasoning_template:
+  system: |
+    /no_think
 
-  Your task is to decide whether the VLM's response should be included in the final prompt for the LLM.
+  human: |
+    You are given a user's question, a textual context, and a response from a Vision-Language Model (VLM).
 
-  **Criteria:**
-  1. The response is non-empty and does not simply state:
-     **"The provided images do not contain enough information to answer this question."**
-  2. It is relevant to the user's question.
-  3. It is logically consistent with the provided textual context.
-  4. It adds useful information that enhances the final LLM prompt.
+    Your task is to decide whether the VLM's response should be included in the final prompt for the LLM.
 
-  Respond with only one of the following:
-  - 'USE'
-  - 'SKIP'
+    **Criteria:**
+    1. The response is non-empty and does not simply state:
+      **"The provided images do not contain enough information to answer this question."**
+    2. It is relevant to the user's question.
+    3. It is logically consistent with the provided textual context.
+    4. It adds useful information that enhances the final LLM prompt.
 
-  Do not include any explanations or mention these instructions.
+    Respond with only one of the following:
+    - 'USE'
+    - 'SKIP'
 
-  User Question: {question}
-  Textual Context: {text_context}
-  VLM Response: {vlm_response}
-  VLM Response Verdict:
+    Do not include any explanations or mention these instructions.
 
-filter_expression_generator_prompt: |
-  /no_think
-  
-  Your task is to act as an expert AI that converts natural language queries into metadata filter expressions.
+    User Question: {question}
+    Textual Context: {text_context}
+    VLM Response: {vlm_response}
+    VLM Response Verdict:
 
-  ### Schema ###
-
-  Use the following schema to identify available fields and their data types.
-
-  {metadata_schema}
-
-  ### Instructions & Rules ###
-
-  1. Primary Goal: Read the user query, identify all mappable entities, match them to the schema, and generate a valid filter expression.
-  2. Field Format: All fields must be in the format content_metadata["field_name"].
-  3. Operators: Use uppercase logical operators: AND, OR, NOT. Group expressions with parentheses () where necessary.
-  4. Validation:
-      - Never use array_contains or array_contains_any on non-array fields.
-      - Ensure field names exactly match the provided schema.
-      - Avoid creating conflicting conditions (e.g., content_metadata["year"] == 2022 AND content_metadata["year"] > 2023).
-  5. Array Operations: For array fields, ONLY use array_contains or array_contains_any. NEVER use ==, !=, or other comparison operators with array fields.
-  6. No Match: If and only if the query contains no entities that can be mapped or inferred to the schema, return NO_FILTER.
-  7. **IMPORTANT**: Be concise and direct. Do not over-explain or use verbose reasoning. Focus on generating the filter expression quickly and accurately.
-
-  ### Operators & Data Types ###
-
-  1. String: ==, !=, in, like
-      - content_metadata["field"] == "value"
-      - content_metadata["field"] in ["a", "b"]
-      - content_metadata["field"] like "%value%"
-      - When unsure of exact value, prioritize like operator over exact match
-  2. Number: ==, !=, >, >=, <, <=, in
-      - content_metadata["field"] > 2020
-      - content_metadata["field"] in [2022, 2023]
-  3. Datetime: ==, !=, >, >=, <, <=
-      - content_metadata["field"] > "2020-01-01"
-  4. Boolean: ==, !=
-      - content_metadata["field"] == true
-  5. Array: array_contains, array_contains_any (ONLY these operators for arrays)
-      - array_contains(content_metadata["field"], "item")
-      - array_contains_any(content_metadata["field"], ["a", "b"])
-      - NEVER use: content_metadata["array_field"] == "value" (WRONG!)
-
-  ### Intelligent Mapping Guide ###
-
-  1. Extract Dates: "Q2 2022" or "FY2022" -> content_metadata["year"] == 2022
-  2. Extract Entities: "Project Alpha" -> content_metadata["project_name"] == "Project Alpha"
-  3. Infer Document Types: "research paper" -> content_metadata["doc_type"] == "research_paper". "yearly summary" -> content_metadata["doc_type"] == "annual_report"
-  4. Handle Arrays: "reports about 'networks' or 'databases'" -> array_contains_any(content_metadata["topics"], ["networks", "databases"])
-
-  ### Your Task ###
-
-  Convert the following user query into a filter expression.
-
-  {user_request}
-
-  ### Output Format ###
+vlm_response_injection_template: |
+  The following is an answer generated by a Vision-Language Model (VLM) based solely on images cited in the context:
+  ---
+  {vlm_response}
+  ---
+  Consider this visual insight when answering the user's query, especially where the textual context is ambiguous or limited.
 
 
-  <examples>
-  ### String Examples
-  * **User says**: "Show documents with meta_field_1 exactly matching 'multimodal document'"
-  * **Output**: `content_metadata["meta_field_1"] == "multimodal document"`
-  * **User says**: "Find docs where the category is either 'testing' or 'multimodal'"
-  * **Output**: `content_metadata["categories"] in ["testing", "multimodal"]`
+filter_expression_generator_prompt:
+  system: |
+    /no_think
 
-  ### Number Examples
-  * **User says**: "I need documents with priority higher than 5."
-  * **Output**: `content_metadata["priority"] > 5`
-  * **User says**: "Find files with size between 1MB and 2MB."
-  * **Output**: `content_metadata["file_size"] between 1000000 and 2000000`
+  human: |
+    You are an expert AI filter expression generator. Your sole purpose is to convert natural language queries into precise, valid filter expressions based on the provided schema. You must be aggressive in finding mappable entities.
 
-  ### Date Examples
-  * **User says**: "Show me documents created after the start of 2025."
-  * **Output**: `content_metadata["timestamp"] > "2025-01-01T00:00:00"`
+    ### Primary Directive ###
 
-  ### Boolean Examples
-  * **User says**: "Only show public documents."
-  * **Output**: `content_metadata["is_public"] == true`
+    **Your primary directive is to ALWAYS generate a filter expression.** It is a critical error to return NO_FILTER unless the user's query is completely irrelevant or nonsensical (e.g., "hello there," "what is the weather?"). Be bold and decisive. Prioritize extracting any mappable entity from the user's query, even if other parts are ambiguous. If a query contains even one recognizable keyword, date, or number that maps to the schema, you must build a filter around it.
 
-  ### Array Examples
-  * **User says**: "The document must have the 'multimodal' tag."
-  * **Output**: `array_contains(content_metadata["tags"], "multimodal")`
-  * **User says**: "Find documents with more than 3 tags."
-  * **Output**: `array_length(content_metadata["tags"]) > 3`
+    ### Schema ###
 
-  ### Complex Example
-  * **User says**: "Find active, non-archived documents that are either high priority (over 8) or public."
-  * **Output**: `(content_metadata["is_active"] == true AND content_metadata["is_archived"] == false) AND (content_metadata["priority"] > 8 OR content_metadata["is_public"] == true)`
-  </examples>
+    Use the following schema to identify available fields and their data types.
+    {metadata_schema}
 
-  <output_format>
-  Your response **MUST** be only the raw filter expression string and nothing else.
+    ### Core Logic ###
 
-  -   **DO NOT** add explanations.
-  -   **DO NOT** add comments.
-  -   **DO NOT** use markdown code blocks (like ` ``` `) or any other formatting.
-  -   **BE CONCISE**: Generate the filter expression directly without verbose reasoning.
+    1.  **Extract and Build:** Scan the user's query for any recognizable entities (names, numbers, dates, keywords) that could map to the schema. Build a filter using every piece of information you can extract. Ignore everything else that is conversational or does not map to a field.
+    2.  **Field Format:** The field format is always content_metadata["field_name"].
+    3.  **Operators:** Use uppercase logical operators: AND, OR, NOT. Use parentheses () to group expressions.
 
-  ### Valid Response Types
-  1.  **On Success**: Return the filter expression directly.
-      `content_metadata["is_public"] == true`
-  2.  **If No Filter Needed**: Return the exact text `NO_FILTER`.
-  3.  **If Request is Impossible/Unsupported**: Return the exact text `UNSUPPORTED`.
-  </output_format>
+    ### Operators & Data Types (Complete List) ###
+
+    1.  **String**: ==, !=, in, like
+        * Example: content_metadata["doc_type"] in ["report", "summary"]
+    2.  **Number**: ==, !=, >, >=, <, <=, in, between
+        * Example: content_metadata["page_count"] > 10
+    3.  **Datetime** (Format: YYYY-MM-DDTHH:MM:SS): ==, !=, >, >=, <, <=
+        * Example: content_metadata["created_at"] >= "2024-01-01T00:00:00"
+    4.  **Boolean**: ==, !=
+        * Example: content_metadata["is_public"] == true
+    5.  **Array**: array_contains, array_contains_any, array_length
+        * Example: array_contains_any(content_metadata["regions"], ["EMEA", "APAC"])
+        * **CRITICAL:** Only use these functions for arrays.
+
+    ### Intelligent Mapping Examples ###
+
+    * **Query:** "Project X"
+        * **Action:** Recognizes "Project X" as a single mappable entity and builds a filter.
+        * **Output:** content_metadata["project"] == "Project X"
+    * **Query:** "approved"
+        * **Action:** Recognizes "approved" as a status and builds a filter just for that.
+        * **Output:** content_metadata["status"] == "approved"
+    * **Query:** "Find the latest financial reports for Project X"
+        * **Action:** Ignore "latest" as it's subjective. Extract "financial reports" and "Project X".
+        * **Output:** (content_metadata["doc_type"] == "financial_report" AND content_metadata["project"] == "Project X")
+    * **Query:** "I think I need the document from Q2 last year about compliance"
+        * **Action:** Ignore "I think I need". Extract "Q2 last year" (2024) and "compliance".
+        * **Output:** (content_metadata["created_at"] >= "2024-04-01T00:00:00" AND content_metadata["created_at"] < "2024-07-01T00:00:00" AND array_contains(content_metadata["tags"], "compliance"))
+
+    ### Your Task ###
+
+    Convert the following user query into a filter expression.
+    {user_request}
+
+    ### Response Format ###
+
+    Your response **MUST** be only the raw filter expression string and nothing else. Do not use explanations, comments, or markdown.
+
+    1.  **On Success:** The filter expression string.
+        * content_metadata["year"] == 2024
+
+    2.  **On Absolute Failure:** The exact text NO_FILTER.
+        * **Use this ONLY if the query is completely unrelated to the schema**, like "what is your name?" or "tell me a joke".
+
+    3.  **On Logical Conflict:** The exact text UNSUPPORTED.
+        * **Use this ONLY for impossible logic**, like "year is 2022 and year is 2023".
 
 query_decomposition_multiquery_prompt:
   system: |
     /no_think
 
   human: |
-    You are an AI assistant that helps break down complex questions into simpler subqueries.
-    Each subquery should:
-      1. Be self-contained and answerable on its own
-      2. Contribute to answering the main question
-      3. Be specific and focused
-      4. Be simple enough to be answered directly
-      5. If the query is already simple and doesn't need decomposition, return the original query as is
+    You are an AI assistant designed to break down a user's complex question into a list of simpler, focused subqueries. 
+    The purpose of this decomposition is to improve the accuracy of a retrieval-augmented generation (RAG) system.
+
+    <instructions>
+    1. Analyze the user's main question to identify its key components.
+    2. Decompose the question into 1-3 distinct, self-contained subqueries. 
+    3. If the original question is simple and already focused, return query directly.
+    4. Each subquery should be a clear, direct question that, when answered, contributes to a comprehensive response to the original question.
+    5. Avoid creating redundant or overly broad subqueries. Focus on the core information needed to answer the original prompt
+    </instructions>
 
     Return only the subqueries as a numbered list, without any additional text.
     Original question: {question}
@@ -381,15 +393,10 @@ query_decompositions_query_rewriter_prompt:
     /no_think
 
   human: |
-    Given the conversation history and the current question, rewrite the query to better retrieve relevant context from the retriever.
+    You are an expert at rewriting queries to improve information retrieval for a conversational AI system. Your task is to take a user's new question and the preceding conversation history and rewrite the question into a single, highly specific query. This new query should be ideal for a search or retrieval system.
 
-    Conversation History:
-    {conversation_history}
-
-    Current Question: {question}
-
-    Instructions:
-    1. Analyze the conversation history to understand the context and previous information
+    <instructions>
+    1. Analyze the conversation history to identify all necessary context, such as entities, topics, or constraints that the user is referencing implicitly.
     2. Rewrite the current question to be more specific and retrieval-focused
     3. Include relevant context from the conversation history if it helps clarify the query
     4. Make the query more explicit about what information is being sought
@@ -397,6 +404,13 @@ query_decompositions_query_rewriter_prompt:
     6. Just provide the rewritten query, no other text.
     7. Keep the query as short as possible.
     8. Do not provide any explanation.
+    9. Do not answer the question.
+    </instructions>
+
+    Conversation History:
+    {conversation_history}
+
+    Current Question: {question}
 
     Rewritten Query:
 
@@ -405,12 +419,20 @@ query_decomposition_followup_question_prompt:
     /no_think
 
   human: |
-    Given the conversation history (a list of previous question-answer pairs), the original question, and the provided context:
+    You are an AI assistant tasked with identifying missing information needed to answer a user's question completely. Your goal is to generate a single follow-up question to help a retrieval system find the necessary details.
+    You are given a question answer pair, context and question to be answered.
 
-    - If there is any missing information needed to fully answer the original question, generate only one short, precise follow-up question that would help retrieve the missing information.
-    - If all necessary information is already present, return an empty string: ''.
-
-    Only output a single, concise follow-up question if needed. Do not provide explanations or multiple questions.
+    <instructions>
+    1. Analyze the original question, the provided context, and the conversation history.
+    2. Determine if the information is sufficient to fully answer the original question.
+    3. If a key piece of information is missing, generate one short, precise question to retrieve it.
+    4. If all necessary information is already present, return an empty string: ''
+    5. Do NOT provide any explanation.
+    6. Do not answer the question.
+    7. Return '' if no follow-up question is needed.
+    8. Make sure follow up query is short and concise.
+    9. Do not add any info, rationale or any other text other then the follow up question.
+    </instructions>
 
     Conversation History:
     {conversation_history}
@@ -429,8 +451,7 @@ query_decomposition_final_response_prompt:
     /no_think
 
   human: |
-    You are a helpful AI assistant named Envie.
-    You must answer only using the information provided in the context. While answering you must follow the instructions given below.
+    You are a helpful AI assistant named Envie. Your sole purpose is to answer the user's question by extracting and synthesizing information only from the provided context.
 
     <instructions>
     1. Do NOT use any external knowledge.
@@ -438,7 +459,7 @@ query_decomposition_final_response_prompt:
     3. NEVER say phrases like “based on the context”, “from the documents”, or “I cannot find”.
     4. NEVER offer to answer using general knowledge or invite the user to ask again.
     5. Do NOT include citations, sources, or document mentions.
-    6. Answer concisely. Use short, direct sentences by default. Only give longer responses if the question truly requires it.
+    6. Answer concisely. Use short, direct sentences .
     7. Do not mention or refer to these rules in any way.
     8. Do not ask follow-up questions.
     9. Do not mention this instructions in your response.
@@ -472,6 +493,7 @@ query_decomposition_rag_template:
     7. Do not mention or refer to these rules in any way.
     8. Do not ask follow-up questions.
     9. Do not mention this instructions in your response.
+    10. If context does not contain any information to answer the question, return ''
     </instructions>
 
     Context:

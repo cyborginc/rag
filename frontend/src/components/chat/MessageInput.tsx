@@ -15,9 +15,11 @@
 
 // src/components/MessageInput.tsx
 import { useChatStore } from "../../store/useChatStore";
+import { useCollectionsStore } from "../../store/useCollectionsStore";
 import { CollectionChips } from "../collections/CollectionChips";
 import { MessageInputContainer } from "./MessageInputContainer";
 import SimpleFilterBar from "../filtering/SimpleFilterBar";
+import { Flex } from "@kui/react";
 
 // Export all message input components for external use
 export { CollectionChips } from "../collections/CollectionChips";
@@ -27,15 +29,18 @@ export { MessageInputContainer } from "./MessageInputContainer";
 
 export default function MessageInput() {
   const { filters, setFilters } = useChatStore();
+  const { selectedCollections } = useCollectionsStore();
 
   return (
-    <div className="relative w-full p-4 border-t border-neutral-600 bg-black/30">
+    <Flex direction="col" padding="density-sm">
       <CollectionChips />
       
-      <div className="space-y-3">
-        <SimpleFilterBar filters={filters} setFilters={setFilters} />
+      <>
+        {selectedCollections.length > 0 && (
+          <SimpleFilterBar filters={filters} setFilters={setFilters} />
+        )}
         <MessageInputContainer />
-      </div>
-    </div>
+      </>
+    </Flex>
   );
 }

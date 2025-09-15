@@ -15,6 +15,7 @@
 
 // useCollectionsStore.ts
 import { create } from "zustand";
+import type { MetadataFieldType } from "../types/collections";
 
 /**
  * Collection interface for the collections store.
@@ -24,6 +25,24 @@ interface Collection {
   num_entities: number;
   metadata_schema: { name: string; type: string; description: string }[];
 }
+
+/**
+ * Valid Badge colors from KUI
+ */
+export type BadgeColor = "gray" | "blue" | "green" | "red" | "yellow" | "purple" | "teal";
+
+/**
+ * Color mapping for different field types
+ */
+export const FIELD_TYPE_COLORS: Record<MetadataFieldType, BadgeColor> = {
+  string: "blue",
+  integer: "yellow", 
+  float: "yellow",
+  number: "yellow",
+  boolean: "purple",
+  datetime: "red",
+  array: "teal"
+};
 
 /**
  * State interface for the collections store.
@@ -36,6 +55,7 @@ interface CollectionsState {
   clearCollections: () => void;
   setDrawerCollection: (col: Collection | null) => void;
   refresh: () => void;
+  getFieldTypeColor: (fieldType: MetadataFieldType) => BadgeColor;
 }
 
 /**
@@ -59,4 +79,5 @@ export const useCollectionsStore = create<CollectionsState>((set) => ({
   clearCollections: () => set({ selectedCollections: [] }),
   setDrawerCollection: (col) => set({ drawerCollection: col }),
   refresh: () => set({}),
+  getFieldTypeColor: (fieldType) => FIELD_TYPE_COLORS[fieldType] || "gray",
 }));

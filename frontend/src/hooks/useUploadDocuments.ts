@@ -13,12 +13,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useIngestionTasksStore } from "../store/useIngestionTasksStore";
+import { useState } from "react";
+import { useNotificationStore } from "../store/useNotificationStore";
 
 export function useUploadDocuments() {
-  const { addTask } = useIngestionTasksStore();
+  const { addTaskNotification } = useNotificationStore();
+  const [isPending, setIsPending] = useState(false);
 
-  const mutate = (data: { files: File[]; metadata: any }, options: { onSuccess?: (data: any) => void; onError?: (error: any) => void }) => {
+  const mutate = (data: { files: File[]; metadata: Record<string, unknown> }, options: { onSuccess?: (data: unknown) => void; onError?: (error: Error) => void }) => {
+    setIsPending(true);
     const formData = new FormData();
     data.files.forEach((file) => {
       formData.append("documents", file);
@@ -36,24 +39,27 @@ export function useUploadDocuments() {
         if (responseData?.task_id) {
           const taskData = {
             id: responseData.task_id,
-            collection_name: data.metadata.collection_name,
+            collection_name: String(data.metadata.collection_name),
             documents: data.files.map((f) => f.name),
             state: "PENDING" as const,
             created_at: new Date().toISOString(),
           };
           
-          addTask(taskData);
+          addTaskNotification(taskData);
         }
         
         options.onSuccess?.(responseData);
       })
       .catch((error) => {
         options.onError?.(error);
+      })
+      .finally(() => {
+        setIsPending(false);
       });
   };
 
   return { 
     mutate,
-    isPending: false 
+    isPending 
   };
 }

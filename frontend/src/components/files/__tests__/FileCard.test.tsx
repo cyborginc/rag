@@ -5,7 +5,7 @@ import { FileCard } from '../FileCard';
 // Mock the store
 const mockStore = {
   metadataSchema: [] as Array<{ name: string; type: string }>,
-  fileMetadata: {} as Record<string, Record<string, string>>,
+  fileMetadata: {} as Record<string, Record<string, unknown>>,
   removeFile: vi.fn(),
   updateMetadataField: vi.fn()
 };
@@ -16,7 +16,7 @@ vi.mock('../../../store/useNewCollectionStore', () => ({
 
 // Mock MetadataField component
 vi.mock('../MetadataField', () => ({
-  MetadataField: ({ fileName, field }: any) => (
+  MetadataField: ({ fileName, field }: { fileName: string; field: { name: string; type: string } }) => (
     <div data-testid="metadata-field">
       {fileName} - {field.name} ({field.type})
     </div>

@@ -18,7 +18,7 @@ import { useCollections } from "../../api/useCollectionsApi";
 import { CollectionsGrid } from "./CollectionsGrid";
 import { NewCollectionButton } from "./NewCollectionButton";
 import CollectionDrawer from "./CollectionDrawer";
-import { SearchInput } from "../filtering/SearchInput";
+import { Block, TextInput } from "@kui/react";
 export { CollectionItem } from "./CollectionItem";
 export { CollectionsGrid } from "./CollectionsGrid";
 export { NewCollectionButton } from "./NewCollectionButton";
@@ -29,19 +29,50 @@ export default function CollectionList() {
 
   return (
     <>
-      <div className="flex w-[320px] flex-col bg-black p-4 text-white">
-        <SearchInput
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder="Search collections"
-        />
+      {/* CSS Grid layout - flexible and maintainable */}
+      <Block 
+        style={{ 
+          height: '100%', 
+          width: '100%',
+          display: 'grid',
+          gridTemplateRows: 'auto 1fr auto',
+          gridTemplateColumns: '1fr'
+        }}
+      >
+        {/* Search input - auto-sized row */}
+        <Block 
+          padding="density-sm" 
+          style={{
+            backgroundColor: 'var(--background-color-surface-navigation)',
+            borderRight: '1px solid var(--border-color-base)'
+          }}
+        >
+          <TextInput
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search collections"
+          />
+        </Block>
 
-        <div className="flex-1">          
+        {/* Scrollable collections - takes remaining space (1fr) */}
+        <Block style={{
+          overflowY: 'auto',
+          minHeight: 0 // Prevents grid item from growing beyond container
+        }}>
           <CollectionsGrid searchQuery={searchQuery} />
-        </div>
+        </Block>
 
-        <NewCollectionButton disabled={isLoading} />
-      </div>
+        {/* Add collection button - auto-sized row */}
+        <Block 
+          padding="density-sm"
+          style={{ 
+            backgroundColor: 'var(--background-color-surface-navigation)',
+            borderRight: '1px solid var(--border-color-base)'
+          }}
+        >
+          <NewCollectionButton disabled={isLoading} />
+        </Block>
+      </Block>
 
       <CollectionDrawer />
     </>

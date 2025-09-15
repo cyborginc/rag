@@ -91,8 +91,10 @@ You can override any template defined in the packaged `prompt.yaml` by providing
 Suppose you want to make the RAG model respond as a pirate. You can override the `rag_template` by creating a custom prompt file like this:
 
 ```yaml
-rag_template: |
-  Arrr matey! Ye be speakin' to a pirate now. I answer all yer questions with the heart of a true buccaneer!
+rag_template:
+  system: |
+    Arrr matey! Ye be speakin' to a pirate now. I answer all yer questions with the heart of a true buccaneer!
+    Context: {context}
 ```
 
 Save this as `/home/user/my_custom_prompt.yaml`.
@@ -121,13 +123,16 @@ The [prompt.yaml](../deploy/helm/rag-server/files/prompt.yaml) resides within `r
 To provide custom instructions in the prompt, you can edit the [prompt.yaml](../deploy/helm/rag-server/files/prompt.yaml) and update the `chat_template`, `rag_template` or `query_rewriter_prompt`.
 
 ```yaml
-chat_template: |
+chat_template:
+  human: |
     <custom prompt instructions>
 
-rag_template: |
+rag_template:
+  human: |
     <custom prompt instructions>
 
-query_rewriter_prompt: |
+query_rewriter_prompt:
+  human: |
     <custom prompt instructions>
 ```
 
@@ -142,15 +147,25 @@ To access this dictionary, use the `get_prompts()` function provided by the [`ll
 For example, if we have the following `prompt.yaml` file:
 
 ```yaml
-chat_template: |
+chat_template:
+  system: |
+    /no_think
+
+  human: |
     You are a helpful, respectful and honest assistant.
     Always answer as helpfully as possible, while being safe.
     Please ensure that your responses are positive in nature.
 
-rag_template: |
+rag_template:
+  system: |
+    /no_think
+
+  human: |
     You are a helpful AI assistant named Envie.
     You will reply to questions only based on the context that you are provided.
     If something is out of context, you will refrain from replying and politely decline to respond to the user.
+
+    Context: {context}
 ```
 
 Use the following code to access the chat_template:
@@ -160,7 +175,7 @@ from .utils import get_prompts
 
 prompts = get_prompts()
 
-chat_template = prompts.get("chat_template", "")
+chat_template = prompts.get("chat_template", {}).get("system", "")
 ```
 
 **Tip:**

@@ -41,7 +41,8 @@ interface AllTheProvidersProps {
   children: ReactNode;
 }
 
-// Wrapper component that provides all necessary context providers
+// Wrapper component that provides all necessary context providers  
+/* eslint-disable-next-line react-refresh/only-export-components */
 const AllTheProviders = ({ children }: AllTheProvidersProps) => {
   const queryClient = createTestQueryClient();
 
@@ -72,8 +73,8 @@ const customRender = (
 /**
  * Re-export everything from @testing-library/react for convenience.
  */
+/* eslint-disable react-refresh/only-export-components */
 export * from '@testing-library/react';
-
 /**
  * Export custom render function as the default render for tests.
  */

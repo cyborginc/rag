@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '../../../test/utils';
 import { ModalContainer } from '../ModalContainer';
+import type React from 'react';
 
 // Mock createPortal to render in place
 vi.mock('react-dom', () => ({
-  createPortal: (children: any) => children
+  createPortal: (children: React.ReactNode) => children
 }));
 
 describe('ModalContainer', () => {

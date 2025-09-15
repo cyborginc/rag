@@ -31,7 +31,7 @@ describe('NewFieldForm', () => {
     it('renders with correct container styling', () => {
       const { container } = render(<NewFieldForm />);
       
-      const form = container.querySelector('.rounded-lg');
+      const form = container.querySelector('.nv-block');
       expect(form).toBeInTheDocument();
     });
 

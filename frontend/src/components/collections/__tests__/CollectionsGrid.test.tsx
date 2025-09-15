@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '../../../test/utils';
+import { render, screen } from '../../../test/utils';
 import { CollectionsGrid } from '../CollectionsGrid';
 
 // Mock API hook
@@ -31,7 +31,7 @@ vi.mock('../CollectionDrawer', () => ({
 }));
 
 vi.mock('../CollectionItem', () => ({
-  CollectionItem: ({ collection }: { collection: any }) => (
+  CollectionItem: ({ collection }: { collection: { collection_name: string } }) => (
     <div data-testid="collection-item">{collection.collection_name}</div>
   )
 }));
@@ -50,7 +50,8 @@ describe('CollectionsGrid', () => {
       
       render(<CollectionsGrid searchQuery="" />);
       
-      expect(screen.getByTestId('loading-state')).toBeInTheDocument();
+      // KUI Spinner has different data-testid
+      expect(screen.getByTestId('nv-spinner-spinner')).toBeInTheDocument();
       expect(screen.getByText('Loading collections...')).toBeInTheDocument();
     });
 
@@ -60,7 +61,7 @@ describe('CollectionsGrid', () => {
       
       render(<CollectionsGrid searchQuery="" />);
       
-      expect(screen.queryByTestId('loading-state')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('nv-spinner-spinner')).not.toBeInTheDocument();
     });
   });
 
@@ -70,20 +71,22 @@ describe('CollectionsGrid', () => {
       
       render(<CollectionsGrid searchQuery="" />);
       
-      expect(screen.getByTestId('error-state')).toBeInTheDocument();
+      // KUI StatusMessage has different data-testid
+      expect(screen.getByTestId('nv-status-message-root')).toBeInTheDocument();
       expect(screen.getByText('Failed to load collections')).toBeInTheDocument();
     });
 
-    it('error retry button is clickable', () => {
+    it('shows error message without retry button', () => {
       mockUseCollections.error = new Error('Network error');
       
       render(<CollectionsGrid searchQuery="" />);
       
-      const retryButton = screen.getByText('Retry');
-      expect(retryButton).toBeInTheDocument();
+      // KUI error state doesn't include a retry button, just shows the error message
+      expect(screen.getByTestId('nv-status-message-root')).toBeInTheDocument();
+      expect(screen.getByText('Failed to load collections')).toBeInTheDocument();
       
-      // Test that clicking doesn't crash (actual reload is hard to test in jsdom)
-      fireEvent.click(retryButton);
+      // No retry button in KUI implementation
+      expect(screen.queryByText('Retry')).not.toBeInTheDocument();
     });
 
     it('does not show error state when no error', () => {
@@ -102,7 +105,8 @@ describe('CollectionsGrid', () => {
       
       render(<CollectionsGrid searchQuery="" />);
       
-      expect(screen.getByTestId('empty-state')).toBeInTheDocument();
+      // KUI StatusMessage used for empty state
+      expect(screen.getByTestId('nv-status-message-root')).toBeInTheDocument();
       expect(screen.getByText('No collections')).toBeInTheDocument();
     });
 
@@ -111,7 +115,8 @@ describe('CollectionsGrid', () => {
       
       render(<CollectionsGrid searchQuery="nonexistent" />);
       
-      expect(screen.getByTestId('empty-state')).toBeInTheDocument();
+      // KUI StatusMessage used for search empty state
+      expect(screen.getByTestId('nv-status-message-root')).toBeInTheDocument();
       expect(screen.getByText('No matches found')).toBeInTheDocument();
       expect(screen.getByText('No collections match "nonexistent"')).toBeInTheDocument();
     });
@@ -121,7 +126,8 @@ describe('CollectionsGrid', () => {
       
       render(<CollectionsGrid searchQuery="test" />);
       
-      expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
+      // Should not show empty state StatusMessage when collections are found
+      expect(screen.queryByText('No matches found')).not.toBeInTheDocument();
       expect(screen.getByTestId('collection-item')).toBeInTheDocument();
     });
   });

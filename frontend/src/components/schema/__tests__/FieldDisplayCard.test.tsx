@@ -32,4 +32,31 @@ describe('FieldDisplayCard', () => {
     fireEvent.click(screen.getByTestId('delete-button'));
     expect(onDelete).toHaveBeenCalledOnce();
   });
+
+  it('handles invalid field type gracefully and shows default color', () => {
+    // Mock console.warn to verify warning is logged
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    
+    const invalidField = {
+      ...mockField,
+      type: 'invalid_type' as never // Force invalid type for testing
+    };
+    
+    render(<FieldDisplayCard field={invalidField} onEdit={vi.fn()} onDelete={vi.fn()} />);
+    
+    // Field should still render with the invalid type name displayed
+    expect(screen.getByText('test_field')).toBeInTheDocument();
+    expect(screen.getByText('invalid_type')).toBeInTheDocument();
+    
+    // Warning should be logged
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'Invalid field type encountered: "invalid_type" for field "test_field". Using default color.'
+    );
+    
+    // Badge should still be rendered (with default gray color)
+    expect(screen.getByTestId('field-type')).toBeInTheDocument();
+    
+    // Cleanup
+    consoleWarnSpy.mockRestore();
+  });
 }); 

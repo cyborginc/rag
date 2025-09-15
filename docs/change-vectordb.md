@@ -84,7 +84,7 @@ If you're using Helm for deployment, use the following steps to configure Elasti
 
    ```bash
    cd deploy/helm/
-   helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc1.tgz \
+   helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \
    --username '$oauthtoken' \
    --password "${NGC_API_KEY}" \
    --set imagePullSecret.password=$NGC_API_KEY \
@@ -244,7 +244,7 @@ Use the following steps to create and use your own custom database operators.
     
     For a concrete, working example, see `src/nvidia_rag/utils/vdb/elasticsearch/elastic_vdb.py` and `notebooks/building_rag_vdb_operator.ipynb`.
 
-## Integrate Into NVIDIA RAG (Server Mode)
+## Integrate Into NVIDIA RAG (Server Mode - Docker)
 
 Before proceeding in server mode, go through “### Implementation Steps” above to implement and validate your operator.
 
@@ -272,8 +272,22 @@ Follow these steps to add your custom vector database to the NVIDIA RAG servers 
             embedding_model=embedding_model,
         )
     ```
+  
 
-- 3) Configure docker compose (server deployments)
+
+- 3) Add required client libraries (if needed)
+  - If your custom operator depends on an external client SDK, add the library to `pyproject.toml` under `[project].dependencies` so it is installed consistently across local runs, CI, and Docker builds. Example:
+    ```toml
+    [project]
+    dependencies = [
+        # ...
+        "opensearch-py>=3.0.0", # or your custom client library
+    ]
+    ```
+  - Rebuild your images if deploying with Docker so the new dependency is included.
+
+
+- 4) Configure docker compose (server deployments)
   - Set `APP_VECTORSTORE_NAME` to your custom name and point `APP_VECTORSTORE_URL` to your service in both compose files:
     - `deploy/compose/docker-compose-rag-server.yaml`
     - `deploy/compose/docker-compose-ingestor-server.yaml`
@@ -282,8 +296,9 @@ Follow these steps to add your custom vector database to the NVIDIA RAG servers 
     ```bash
     export APP_VECTORSTORE_NAME="your_custom_vdb"
     export APP_VECTORSTORE_URL="http://your-custom-vdb:1234"
-    docker compose -f deploy/compose/docker-compose-rag-server.yaml up -d
-    docker compose -f deploy/compose/docker-compose-ingestor-server.yaml up -d
+    # Build the containers to include your current codebase
+    docker compose -f deploy/compose/docker-compose-rag-server.yaml up -d --build
+    docker compose -f deploy/compose/docker-compose-ingestor-server.yaml up -d --build
     ```
 
     Or, you may edit the files locally to show your custom value. Search for `APP_VECTORSTORE_NAME` and adjust defaults if desired:
@@ -294,7 +309,7 @@ Follow these steps to add your custom vector database to the NVIDIA RAG servers 
     APP_VECTORSTORE_URL: ${APP_VECTORSTORE_URL:-http://your-custom-vdb:1234}
     ```
 
-- 4) How the configuration is picked up
+- 5) How the configuration is picked up
   - The application configuration (`src/nvidia_rag/utils/configuration.py`) maps environment variables into the `AppConfig` object. Specifically:
     - `APP_VECTORSTORE_NAME` → `CONFIG.vector_store.name`
     - `APP_VECTORSTORE_URL` → `CONFIG.vector_store.url`
@@ -308,3 +323,208 @@ Follow these steps to add your custom vector database to the NVIDIA RAG servers 
   - Restart `docker-compose` services for the RAG server and Ingestor server.
 
 That’s it—after these steps, both the RAG server and the Ingestor will use your custom vector database when `APP_VECTORSTORE_NAME` is set to `your_custom_vdb`.
+
+## Integrate Into NVIDIA RAG (Server Mode - Helm)
+
+> [!WARNING]
+> **Advanced Developer Guide - Production Use Only**
+> 
+> This section is for **advanced developers** with Kubernetes and Helm experience. Recommended for production environments only. For development and testing, use the [Docker Compose approach](#integrate-into-nvidia-rag-server-mode---docker) instead.
+
+Before proceeding with Helm deployment, ensure you have completed the implementation steps mentioned above, including:
+
+- Creating your custom VDB operator class that inherits from `VDBRag`
+- Registering your operator in `src/nvidia_rag/utils/vdb/__init__.py`
+- Adding required client libraries to `pyproject.toml` (if needed)
+
+Refer to the steps above for detailed implementation guidance.
+
+### Build Custom Images
+
+Once your custom vector database implementation is complete, you need to build custom images for both the RAG server and Ingestor server:
+
+1. **Update image names in Docker Compose files:**
+   
+   Edit `deploy/compose/docker-compose-rag-server.yaml` and change the image name:
+   ```yaml
+   services:
+     rag-server:
+       image: your-registry/your-rag-server:your-tag
+   ```
+   
+   Edit `deploy/compose/docker-compose-ingestor-server.yaml` and change the image name:
+   ```yaml
+   services:
+     ingestor-server:
+       image: your-registry/your-ingestor-server:your-tag
+   ```
+
+   > [!TIP]
+   > Use a public registry for easier deployment and accessibility.
+  
+2. **Build Ingestor server and RAG server image:**
+   ```bash
+   docker compose -f deploy/compose/docker-compose-ingestor-server.yaml build
+   docker compose -f deploy/compose/docker-compose-rag-server.yaml build
+   ```
+
+3. **Push images to your registry:**
+   ```bash
+   docker push your-registry/your-rag-server:your-tag
+   docker push your-registry/your-ingestor-server:your-tag
+   ```
+
+### Configure Helm Values
+
+Update your [`values.yaml`](../deploy/helm/nvidia-blueprint-rag/values.yaml) file to use your custom images and configure your vector database:
+
+1. **Update image repositories and tags:**
+   ```yaml
+   # RAG server image configuration
+   image:
+     repository: your-registry/your-rag-server
+     tag: "your-tag"
+     pullPolicy: Always
+   
+   # Ingestor server image configuration  
+   ingestor-server:
+     image:
+       repository: your-registry/your-ingestor-server
+       tag: "your-tag"
+       pullPolicy: Always
+   ```
+
+2. **Configure vector database settings:**
+   ```yaml
+   # RAG server environment variables
+   envVars:
+     APP_VECTORSTORE_URL: "http://your-custom-vdb:port"
+     APP_VECTORSTORE_NAME: "your_custom_vdb"
+     # ... other existing configurations
+   
+   # Ingestor server environment variables
+   ingestor-server:
+     envVars:
+       APP_VECTORSTORE_URL: "http://your-custom-vdb:port"
+       APP_VECTORSTORE_NAME: "your_custom_vdb"
+       # ... other existing configurations
+   ```
+
+### Disable Default Vector Database and Add Custom Helm Chart
+
+1. **Disable Milvus in the NV-Ingest configuration:**
+   ```yaml
+   nv-ingest:
+     enabled: true
+     # Disable Milvus deployment
+     milvusDeployed: false
+     milvus:
+       enabled: false
+   ```
+
+2. **Add your custom vector database Helm chart to `Chart.yaml`:**
+   
+   Edit `deploy/helm/nvidia-blueprint-rag/Chart.yaml` and add your custom VDB as a dependency:
+   ```yaml
+   dependencies:
+   # ... existing dependencies
+   - condition: your-custom-vdb.enabled
+     name: your-custom-vdb
+     repository: https://your-helm-repo.com/charts
+     version: 1.0.0
+   ```
+
+   > [!NOTE]
+   > Replace `your-custom-vdb`, `https://your-helm-repo.com/charts`, and `1.0.0` with your actual chart name, repository URL, and version.
+
+3. **Add Helm repository and update dependencies:**
+   ```bash
+   cd deploy/helm/
+   
+   # Add your custom VDB Helm repository
+   helm repo add your-vdb-repo https://your-helm-repo.com/charts
+   helm repo update
+   
+   # Update Helm dependencies
+   helm dependency update nvidia-blueprint-rag
+   ```
+
+4. **Enable your custom vector database in `values.yaml`:**
+   ```yaml
+   # Add your custom VDB configuration
+   your-custom-vdb:
+     enabled: true
+     # Add your VDB-specific configuration here
+     # Example configurations:
+     service:
+       type: ClusterIP
+       port: 9200
+     resources:
+       limits:
+         memory: "4Gi"
+       requests:
+         memory: "2Gi"
+   ```
+
+### Deploy with Helm
+
+Deploy your updated NVIDIA RAG system with the custom vector database:
+
+```bash
+cd deploy/helm/
+
+helm upgrade --install rag -n rag nvidia-blueprint-rag/ \
+--set imagePullSecret.password=$NGC_API_KEY \
+--set ngcApiSecret.password=$NGC_API_KEY \
+-f nvidia-blueprint-rag/values.yaml
+```
+
+### Verify Deployment
+
+After deployment, verify that your custom vector database is working correctly:
+
+1. **Check pod status:**
+   ```bash
+   kubectl get pods -n rag
+   ```
+
+2. **Check service endpoints:**
+   ```bash
+   kubectl get services -n rag
+   ```
+
+3. **Test vector database connectivity:**
+   ```bash
+   # Replace with your VDB's health check endpoint
+   kubectl exec -n rag deployment/rag-server -- curl -X GET "your-custom-vdb:port/health"
+   ```
+
+4. **Access the RAG UI:**
+   
+   Open the RAG UI at `http://<host-ip>:8090` and configure:
+   - Settings > Endpoint Configuration > Vector Database Endpoint → set to `http://your-custom-vdb:port`
+
+### Troubleshooting
+
+If you encounter issues during deployment:
+
+1. **Check Helm chart dependencies:**
+   ```bash
+   helm dependency list nvidia-blueprint-rag
+   ```
+
+2. **Verify image pull secrets:**
+   ```bash
+   kubectl get secrets -n rag
+   ```
+
+3. **Check pod logs:**
+   ```bash
+   kubectl logs -n rag deployment/rag-server
+   kubectl logs -n rag deployment/ingestor-server
+   ```
+
+4. **Validate Helm values:**
+   ```bash
+   helm template rag nvidia-blueprint-rag/ -f nvidia-blueprint-rag/values.yaml
+   ```

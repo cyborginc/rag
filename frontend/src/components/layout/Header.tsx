@@ -13,18 +13,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { AppBar, AppBarLogo, Button, Text, Flex } from "@kui/react";
 import NotificationBell from "../notifications/NotificationBell";
 import { useNavigate, useLocation } from "react-router-dom";
-import logo from "../../assets/logo.svg";
+
+// Using placeholder icon as suggested
+const ICON_settings = () => (
+  <svg
+    className="w-5 h-5"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    viewBox="0 0 24 24"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
 
 /**
  * Application header component with navigation and branding.
  * 
- * Displays the NVIDIA logo, application title, and navigation elements
- * including settings button and notification bell. Handles routing
- * between different application sections.
+ * Uses KUI AppBar component with integrated NVIDIA branding,
+ * application title, and navigation elements including settings button
+ * and notification bell. Handles routing between different sections.
  * 
- * @returns Header component with logo, title, and navigation elements
+ * @returns Header component using KUI AppBar with navigation elements
  */
 export default function Header() {
   const navigate = useNavigate();
@@ -38,35 +52,33 @@ export default function Header() {
     }
   };
 
-  return (
-    <div className="flex h-14 items-center justify-between border-b border-neutral-800 bg-black px-4">
-      <button
-        onClick={() => navigate("/")}
-        className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-      >
-        <img src={logo} alt="NVIDIA Logo" className="h-6 w-auto" />
-        <span className="text-xl font-semibold text-white">RAG Blueprint</span>
-      </button>
+  const handleLogoClick = () => {
+    navigate("/");
+  };
 
-      <div className="flex items-center gap-4">
-        <NotificationBell />
-        <button
-          onClick={handleSettingsClick}
-          className="flex items-center gap-2 p-2 text-gray-400 transition-colors hover:text-[var(--nv-green)] hover:bg-neutral-900 rounded-lg"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
+  return (
+    <AppBar
+      slotLeft={
+        <Flex align="center" gap="density-md">
+          <AppBarLogo onClick={handleLogoClick} />
+          <Text kind="title/sm" onClick={handleLogoClick}>
+            RAG Blueprint
+          </Text>
+        </Flex>
+      }
+      slotRight={
+        <Flex align="center" gap="2">
+          <NotificationBell />
+          <Button
+            kind="tertiary"
+            size="medium"
+            onClick={handleSettingsClick}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          <span className="text-sm font-medium">Settings</span>
-        </button>
-      </div>
-    </div>
+            <ICON_settings />
+            <Text kind="body/regular/sm">Settings</Text>
+          </Button>
+        </Flex>
+      }
+    />
   );
 }

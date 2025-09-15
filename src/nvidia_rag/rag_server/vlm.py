@@ -127,6 +127,13 @@ class VLM:
         max_query_images = max(0, int(config.vlm.max_query_images))
         max_context_images = max(0, int(config.vlm.max_context_images))
 
+        logger.info(
+            "VLM image limits - max_total_images=%d, max_query_images=%d, max_context_images=%d",
+            max_total_images,
+            max_query_images,
+            max_context_images,
+        )
+
         if max_query_images + max_context_images > max_total_images:
             logger.error(
                 "Configured max_query_images (%d) + max_context_images (%d) exceed max_total_images (%d). Skipping VLM call.",
@@ -360,7 +367,15 @@ class VLM:
             return False
 
         llm = get_llm(**llm_settings)
-        prompt = ChatPromptTemplate.from_template(self.vlm_response_reasoning_template)
+
+        template = get_prompts().get("vlm_response_reasoning_template", {})
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", template.get("system", "")),
+                ("human", template.get("human", "")),
+            ]
+        )
+
         parser = StrOutputParser()
 
         chain = prompt | llm | parser

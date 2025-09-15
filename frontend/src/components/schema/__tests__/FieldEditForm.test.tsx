@@ -30,7 +30,11 @@ describe('FieldEditForm', () => {
 
       expect(screen.getByText('Editing Field')).toBeInTheDocument();
       expect(screen.getByDisplayValue('test-field')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('string')).toBeInTheDocument();
+      
+      // Check the select trigger shows the current value
+      const selectTrigger = screen.getByRole('combobox');
+      expect(selectTrigger).toHaveTextContent('string');
+      
       expect(screen.getByText('Cancel')).toBeInTheDocument();
       expect(screen.getByText('Save Changes')).toBeInTheDocument();
     });
@@ -46,10 +50,10 @@ describe('FieldEditForm', () => {
       );
 
       const nameInput = screen.getByDisplayValue('test-field') as HTMLInputElement;
-      const typeSelect = screen.getByDisplayValue('string') as HTMLSelectElement;
+      const selectTrigger = screen.getByRole('combobox');
 
       expect(nameInput.value).toBe('test-field');
-      expect(typeSelect.value).toBe('string');
+      expect(selectTrigger).toHaveTextContent('string');
     });
 
     it('handles empty field name', () => {
@@ -69,7 +73,7 @@ describe('FieldEditForm', () => {
     });
 
     it('defaults to string type when no type specified', () => {
-      const fieldWithoutType = { ...mockField, type: undefined as any };
+      const fieldWithoutType = { ...mockField, type: undefined as never };
       
       render(
         <FieldEditForm
@@ -80,8 +84,8 @@ describe('FieldEditForm', () => {
         />
       );
 
-      const typeSelect = screen.getByRole('combobox') as HTMLSelectElement;
-      expect(typeSelect.value).toBe('string');
+      const selectTrigger = screen.getByRole('combobox');
+      expect(selectTrigger).toHaveTextContent('string');
     });
   });
 
@@ -112,10 +116,15 @@ describe('FieldEditForm', () => {
         />
       );
 
-      const typeSelect = screen.getByDisplayValue('string');
-      fireEvent.change(typeSelect, { target: { value: 'datetime' } });
+      // Click the select trigger to open the dropdown
+      const selectTrigger = screen.getByRole('combobox');
+      fireEvent.click(selectTrigger);
 
-      expect(mockOnUpdate).toHaveBeenCalledWith({ type: 'datetime' });
+      // Click on a different option
+      const datetimeOption = screen.getByRole('option', { name: 'datetime' });
+      fireEvent.click(datetimeOption);
+
+      expect(mockOnUpdate).toHaveBeenCalledWith({ type: 'datetime', array_type: undefined });
     });
 
     it('calls onSave when Save Changes button is clicked', () => {
@@ -194,8 +203,9 @@ describe('FieldEditForm', () => {
         />
       );
 
-      const form = document.querySelector('.rounded-lg.border-2.border-\\[var\\(--nv-green\\)\\]');
-      expect(form).toBeInTheDocument();
+      // Check for KUI Block component structure
+      const formContainer = document.querySelector('.nv-block');
+      expect(formContainer).toBeInTheDocument();
     });
 
     it('renders all available type options', () => {
@@ -208,6 +218,11 @@ describe('FieldEditForm', () => {
         />
       );
 
+      // Open the select dropdown first
+      const selectTrigger = screen.getByRole('combobox');
+      fireEvent.click(selectTrigger);
+
+      // Now check for options
       expect(screen.getByRole('option', { name: 'string' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'datetime' })).toBeInTheDocument();
     });
@@ -215,7 +230,7 @@ describe('FieldEditForm', () => {
 
   describe('Edge Cases', () => {
     it('handles null field name', () => {
-      const fieldWithNullName = { ...mockField, name: null as any };
+      const fieldWithNullName = { ...mockField, name: null as unknown as string };
       
       render(
         <FieldEditForm
@@ -242,8 +257,8 @@ describe('FieldEditForm', () => {
         />
       );
 
-      const typeSelect = screen.getByDisplayValue('datetime') as HTMLSelectElement;
-      expect(typeSelect.value).toBe('datetime');
+      const selectTrigger = screen.getByRole('combobox');
+      expect(selectTrigger).toHaveTextContent('datetime');
     });
   });
 }); 

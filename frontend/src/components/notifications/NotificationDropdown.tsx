@@ -14,75 +14,106 @@
 // limitations under the License.
 
 import { useCallback, useMemo } from "react";
-import type { IngestionTask } from "../../types/api";
+import { Stack, Text, Divider } from "@kui/react";
+import type { HealthNotification, TaskNotification } from "../../types/notifications";
 import { TaskDisplay } from "../tasks/TaskDisplay";
-import { useIngestionTasksStore } from "../../store/useIngestionTasksStore";
+import { HealthNotificationDisplay } from "./HealthNotificationDisplay";
+import { useNotificationStore } from "../../store/useNotificationStore";
 
-type NotificationTask = IngestionTask & { completedAt?: number; read?: boolean };
+export const NotificationDropdown = () => {
+  const { 
+    getAllNotifications, 
+    markAsRead, 
+    removeNotification 
+  } = useNotificationStore();
 
-interface NotificationDropdownProps {
-  pendingTasks: NotificationTask[];
-  completedTasks: NotificationTask[];
-}
+  // Get all notifications from the unified store
+  const allNotifications = getAllNotifications();
 
-export const NotificationDropdown = ({ pendingTasks, completedTasks }: NotificationDropdownProps) => {
-  const { markAsRead, removeTask } = useIngestionTasksStore();
-
-  // Sort all tasks by newest first, prioritizing unread tasks
-  const sortedTasks = useMemo(() => {
-    const allTasksWithMeta = [
-      ...pendingTasks.map(task => ({ 
-        task, 
-        key: `pending-${task.id}`, 
-        isCompleted: false,
-        sortTime: new Date(task.created_at).getTime(),
-        isRead: task.read || false
-      })),
-      ...completedTasks.map(task => ({ 
-        task, 
-        key: `completed-${task.id}`, 
-        isCompleted: true,
-        sortTime: task.completedAt || new Date(task.created_at).getTime(),
-        isRead: task.read || false
-      }))
-    ];
-
-    return allTasksWithMeta.sort((a, b) => {
-      // Unread tasks first
-      if (a.isRead !== b.isRead) {
-        return a.isRead ? 1 : -1;
-      }
-      // Then by time (newest first)
-      return b.sortTime - a.sortTime;
-    });
-  }, [pendingTasks, completedTasks]);
-
-  const handleMarkAsRead = useCallback((taskId: string) => {
-    markAsRead(taskId);
+  const handleMarkAsRead = useCallback((id: string) => {
+    markAsRead(id);
   }, [markAsRead]);
 
-  const handleRemove = useCallback((taskId: string) => {
-    removeTask(taskId);
-  }, [removeTask]);
+  const handleRemove = useCallback((id: string) => {
+    removeNotification(id);
+  }, [removeNotification]);
 
-  if (sortedTasks.length === 0) {
+  // Group notifications by type
+  const groupedNotifications = useMemo(() => {
+    const health = allNotifications.filter((n): n is HealthNotification => n.type === "health");
+    const tasks = allNotifications.filter((n): n is TaskNotification => n.type === "task");
+    
+    return { health, tasks };
+  }, [allNotifications]);
+
+  const totalNotifications = allNotifications.length;
+
+  if (totalNotifications === 0) {
     return (
-      <div className="absolute right-0 mt-2 w-[600px] max-h-96 overflow-y-auto bg-black text-white p-3 rounded text-sm z-50 border border-neutral-700 shadow-xl">
-        <div className="text-neutral-400">No tasks</div>
+      <div style={{ width: '600px', maxHeight: '384px', padding: '16px' }}>
+        <Text kind="body/regular/sm" className="text-subtle">
+          No notifications
+        </Text>
       </div>
     );
   }
 
   return (
-    <ul className="absolute right-0 mt-2 w-[600px] max-h-96 overflow-y-auto bg-black text-white p-3 rounded text-sm z-50 space-y-2 border border-neutral-700 shadow-xl">
-      {sortedTasks.map(({ task, key }) => (
-        <TaskDisplay 
-          key={key}
-          task={task}
-          onMarkRead={() => handleMarkAsRead(task.id)}
-          onRemove={() => handleRemove(task.id)}
-        />
-      ))}
-    </ul>
+    <Stack 
+      gap="3" 
+      style={{ 
+        width: '50vw', 
+        maxHeight: '484px', 
+        overflowY: 'auto', 
+        background: 'var(--background-color-interaction-inverse)',
+        padding: '8px'
+      }}
+    >
+      {/* Health Notifications Section */}
+      {groupedNotifications.health.length > 0 && (
+        <>
+          <Text kind="body/semibold/sm" className="text-white px-2">
+            Service Health Issues ({groupedNotifications.health.length})
+          </Text>
+          <Stack gap="2">
+            {groupedNotifications.health.map((notification) => (
+              <HealthNotificationDisplay
+                key={notification.id}
+                notification={notification}
+                onMarkRead={() => handleMarkAsRead(notification.id)}
+                onRemove={() => handleRemove(notification.id)}
+              />
+            ))}
+          </Stack>
+        </>
+      )}
+
+      {/* Divider between sections if both exist */}
+      {groupedNotifications.health.length > 0 && groupedNotifications.tasks.length > 0 && (
+        <Divider />
+      )}
+
+      {/* Task Notifications Section */}
+      {groupedNotifications.tasks.length > 0 && (
+        <>
+          <Text kind="body/semibold/sm" className="text-white px-2">
+            Ingestion Tasks ({groupedNotifications.tasks.length})
+          </Text>
+          <Stack gap="2">
+            {groupedNotifications.tasks.map((notification) => (
+              <TaskDisplay 
+                key={notification.id}
+                task={{
+                  ...notification.task,
+                  read: notification.read,
+                }}
+                onMarkRead={() => handleMarkAsRead(notification.id)}
+                onRemove={() => handleRemove(notification.id)}
+              />
+            ))}
+          </Stack>
+        </>
+      )}
+    </Stack>
   );
 }; 

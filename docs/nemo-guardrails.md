@@ -81,10 +81,10 @@ export NIM_ENDPOINT_URL=https://integrate.api.nvidia.com/v1
 
 ### Step 2: Create Model Cache Directory
 
-Create a directory for caching models (if not already created):
+Create a directory for caching models (ensure to create a seperate one than the one used by other models of this blueprint):
 
 ```bash
-mkdir -p ~/.cache/model-cache
+mkdir -p ~/.cache/nemoguard-model-cache
 ```
 
 ---
@@ -94,7 +94,7 @@ mkdir -p ~/.cache/model-cache
 Set the model directory path:
 
 ```bash
-export MODEL_DIRECTORY=~/.cache/model-cache
+export MODEL_DIRECTORY=~/.cache/nemoguard-model-cache
 ```
 
 ---
@@ -193,7 +193,7 @@ Alternatively, you can deploy NeMo Guardrails using Helm for Kubernetes environm
 
 Follow the instructions to install the chart in inference mode:
 
-👉 [https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo-microservices/helm-charts/nemo-guardrails](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo-microservices/helm-charts/nemo-guardrails)
+👉 [https://docs.nvidia.com/nemo/microservices/25.8.0/set-up/deploy-as-microservices/guardrails.html](https://docs.nvidia.com/nemo/microservices/25.8.0/set-up/deploy-as-microservices/guardrails.html)
 
 ### Step 2: Retrieve NeMo Guardrails Service URL
 
@@ -212,7 +212,7 @@ Locate the `nemo-guardrails` service and copy its URL.
 Use the Helm upgrade command below to enable NeMo Guardrails in RAG Blueprint by setting `ENABLE_GUARDRAILS` and the `NEMO_GUARDRAILS_URL`:
 
 ```bash
-helm upgrade rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc1.tgz \
+helm upgrade rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \
   --username '$oauthtoken' \
   --password "${NGC_API_KEY}" \
   --set imagePullSecret.password=${NGC_API_KEY} \

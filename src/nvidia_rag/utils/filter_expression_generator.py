@@ -20,6 +20,8 @@ import logging
 import re
 from typing import Any
 
+from langchain_core.prompts import ChatPromptTemplate
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,9 +60,6 @@ def _extract_filter_expression_from_response(response: Any) -> str | None:
 
     response = response.strip()
 
-    if response.upper().startswith("NO_FILTER"):
-        return None
-
     response = re.sub(r"<think>.*?</think>", "", response, flags=re.DOTALL)
 
     if "<think>" in response:
@@ -69,9 +68,12 @@ def _extract_filter_expression_from_response(response: Any) -> str | None:
     response = re.sub(r"\n\s*\n", "\n", response)
     response = response.strip()
 
-    if not response:
+    if (
+        response.upper().startswith("NO_FILTER")
+        or response.upper().startswith("UNSUPPORTED")
+        or not response
+    ):
         logger.warning("No filter expression found after removing thinking tokens")
-
         return None
 
     return response
@@ -81,7 +83,7 @@ def generate_filter_from_natural_language(
     user_request: str,
     collection_name: str,
     metadata_schema: list[dict[str, Any]],
-    prompt_template: str,
+    prompt_template: dict,
     llm: Any | None = None,
     existing_filter_expr: str | None = None,
 ) -> str | None:
@@ -109,12 +111,20 @@ def generate_filter_from_natural_language(
         ):
             existing_filter_context = f"\n**EXISTING FILTER EXPRESSION:**\n{existing_filter_expr}\n\nPlease validate this existing filter expression and improve it if needed based on the user request."
 
-        formatted_prompt = prompt_template.format(
-            metadata_schema=schema_text,
-            user_request=user_request,
-            collection_name=collection_name,
-            existing_filter_context=existing_filter_context,
+        filter_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", prompt_template.get("system")),
+                ("human", prompt_template.get("human")),
+            ]
         )
+
+        # Prepare the input for the chain
+        chain_input = {
+            "metadata_schema": schema_text,
+            "user_request": user_request,
+            "collection_name": collection_name,
+            "existing_filter_context": existing_filter_context,
+        }
 
         if llm is None:
             logger.debug(
@@ -122,7 +132,7 @@ def generate_filter_from_natural_language(
             )
             return ""
 
-        response = llm.invoke(formatted_prompt)
+        response = llm.invoke(filter_prompt.format_messages(**chain_input))
 
         filter_expr = _extract_filter_expression_from_response(response)
 

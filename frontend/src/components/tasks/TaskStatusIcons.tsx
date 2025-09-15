@@ -18,17 +18,17 @@ import { useTaskUtils } from "../../hooks/useTaskUtils";
 
 const SpinnerIcon = () => (
   <div 
-    className="w-4 h-4 animate-spin rounded-full border-2 border-[var(--nv-green)] border-t-transparent" 
+    className="w-4 h-4 animate-spin rounded-full border-2 border-brand border-t-transparent" 
     data-testid="spinner-icon"
   />
 );
 
 const SuccessIcon = () => (
   <div 
-    className="w-4 h-4 rounded-full bg-[var(--nv-green)] flex items-center justify-center"
+    className="w-4 h-4 rounded-full bg-feedback-success flex items-center justify-center"
     data-testid="success-icon"
   >
-    <svg className="w-2.5 h-2.5 text-black" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+    <svg className="w-2.5 h-2.5 text-feedback-success-inverse" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
     </svg>
   </div>
@@ -36,10 +36,10 @@ const SuccessIcon = () => (
 
 const WarningIcon = () => (
   <div 
-    className="w-4 h-4 rounded-full bg-yellow-400 flex items-center justify-center"
+    className="w-4 h-4 rounded-full bg-feedback-warning flex items-center justify-center"
     data-testid="warning-icon"
   >
-    <svg className="w-2.5 h-2.5 text-black" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+    <svg className="w-2.5 h-2.5 text-feedback-warning-inverse" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
     </svg>
   </div>
@@ -47,10 +47,10 @@ const WarningIcon = () => (
 
 const ErrorIcon = () => (
   <div 
-    className="w-4 h-4 rounded-full bg-red-500 flex items-center justify-center"
+    className="w-4 h-4 rounded-full bg-feedback-danger flex items-center justify-center"
     data-testid="error-icon"
   >
-    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+    <svg className="w-2.5 h-2.5 text-feedback-danger-inverse" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
     </svg>
   </div>

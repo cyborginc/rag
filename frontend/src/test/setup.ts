@@ -53,4 +53,39 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
 }));
 
 // Mock import.meta.env for Vite environment variables
-vi.stubEnv('VITE_API_VDB_URL', 'http://localhost:8000'); 
+vi.stubEnv('VITE_API_VDB_URL', 'http://localhost:8000');
+
+// Mock CSS imports from KUI components and all CSS files
+vi.mock('@kui/foundations/dist/**/*.css', () => ({}));
+vi.mock('@kui/react/dist/**/*.css', () => ({}));
+
+// Mock all CSS file imports 
+Object.defineProperty(window, '__CSS_MODULES__', {
+  value: {},
+  writable: true,
+});
+
+// Mock specific KUI component CSS that might be missed
+vi.mock('@kui/foundations/dist/components/accordion.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/anchor.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/badge.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/button.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/card.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/checkbox.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/divider.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/dropdown.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/form-field.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/grid.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/icon.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/menu.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/modal.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/panel.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/popover.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/radio.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/switch.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/tag.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/text.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/text-input.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/textarea.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/theme-provider.min.css', () => ({}));
+vi.mock('@kui/foundations/dist/components/vertical-nav.min.css', () => ({})); 

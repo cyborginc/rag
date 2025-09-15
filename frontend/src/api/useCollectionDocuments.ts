@@ -84,7 +84,7 @@ export function useDeleteDocument() {
       );
       if (!res.ok) {
         let message = "Failed to delete document";
-        try { const err = await res.json(); message = err.message || message; } catch {}
+        try { const err = await res.json(); message = err.message || message; } catch { /* ignore parse errors */ }
         throw new Error(message);
       }
       return res.json();

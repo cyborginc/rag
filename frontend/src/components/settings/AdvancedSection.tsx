@@ -13,22 +13,135 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useSettingsHandlers } from "../../hooks/useSettingsHandlers";
+import { FormField, TextInput, Switch, Stack, Flex, Text, Button, Tag } from "@kui/react";
+import { useSettingsStore } from "../../store/useSettingsStore";
+import { useState } from "react";
 
 export const AdvancedSection = () => {
-  const { stopTokensInput, handleStopTokensChange } = useSettingsHandlers();
+  const { useLocalStorage, stopTokens, set: setSettings } = useSettingsStore();
+  const [newTokenInput, setNewTokenInput] = useState("");
+
+  const handleAddToken = () => {
+    const token = newTokenInput.trim();
+    if (token && !(stopTokens || []).includes(token)) {
+      setSettings({ stopTokens: [...(stopTokens || []), token] });
+      setNewTokenInput("");
+    }
+  };
+
+  const handleRemoveToken = (tokenToRemove: string) => {
+    setSettings({ 
+      stopTokens: (stopTokens || []).filter(token => token !== tokenToRemove) 
+    });
+  };
+
+  const handleTokenInputChange = (value: string) => {
+    setNewTokenInput(value);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleAddToken();
+    }
+  };
 
   return (
-    <div className="py-4">
-      <label className="block text-sm font-medium text-white mb-3">Stop Tokens</label>
-      <input
-        type="text"
-        value={stopTokensInput}
-        onChange={(e) => handleStopTokensChange(e.target.value)}
-        className="w-full rounded-lg bg-neutral-800 border border-neutral-700 px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-[var(--nv-green)]/50 focus:border-[var(--nv-green)]/50 focus:outline-none transition-colors"
-        placeholder="Enter tokens separated by commas"
-      />
-      <p className="mt-2 text-xs text-gray-400">Tokens that will stop text generation when encountered.</p>
-    </div>
+    <Stack gap="density-lg">
+      {/* Theme Toggle */}
+      {/* <FormField
+        slotLabel="Theme"
+        slotHelp="Choose between light and dark theme for the application interface."
+      >
+        {(args) => (
+          <Flex align="center" gap="density-sm">
+            <Switch
+              {...args}
+              checked={isDark}
+              onCheckedChange={toggleTheme}
+            />
+            <Text kind="body/regular/sm">
+              {isDark ? 'Dark Theme' : 'Light Theme'}
+            </Text>
+          </Flex>
+        )}
+      </FormField> */}
+
+      {/* Local Storage Toggle */}
+      <FormField
+        slotLabel="Use Local Storage"
+        slotHelp="Enable to persist settings and data in your browser's local storage. When disabled, all local storage will be cleared."
+      >
+        {(args) => (
+          <Flex align="center" gap="density-sm">
+            <Switch
+              {...args}
+              checked={useLocalStorage ?? false}
+              onCheckedChange={(checked) => setSettings({ useLocalStorage: checked })}
+            />
+            <Text kind="body/regular/sm">
+              {useLocalStorage ? 'Enabled' : 'Disabled'}
+            </Text>
+          </Flex>
+        )}
+      </FormField>
+
+      {/* Stop Tokens */}
+      <FormField
+        slotLabel="Stop Tokens"
+        slotHelp="Add text tokens that will stop text generation when encountered. Click on a token to remove it."
+      >
+        <Stack gap="density-md">
+          {/* Input field to add new tokens */}
+          <Flex gap="density-sm" align="center">
+            <TextInput
+              value={newTokenInput}
+              onValueChange={handleTokenInputChange}
+              onKeyDown={handleKeyPress}
+              placeholder="Enter stop token"
+              style={{ flex: 1 }}
+            />
+            <Button 
+              onClick={handleAddToken}
+              disabled={!newTokenInput.trim()}
+              kind="tertiary"
+              color="brand"
+              size="small"
+            >
+              Add
+            </Button>
+          </Flex>
+          
+          {/* Display existing tokens */}
+          {stopTokens && stopTokens.length > 0 && (
+            <Flex gap="density-sm" style={{ flexWrap: 'wrap' }}>
+              {stopTokens.map((token, index) => (
+                <Tag
+                  key={`${token}-${index}`}
+                  color="gray"
+                  kind="outline"
+                  density="compact"
+                  onClick={() => handleRemoveToken(token)}
+                  style={{ cursor: 'pointer' }}
+                  title="Click to remove"
+                >
+                  <Flex align="center" gap="density-xs">
+                    <Text kind="body/regular/sm">{token}</Text>
+                    <svg 
+                      style={{ width: '12px', height: '12px' }} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </Flex>
+                </Tag>
+              ))}
+            </Flex>
+          )}
+        </Stack>
+      </FormField>
+    </Stack>
   );
 }; 

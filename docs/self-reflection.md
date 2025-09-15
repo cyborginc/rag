@@ -24,11 +24,8 @@ ENABLE_REFLECTION=true
 MAX_REFLECTION_LOOP=3                    # Maximum number of refinement attempts (default: 3)
 CONTEXT_RELEVANCE_THRESHOLD=1            # Minimum relevance score 0-2 (default: 1)
 RESPONSE_GROUNDEDNESS_THRESHOLD=1        # Minimum groundedness score 0-2 (default: 1)
-REFLECTION_LLM="nvidia/llama-3_3-nemotron-super-49b-v1_5"  # Model for reflection (default)
+REFLECTION_LLM="nvidia/llama-3-3-nemotron-super-49b-v1-5"  # Model for reflection (default)
 REFLECTION_LLM_SERVERURL="nim-llm:8000"  # Default on-premises endpoint for reflection LLM
-
-# GPU device assignment for reflection service
-REFLECTION_MS_GPU_ID="1" # Comma-separated GPU device IDs for 8-GPU deployment
 ```
 
 The reflection feature supports multiple deployment options:
@@ -59,37 +56,19 @@ The reflection feature supports multiple deployment options:
    export MODEL_DIRECTORY=~/.cache/model-cache
    ```
 
-3. Start the llama-3.3-nemotron-super-49b model service:
-
-   ```bash
-    USERID=$(id -u) docker compose -f deploy/compose/nims.yaml --profile nim-llm up -d
-   ```
-
-4. Wait for the nim-llm service to become healthy (this may take up to 30 minutes on first run as the model is downloaded and cached):
-
-   ```bash
-   watch -n 2 'docker ps --format "table {{.Names}}\t{{.Status}}"'
-   ```
-
-   Expected output when ready:
-   ```
-   NAMES                    STATUS
-   nim-llm    Up XX minutes (healthy)
-   ```
-
-5. Start the RAG server with reflection enabled:
+3. Start the RAG server with reflection enabled:
 
    ```bash
    docker compose -f deploy/compose/docker-compose-rag-server.yaml up -d
    ```
 
-6. Verify all services are running:
+4. Verify all services are running:
 
    ```bash
    docker ps --format "table {{.Names}}\t{{.Status}}"
    ```
 
-7. Test the reflection capability:
+5. Test the reflection capability:
    - Access the RAG playground UI at http://localhost:8090
 
 ## NVIDIA AI Playground (Alternative)
@@ -120,7 +99,7 @@ If you don't have sufficient GPU resources for on-premises deployment, you can u
    export REFLECTION_LLM_SERVERURL="nim-llm:8000"
 
    # Choose the reflection model (options below)
-   export REFLECTION_LLM="nvidia/llama-3_3-nemotron-super-49b-v1_5"  # Default option
+   export REFLECTION_LLM="nvidia/llama-3-3-nemotron-super-49b-v1-5"  # Default option
    # export REFLECTION_LLM="meta/llama-3.1-405b-instruct"  # Alternative option
    ```
 
@@ -149,65 +128,11 @@ You can enable self-reflection through Helm when you deploy the RAG Blueprint.
 ### Prerequisites
 
 - Only on-premises reflection deployment is supported in Helm
-- The model used is: `nvidia/llama-3_3-nemotron-super-49b-v1_5`
+- The model used is: `nvidia/llama-3-3-nemotron-super-49b-v1-5`.
 
-### Deploy the Reflection LLM in a Separate Namespace
+### Deployment Steps
 
-1. Export your NGC API key:
-
-   ```bash
-   export NGC_API_KEY=your_api_key_here
-   ```
-
-2. Create a namespace for reflection:
-
-   ```bash
-   kubectl create ns reflection-nim
-   ```
-
-3. Create required secrets:
-
-   ```bash
-   kubectl create secret -n reflection-nim docker-registry ngc-secret \
-     --docker-server=nvcr.io --docker-username='$oauthtoken' --docker-password=$NGC_API_KEY
-
-   kubectl create secret -n reflection-nim generic ngc-api \
-     --from-literal=NGC_API_KEY=$NGC_API_KEY
-   ```
-
-4. Create a `custom_values.yaml` file:
-
-   ```yaml
-   service:
-     name: "nim-llm"
-   image:
-     repository: nvcr.io/nim/nvidia/llama-3_3-nemotron-super-49b-v1_5
-     pullPolicy: IfNotPresent
-     tag: "1.12.0"
-   resources:
-     limits:
-       nvidia.com/gpu: 8
-     requests:
-       nvidia.com/gpu: 8
-   model:
-     ngcAPISecret: ngc-api
-     name: "nvidia/llama-3_3-nemotron-super-49b-v1_5"
-   persistence:
-     enabled: true
-   imagePullSecrets:
-     - name: ngc-secret
-   ```
-
-5. Deploy the reflection LLM via Helm:
-
-   ```bash
-   helm upgrade --install nim-llm -n reflection-nim https://helm.ngc.nvidia.com/nim/charts/nim-llm-1.7.0.tgz \
-     --username='$oauthtoken' \
-     --password=$NGC_API_KEY \
-     -f custom_values.yaml
-   ```
-
-6. Set the following environment variables in your `values.yaml` under `envVars`:
+1. Set the following environment variables in your `values.yaml` under `envVars`:
 
    ```yaml
    # === Reflection ===
@@ -215,16 +140,16 @@ You can enable self-reflection through Helm when you deploy the RAG Blueprint.
    MAX_REFLECTION_LOOP: "3"
    CONTEXT_RELEVANCE_THRESHOLD: "1"
    RESPONSE_GROUNDEDNESS_THRESHOLD: "1"
-   REFLECTION_LLM: "nvidia/llama-3_3-nemotron-super-49b-v1_5"
+   REFLECTION_LLM: "nvidia/llama-3-3-nemotron-super-49b-v1-5"
    REFLECTION_LLM_SERVERURL: "nim-llm:8000"
    ```
 
-7. Deploy the RAG Helm chart:
+2. Deploy the RAG Helm chart:
 
    Follow the steps from [Quick Start Helm Deployment](./quickstart.md#deploy-with-helm-chart) and run:
 
    ```bash
-   helm install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc1.tgz \
+   helm install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \
      --username '$oauthtoken' \
      --password "${NGC_API_KEY}" \
      --set imagePullSecret.password=$NGC_API_KEY \

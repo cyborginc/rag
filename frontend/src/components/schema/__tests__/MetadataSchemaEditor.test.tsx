@@ -1,16 +1,34 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '../../../test/utils';
 import MetadataSchemaEditor from '../MetadataSchemaEditor';
+import { useSchemaEditor } from '../../../hooks/useSchemaEditor';
 
 // Mock the schema editor hook using working pattern
-vi.mock('../../hooks/useSchemaEditor', () => ({
-  useSchemaEditor: () => ({
-    showSchemaEditor: false,
-    toggleEditor: vi.fn()
-  })
+vi.mock('../../../hooks/useSchemaEditor', () => ({
+  useSchemaEditor: vi.fn()
 }));
 
+const mockUseSchemaEditor = vi.mocked(useSchemaEditor);
+
 describe('MetadataSchemaEditor', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseSchemaEditor.mockReturnValue({
+      metadataSchema: [],
+      showSchemaEditor: false,
+      editingIndex: null,
+      editValues: {},
+      fieldNameError: null,
+      setFieldNameError: vi.fn(),
+      toggleEditor: vi.fn(),
+      startEditing: vi.fn(),
+      updateEditValue: vi.fn(),
+      commitUpdate: vi.fn(),
+      cancelEdit: vi.fn(),
+      deleteField: vi.fn()
+    });
+  });
+
   describe('Basic Rendering', () => {
     it('renders without crashing', () => {
       expect(() => render(<MetadataSchemaEditor />)).not.toThrow();
@@ -26,7 +44,7 @@ describe('MetadataSchemaEditor', () => {
       const { container } = render(<MetadataSchemaEditor />);
       
       const mainContainer = container.firstChild as HTMLElement;
-      expect(mainContainer).toHaveClass('rounded-lg');
+      expect(mainContainer).toHaveClass('nv-panel');
     });
 
     it('does not render schema content when closed by default', () => {

@@ -7,7 +7,7 @@ This release adds RTX6000 platform support, deployment via NIM operator as well 
 
 ### Added
 - Support deploying the blueprint on RTX6000 platform.
-- Migrated to [`llama-3_3-nemotron-super-49b-v1_5`](https://build.nvidia.com/nvidia/llama-3_3-nemotron-super-49b-v1_5) as the default LLM model.
+- Migrated to [`llama-3-3-nemotron-super-49b-v1-5`](https://build.nvidia.com/nvidia/llama-3_3-nemotron-super-49b-v1_5) as the default LLM model.
 - Added support to deploy the helm chart using [NVIDIA NIM operator](./docs/quickstart.md#enable-nim-operator-with-the-chart).
 - Updated all NIMs, NVIDIA Ingest and third party dependencies to latest versions.
 - Refactoring to support custom 3rd party vector DB integration in a streamlined manner.
@@ -22,16 +22,30 @@ This release adds RTX6000 platform support, deployment via NIM operator as well 
   - Added an [interactive notebook](./notebooks/nb_metadata.ipynb) showcasing new features.
 - Added dependency check support for ingestor server /health API.
 - Added support for configurable confidence threashold for retrieval from API layer.
+- Added support to store NV-Ingest extraction results [directly from the filesystem](./docs/mount-ingestor-volume.md).
 - Logging enhancements
 - Added better latency data reporting for RAG server
   - API level enhancements for component level latency
   - Added dedicated Prometheus metric endpoint
+- Added independent script to [showcase batch ingestion](./scripts/README.md)
+- Enabled support for [GPU indexing with CPU search](./docs/milvus-configuration.md#gpu-indexing-with-cpu-search)
+  - Exposed `APP_VECTORSTORE_EF` as a configurable parameter
+- Added environment variables to control llm parameters LLM_MAX_TOKENS, LLM_TEMPERATURE and LLM_TOP_P
+- Added notebooks for showcasing RAG evaluation using common metrics
+  - [Notebook 1 - evaluation using RAGAS](./notebooks/evaluation_01_ragas.ipynb)
+  - [Notebook 2 - Recall calculation](./notebooks/evaluation_02_recall.ipynb)
 
 ## Changed
 - Migrated default LLM model for reflection to `llama-3.3-nemotron-super-49b` instead of `mixtral-8x22b-instruct-v01`.
 - Refactored [rag-playground](./frontend/) code
   - Use React end to end. Next.js dependencies were deprecated.
   - More developer friendly and intuitive look and feel.
+  - `rag-playground` service is renamed to `rag-frontend`
+- Refactored [helm chart support](./deploy/helm/)
+  - Expanded and reorganized Helm chart configuration, enabling granular control over service components, resource settings, and observability (tracing, metrics).
+  - Introduced ConfigMap and service definitions to facilitate improved application deployment flexibility.
+  - Implemented refined service account and secret management in Helm templates.
+  - Added a new Helm values file for nim-operator to configure LLM model environment and component toggles.
 
 ### Fixed
 - Fixed support for long audio file ingestion.
@@ -39,6 +53,9 @@ This release adds RTX6000 platform support, deployment via NIM operator as well 
 
 ### Deprecated
 - Deprecated consistency level configuration support for Milvus.
+- Deprecated `EMBEDDING_NIM_ENDPOINT` and `EMBEDDING_NIM_MODEL_NAME` environment variables for nvingest.
+- Deprecated unused `ENABLE_MULTITURN` environment variable from rag-server.
+- Deprecated `ENABLE_NEMOTRON_THINKING` environment variable from rag-server.
 
 ### Known Issues
 Check out [this section](./docs/troubleshooting.md#known-issues) to understand the known issues present for this release.
@@ -117,9 +134,8 @@ This release reduces overall GPU requirement for the deployment of the blueprint
 - Resolved an issue during bulk ingestion, where ingestion job failed if ingestion of a single file fails.
 
 ### Known Issues
-- The `rag-playground` container needs to be rebuild if the `APP_LLM_MODELNAME`, `APP_EMBEDDINGS_MODELNAME` or `APP_RANKING_MODELNAME` environment variable values are changed.
-- While trying to upload multiple files at the same time, there may be a timeout error `Error uploading documents: [Error: aborted] { code: 'ECONNRESET' }`. Developers are encouraged to use API's directly for bulk uploading, instead of using the sample rag-playground. The default timeout is set to 1 hour from UI side, while uploading.
-- In case of failure while uploading files, error messages may not be shown in the user interface of rag-playground. Developers are encouraged to check the `ingestor-server` logs for details.
+- While trying to upload multiple files at the same time, there may be a timeout error `Error uploading documents: [Error: aborted] { code: 'ECONNRESET' }`. Developers are encouraged to use API's directly for bulk uploading, instead of using the sample rag-frontend. The default timeout is set to 1 hour from UI side, while uploading.
+- In case of failure while uploading files, error messages may not be shown in the user interface of rag-frontend. Developers are encouraged to check the `ingestor-server` logs for details.
 
 A detailed guide is available [here](./docs/migration_guide.md) for easing developers experience, while migrating from older versions.
 
@@ -151,7 +167,6 @@ This release adds support for multimodal documents using [Nvidia Ingest](https:/
   - Support to use conversation history during retrieval for low-latency  multiturn support.
 
 ### Known Issues
-- The `rag-playground` container needs to be rebuild if the `APP_LLM_MODELNAME`, `APP_EMBEDDINGS_MODELNAME` or `APP_RANKING_MODELNAME` environment variable values are changed.
 - Optional features reflection, nemoguardrails and image captioning are not available in helm based deployment.
 - Uploading large files with .txt extension may fail during ingestion, we recommend splitting such files into smaller parts, to avoid this issue.
 

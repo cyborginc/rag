@@ -32,6 +32,9 @@ To get a list of valid model names, use one of the following methods:
   Use the `get_available_models()` method on an instance of a `ChatNVIDIA` object to list the models.
   Refer to the package web page for sample code to list the models.
 
+[!TIP]
+Follow steps [here](quickstart.md#changing-nim-llm-model) to change the inference model for helm charts!
+
 
 
 ## Change the Embedding Model to a Model from the API Catalog

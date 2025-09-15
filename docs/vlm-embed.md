@@ -46,13 +46,11 @@ export APP_EMBEDDINGS_MODELNAME="nvidia/llama-3.2-nemoretriever-1b-vlm-embed-v1"
 docker compose -f deploy/compose/docker-compose-ingestor-server.yaml up -d
 ```
 
-Notes:
-- `nv-ingest-ms-runtime` reads `EMBEDDING_NIM_MODEL_NAME` and `EMBEDDING_NIM_ENDPOINT`, which inherit from `APP_EMBEDDINGS_MODELNAME` and `APP_EMBEDDINGS_SERVERURL` respectively. No extra changes are required.
-- If you prefer to keep `APP_EMBEDDINGS_SERVERURL` as just `host:port`, explicitly set the runtime variables:
-  ```bash
-  export EMBEDDING_NIM_MODEL_NAME="${APP_EMBEDDINGS_MODELNAME}"
-  export EMBEDDING_NIM_ENDPOINT="http://nemoretriever-vlm-embedding-ms:8000/v1"
-  ```
+[!TIP]:
+Set build.nvidia.com URL for accessing cloud hosted model
+```bash
+export APP_EMBEDDINGS_SERVERURL="https://integrate.api.nvidia.com/v1"
+```
 
 ### 3) Configure How Content Is Embedded (text vs image)
 
@@ -126,4 +124,72 @@ docker compose -f deploy/compose/docker-compose-ingestor-server.yaml up -d
   - `APP_NVINGEST_IMAGE_ELEMENTS_MODALITY`: `image` or empty
   - `APP_NVINGEST_EXTRACTPAGEASIMAGE`: `True` or `False`
 
-If you use a `.env` file, add the variables there instead of exporting them, then rerun the compose commands. 
+If you use a `.env` file, add the variables there instead of exporting them, then rerun the compose commands.
+
+### Using Helm chart deployment
+
+To deploy the VLM embedding service with Helm, update the image and model settings, set the corresponding environment variables, and then apply the chart with your updated `values.yaml`.
+
+1) Update `deploy/helm/nvidia-blueprint-rag/values.yaml`:
+
+```yaml
+# Enable VLM embedding NIM and set its image
+nvidia-nim-llama-32-nemoretriever-1b-vlm-embed-v1:
+  enabled: true
+  image:
+    repository: nvcr.io/nvidia/nemo-microservices/llama-3.2-nemoretriever-1b-vlm-embed-v1
+    tag: "1.7.0"
+
+# Optional: disable the default text embedding NIM
+nvidia-nim-llama-32-nv-embedqa-1b-v2:
+  enabled: false
+
+# Point services to the VLM embedding endpoint and model
+ingestor-server:
+  envVars:
+    APP_EMBEDDINGS_SERVERURL: "nemoretriever-vlm-embedding-ms:8000"
+    APP_EMBEDDINGS_MODELNAME: "nvidia/llama-3.2-nemoretriever-1b-vlm-embed-v1"
+
+nv-ingest:
+  envVars:
+    EMBEDDING_NIM_ENDPOINT: "http://nemoretriever-vlm-embedding-ms:8000/v1"
+    EMBEDDING_NIM_MODEL_NAME: "nvidia/llama-3.2-nemoretriever-1b-vlm-embed-v1"
+```
+
+2) Deploy the chart with the updated values:
+
+```bash
+helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \
+  --username '$oauthtoken' \
+  --password "${NGC_API_KEY}" \
+  --set imagePullSecret.password=$NGC_API_KEY \
+  --set ngcApiSecret.password=$NGC_API_KEY \
+  -f deploy/helm/nvidia-blueprint-rag/values.yaml
+```
+
+#### Where to update extraction and embedding env vars
+
+Set extraction-related env vars under `ingestor-server.envVars`, and embedding service settings under `nv-ingest.envVars` in `deploy/helm/nvidia-blueprint-rag/values.yaml`.
+
+```yaml
+ingestor-server:
+  envVars:
+    # Extraction toggles
+    APP_NVINGEST_EXTRACTTEXT: "True"
+    APP_NVINGEST_EXTRACTTABLES: "True"
+    APP_NVINGEST_EXTRACTCHARTS: "True"
+    APP_NVINGEST_EXTRACTIMAGES: "False"
+    APP_NVINGEST_EXTRACTPAGEASIMAGE: "False"
+    # Embedding modality controls
+    APP_NVINGEST_STRUCTURED_ELEMENTS_MODALITY: ""   # set to "image" to embed tables/charts as images
+    APP_NVINGEST_IMAGE_ELEMENTS_MODALITY: ""        # set to "image" to embed page images as images
+    # Ingestor-side embedding target
+    APP_EMBEDDINGS_SERVERURL: "nemoretriever-vlm-embedding-ms:8000"
+    APP_EMBEDDINGS_MODELNAME: "nvidia/llama-3.2-nemoretriever-1b-vlm-embed-v1"
+
+nv-ingest:
+  envVars:
+    # NV-Ingest runtime embedding target
+    EMBEDDING_NIM_ENDPOINT: "http://nemoretriever-vlm-embedding-ms:8000/v1"
+    EMBEDDING_NIM_MODEL_NAME: "nvidia/llama-3.2-nemoretriever-1b-vlm-embed-v1"
+```

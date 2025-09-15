@@ -20,7 +20,7 @@ dependencies = [
     "langchain>=0.3.27",
     "langchain-community>=0.3.27",
     "langchain-milvus>=0.2.1",
-    "langchain-nvidia-ai-endpoints>=0.3.13",
+    "langchain-nvidia-ai-endpoints>=0.3.17",
     "minio==7.2.15",
     "pdfplumber>=0.6",
     "pydantic>=2.11.7",
@@ -28,7 +28,6 @@ dependencies = [
     "pymilvus-model==0.3.2",
     "python-multipart==0.0.18",
     "pyyaml==6.0.2",
-    "unstructured[all-docs]>=0.15.1",
     "uvicorn[standard]==0.32.0",
     "langchain-core>=0.3.72",
     "redis==5.2.1",
@@ -36,8 +35,8 @@ dependencies = [
     "langchain-elasticsearch==0.3.2",
     "lark>=1.2.2",
     "python-dateutil>=2.9.0.post0",
-    "nv-ingest-api==25.8.0rc6",
-    "nv-ingest-client==25.8.0rc6",
+    "nv-ingest-api==25.9.0rc3",
+    "nv-ingest-client==25.9.0rc3",
     "tritonclient==2.57.0",
 ]
 
@@ -72,7 +71,20 @@ ingest = [
     "pyarrow>=21.0.0",
 ]
 all = [
-    "nvidia-rag[ingest,rag]",
+    "langchain-openai==0.2.8",
+    "overrides==7.7.0",
+    "tqdm==4.67.1",
+    "opentelemetry-api==1.29.0",
+    "opentelemetry-exporter-otlp==1.29.0",
+    "opentelemetry-exporter-prometheus==0.50b0",
+    "opentelemetry-instrumentation==0.50b0",
+    "opentelemetry-instrumentation-fastapi==0.50b0",
+    "opentelemetry-instrumentation-milvus==0.36.0",
+    "opentelemetry-processor-baggage==0.50b0",
+    "opentelemetry-sdk==1.29.0",
+    "azure-core>=1.35.0",
+    "azure-storage-blob>=12.26.0",
+    "pyarrow>=21.0.0",
 ]
 
 [tool.uv.sources]

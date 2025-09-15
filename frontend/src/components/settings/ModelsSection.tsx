@@ -13,18 +13,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useSettingsStore } from "../../store/useSettingsStore";
+import { Stack, FormField, TextInput, Flex, Spinner } from "@kui/react";
+import { useSettingsStore, useHealthDependentFeatures } from "../../store/useSettingsStore";
 
 /**
  * Models section component for configuring AI model settings.
  * 
+ * Uses KUI FormField and TextInput components for consistent form styling.
  * Provides input fields for configuring LLM, embedding, reranker, and VLM models.
- * Each model can be customized with specific model names or endpoints.
  * 
- * @returns Models configuration section with input fields
+ * @returns Models configuration section with KUI form components
  */
 export const ModelsSection = () => {
   const { model, embeddingModel, rerankerModel, vlmModel, set: setSettings } = useSettingsStore();
+  const { isHealthLoading, shouldDisableHealthFeatures } = useHealthDependentFeatures();
 
   const models = [
     { key: 'model', label: 'LLM Model', value: model },
@@ -34,22 +36,34 @@ export const ModelsSection = () => {
   ];
 
   return (
-    <div className="space-y-0">
-      {models.map(({ key, label, value }, index) => (
-        <div 
-          key={key} 
-          className={`py-4 ${index < models.length - 1 ? 'border-b border-neutral-800' : ''}`}
+    <Stack gap="4" slotDivider={<hr />}>
+      {models.map(({ key, label, value }) => (
+        <FormField
+          key={key}
+          slotLabel={
+            <Flex align="center" gap="density-sm">
+              {label}
+              {isHealthLoading && <Spinner size="small" aria-label="Loading model configuration" />}
+            </Flex>
+          }
         >
-          <label className="block text-sm font-medium text-white mb-3">{label}</label>
-          <input
-            type="text"
-            value={value}
-            onChange={(e) => setSettings({ [key]: e.target.value })}
-            className="w-full rounded-lg bg-neutral-800 border border-neutral-700 px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-[var(--nv-green)]/50 focus:border-[var(--nv-green)]/50 focus:outline-none transition-colors"
-            placeholder={`Enter ${label.toLowerCase()}...`}
-          />
-        </div>
+          {(args) => (
+            <TextInput
+              {...args}
+              value={value ?? ""}
+              onValueChange={(newValue) => setSettings({ [key]: newValue.trim() === "" ? undefined : newValue })}
+              placeholder={
+                isHealthLoading 
+                  ? "Loading from system configuration..." 
+                  : shouldDisableHealthFeatures
+                    ? "System configuration unavailable"
+                    : `Enter ${label.toLowerCase()}...`
+              }
+              disabled={shouldDisableHealthFeatures}
+            />
+          )}
+        </FormField>
       ))}
-    </div>
+    </Stack>
   );
 }; 

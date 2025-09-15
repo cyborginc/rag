@@ -49,6 +49,7 @@ from langchain_core.documents import Document
 from langchain_core.output_parsers.string import StrOutputParser
 from langchain_core.prompts.chat import ChatPromptTemplate
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from nv_ingest_client.primitives.tasks.extract import _DEFAULT_EXTRACTOR_MAP
 from nv_ingest_client.util.file_processing.extract import EXTENSION_TO_DOCUMENT_TYPE
 from nv_ingest_client.util.vdb.adt_vdb import VDB
 
@@ -79,6 +80,7 @@ logger = logging.getLogger(__name__)
 CONFIG = get_config()
 NV_INGEST_CLIENT_INSTANCE = get_nv_ingest_client()
 MINIO_OPERATOR = get_minio_operator()
+MINIO_OPERATOR._make_bucket(bucket_name="a-bucket")  # Create a-bucket if not exists
 
 # NV-Ingest Batch Mode Configuration
 ENABLE_NV_INGEST_BATCH_MODE = (
@@ -93,6 +95,10 @@ NV_INGEST_CONCURRENT_BATCHES = int(os.getenv("NV_INGEST_CONCURRENT_BATCHES", 4))
 LIBRARY_MODE = "library"
 SERVER_MODE = "server"
 SUPPORTED_MODES = [LIBRARY_MODE, SERVER_MODE]
+
+SUPPORTED_FILE_TYPES = set(_DEFAULT_EXTRACTOR_MAP.keys()) & set(
+    EXTENSION_TO_DOCUMENT_TYPE.keys()
+)
 
 
 class NvidiaRAGIngestor:
@@ -123,37 +129,34 @@ class NvidiaRAGIngestor:
                     "Please make sure all the required methods are implemented."
                 )
 
-    @staticmethod
-    async def health(check_dependencies: bool = False) -> dict[str, Any]:
+    async def health(self, check_dependencies: bool = False) -> dict[str, Any]:
         """Check the health of the Ingestion server."""
         response_message = "Service is up."
         health_results = {}
         health_results["message"] = response_message
 
+        vdb_op, _ = self.__prepare_vdb_op_and_collection_name(bypass_validation=True)
+
         if check_dependencies:
             from nvidia_rag.ingestor_server.health import check_all_services_health
 
-            dependencies_results = await check_all_services_health()
+            dependencies_results = await check_all_services_health(vdb_op)
             health_results.update(dependencies_results)
         return health_results
 
     async def validate_directory_traversal_attack(self, file):
         try:
-            # Below code should return the relative file path starting from the
-            # current working directory, or raise a ValueError if a directory
-            # traversal attack is tried
+            # Path.resolve(strict=True) is a method used to
+            # obtain the absolute and normalized path, with
+            # the added condition that the path must physically
+            # exist on the filesystem. If a directory traversal
+            # attack is tried, resulting path after the resolve
+            # will be invalid.
             if file:
-                if os.path.isabs(file):
-                    file = Path(file).relative_to(Path.cwd().resolve().anchor)
-                _ = (
-                    Path(Path.cwd().resolve())
-                    .joinpath(Path(file))
-                    .resolve()
-                    .relative_to(Path.cwd().resolve())
-                )
+                _ = Path(file).resolve(strict=True)
         except Exception as e:
             raise ValueError(
-                f"Directory traversal attack detected in filepath {file}"
+                f"File not found or a directory traversal attack detected! Filepath: {file}"
             ) from e
 
     def __prepare_vdb_op_and_collection_name(
@@ -213,6 +216,7 @@ class NvidiaRAGIngestor:
         vdb_op, collection_name = self.__prepare_vdb_op_and_collection_name(
             vdb_endpoint=vdb_endpoint,
             collection_name=collection_name,
+            filepaths=filepaths,
         )
 
         # Set default values for mutable arguments
@@ -499,7 +503,6 @@ class NvidiaRAGIngestor:
             if self.mode == SERVER_MODE:
                 logger.info(f"Cleaning up files in {filepaths}")
                 for file in filepaths:
-                    await self.validate_directory_traversal_attack(file)
                     try:
                         os.remove(file)
                         logger.debug(f"Deleted temporary file: {file}")
@@ -563,7 +566,6 @@ class NvidiaRAGIngestor:
             custom_metadata = []
 
         for file in filepaths:
-            await self.validate_directory_traversal_attack(file)
             file_name = os.path.basename(file)
 
             # Delete the existing document
@@ -1121,6 +1123,17 @@ class NvidiaRAGIngestor:
                     )
                     all_results.extend(results)
                     all_failures.extend(failures)
+
+                if (
+                    hasattr(vdb_op, "csv_file_path")
+                    and vdb_op.csv_file_path is not None
+                ):
+                    os.remove(vdb_op.csv_file_path)
+                    logger.debug(
+                        f"Deleted temporary custom metadata csv file: {vdb_op.csv_file_path} "
+                        f"for collection: {collection_name}"
+                    )
+
                 return all_results, all_failures
 
             else:
@@ -1167,6 +1180,16 @@ class NvidiaRAGIngestor:
                     all_results.extend(results)
                     all_failures.extend(failures)
 
+                if (
+                    hasattr(vdb_op, "csv_file_path")
+                    and vdb_op.csv_file_path is not None
+                ):
+                    os.remove(vdb_op.csv_file_path)
+                    logger.debug(
+                        f"Deleted temporary custom metadata csv file: {vdb_op.csv_file_path} "
+                        f"for collection: {collection_name}"
+                    )
+
                 return all_results, all_failures
 
     async def __nv_ingest_ingestion(
@@ -1198,9 +1221,18 @@ class NvidiaRAGIngestor:
                 "chunk_overlap": CONFIG.nv_ingest.chunk_overlap,
             }
 
+        filtered_filepaths = await self.__remove_unsupported_files(filepaths)
+        if CONFIG.nv_ingest.pdf_extract_method not in ["None", "none"]:
+            filtered_filepaths = await self.__remove_non_pdf_files(filtered_filepaths)
+
+        if len(filtered_filepaths) == 0:
+            logger.error("No files to ingest after filtering.")
+            results, failures = [], []
+            return results, failures
+
         nv_ingest_ingestor = get_nv_ingest_ingestor(
             nv_ingest_client_instance=NV_INGEST_CLIENT_INSTANCE,
-            filepaths=filepaths,
+            filepaths=filtered_filepaths,
             split_options=split_options,
             vdb_op=vdb_op,
         )
@@ -1232,14 +1264,6 @@ class NvidiaRAGIngestor:
             f"== NV-ingest Job for collection_name: {collection_name} "
             f"for batch {batch_number} is complete! Time taken: {end_time - start_time} seconds =="
         )
-
-        # Delete the csv file
-        if hasattr(vdb_op, "csv_file_path") and vdb_op.csv_file_path is not None:
-            os.remove(vdb_op.csv_file_path)
-            logger.debug(
-                f"Deleted temporary custom metadata csv file: {vdb_op.csv_file_path} "
-                f"for collection: {collection_name}"
-            )
 
         if not results:
             error_message = "NV-Ingest ingestion failed with no results."
@@ -1304,10 +1328,28 @@ class NvidiaRAGIngestor:
                 failed_documents.append(
                     {
                         "document_name": filename,
-                        "error_message": "Unsupported file type",
+                        "error_message": "Unsupported file type, supported file types are: "
+                        + ", ".join(SUPPORTED_FILE_TYPES),
                     }
                 )
                 failed_documents_filenames.add(filename)
+
+        # Add non-pdf files to failed documents if pdf extract method is not None
+        if CONFIG.nv_ingest.pdf_extract_method not in ["None", "none"]:
+            for filepath in filepaths:
+                # Check if the file is a pdf
+                if os.path.splitext(filepath)[1].lower() != ".pdf":
+                    filename = os.path.basename(filepath)
+                    if filename not in failed_documents_filenames:
+                        failed_documents.append(
+                            {
+                                "document_name": filename,
+                                "error_message": "Non-PDF file type not supported for extraction with pdf extract method: "
+                                + CONFIG.nv_ingest.pdf_extract_method
+                                + "please set pdf extract method to None to ingest this file",
+                            }
+                        )
+                        failed_documents_filenames.add(filename)
 
         # Add document to failed documents if it is not in the Milvus
         filenames_in_vdb = set()
@@ -1337,14 +1379,31 @@ class NvidiaRAGIngestor:
 
         return failed_documents
 
+    async def __remove_unsupported_files(
+        self,
+        filepaths: list[str],
+    ) -> list[str]:
+        """Remove unsupported files from the list of filepaths"""
+        non_supported_files = await self.__get_non_supported_files(filepaths)
+        return [
+            filepath for filepath in filepaths if filepath not in non_supported_files
+        ]
+
+    async def __remove_non_pdf_files(self, filepaths: list[str]) -> list[str]:
+        """Remove non-PDF files from the list of filepaths."""
+        return [
+            filepath
+            for filepath in filepaths
+            if os.path.splitext(filepath)[1].lower() == ".pdf"
+        ]
+
     async def __get_non_supported_files(self, filepaths: list[str]) -> list[str]:
         """Get filepaths of non-supported file extensions"""
         non_supported_files = []
         for filepath in filepaths:
             ext = os.path.splitext(filepath)[1].lower()
             if ext not in [
-                "." + supported_ext
-                for supported_ext in EXTENSION_TO_DOCUMENT_TYPE.keys()
+                "." + supported_ext for supported_ext in SUPPORTED_FILE_TYPES
             ]:
                 non_supported_files.append(filepath)
         return non_supported_files

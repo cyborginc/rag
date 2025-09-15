@@ -77,7 +77,7 @@ export const FilterGenerationToggle: React.FC<FilterGenerationToggleProps> = ({
     setShowConfig(false);
   }, [onConfigChange, tempConfig, enabled]);
 
-  const handleConfigChange = useCallback((field: keyof FilterGenerationConfig, value: any) => {
+  const handleConfigChange = useCallback((field: keyof FilterGenerationConfig, value: string | number | boolean) => {
     setTempConfig(prev => ({
       ...prev,
       [field]: value

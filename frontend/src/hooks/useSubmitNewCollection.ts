@@ -16,10 +16,12 @@
 import { useNavigate } from "react-router-dom";
 import { useNewCollectionStore } from "../store/useNewCollectionStore";
 import { useCreateCollection } from "../api/useCollectionsApi";
-import { useIngestionTasksStore } from "../store/useIngestionTasksStore";
+import { useNotificationStore } from "../store/useNotificationStore";
 import { useSettingsStore } from "../store/useSettingsStore";
 import { openNotificationPanel } from "../components/notifications/NotificationBell";
 import { useQueryClient } from "@tanstack/react-query";
+import type { APIMetadataField } from "../types/collections";
+import type { CreateCollectionPayload } from "../types/api";
 
 export function useSubmitNewCollection() {
   const navigate = useNavigate();
@@ -36,14 +38,14 @@ export function useSubmitNewCollection() {
     reset,
   } = useNewCollectionStore();
 
-  const { addTask } = useIngestionTasksStore();
+  const { addTaskNotification } = useNotificationStore();
   const createCollection = useCreateCollection();
 
   const submit = async () => {
     console.log("🚀 Starting collection submission:", { collectionName, fileCount: selectedFiles.length });
     
     const filteredSchema = metadataSchema.map((field) => {
-      const schemaField: any = { 
+      const schemaField: APIMetadataField = { 
         name: field.name, 
         type: field.type,
         description: field.description || `${field.name} field`
@@ -67,12 +69,16 @@ export function useSubmitNewCollection() {
       return schemaField;
     });
     
-    const collectionPayload = {
+    const collectionPayload: CreateCollectionPayload = {
       collection_name: collectionName,
       metadata_schema: filteredSchema,
       embedding_dimension: 2048,
-      vdb_endpoint: vdbEndpoint || import.meta.env.VITE_MILVUS_URL || "http://milvus:19530",
     };
+
+    // Only include vdb_endpoint if explicitly set by user
+    if (vdbEndpoint) {
+      collectionPayload.vdb_endpoint = vdbEndpoint;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -104,7 +110,7 @@ export function useSubmitNewCollection() {
         });
 
         // Helper function to process metadata values based on field type
-        const processMetadataValue = (key: string, value: any) => {
+        const processMetadataValue = (key: string, value: unknown) => {
           // Find the field definition in the metadata schema
           const fieldDef = metadataSchema.find(f => f.name === key);
           
@@ -112,7 +118,7 @@ export function useSubmitNewCollection() {
             try {
               // Parse JSON string back to array for array fields
               return JSON.parse(value);
-            } catch (e) {
+            } catch {
               console.warn(`Failed to parse array value for field ${key}:`, value);
               return [];
             }
@@ -173,6 +179,7 @@ export function useSubmitNewCollection() {
             const processedMetadata = Object.fromEntries(
               Object.entries(rawFileMetadata)
                 .map(([key, value]) => [key, processMetadataValue(key, value)])
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 .filter(([_key, value]) => value !== null && value !== undefined) // Exclude null/undefined values
             );
             
@@ -205,7 +212,7 @@ export function useSubmitNewCollection() {
           };
           
           console.log("📋 Adding pending task:", taskData);
-          addTask(taskData);
+          addTaskNotification(taskData);
           
           setTimeout(() => {
             console.log("🔔 Opening notification panel");
@@ -221,9 +228,9 @@ export function useSubmitNewCollection() {
       reset(); 
       
       navigate("/");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("💥 Collection submission failed:", err);
-      setError(err.message || "Failed to create collection");
+      setError(err instanceof Error ? err.message : "Failed to create collection");
     } finally {
       setIsLoading(false);
     }

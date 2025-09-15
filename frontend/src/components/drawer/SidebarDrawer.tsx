@@ -15,53 +15,96 @@
 
 import { useSidebarStore } from "../../store/useSidebarStore";
 import Citations from "../chat/Citations";
+import { 
+  SidePanel, 
+  Flex, 
+  Text, 
+  Block, 
+  Stack,
+  Button
+} from "@kui/react";
+
+const CitationsIcon = () => (
+  <svg 
+    style={{ width: '20px', height: '20px' }} 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    viewBox="0 0 24 24"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+
+const CloseIcon = () => (
+  <svg 
+    style={{ width: '20px', height: '20px' }} 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    viewBox="0 0 24 24"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
 
 export default function SidebarDrawer() {
   const { view, citations, closeSidebar } = useSidebarStore();
 
-  if (!view) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex justify-end backdrop-blur-sm bg-black/40"
-      onClick={closeSidebar}
-    >
-      <div
-        className="h-full w-[75vw] bg-nvidia-darker shadow-2xl border-l border-neutral-600 flex flex-col animate-slide-in"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="p-6 flex justify-between items-center border-b border-neutral-600 bg-black/50">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-[var(--nv-green)]/20">
-              <svg className="w-5 h-5 text-[var(--nv-green)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-white">
+    <SidePanel
+      open={!!view}
+      onOpenChange={(open) => {
+        if (!open) {
+          closeSidebar();
+        }
+      }}
+      side="right"
+      modal
+      closeOnClickOutside
+      hideCloseButton
+      style={{
+        "--side-panel-width": "75vw",
+        backgroundColor: "var(--background-color-interaction-inverse)"
+      }}
+      slotHeading={
+        <Flex align="center" justify="between" gap="3">
+          <Flex align="center" gap="3">
+            <Block
+              style={{  
+                padding: '8px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--background-color-accent-green-subtle)'
+              }}
+            >
+              <CitationsIcon />
+            </Block>
+            <Stack>
+              <Text kind="body/bold/lg" style={{ color: 'var(--text-color-inverse)' }}>
                 {view === "citations" && "Source Citations"}
-              </h2>
-              <p className="text-sm text-gray-400">
+              </Text>
+              <Text kind="body/regular/sm" style={{ color: 'var(--text-color-subtle)' }}>
                 {view === "citations" && `${citations?.length || 0} sources found`}
-              </p>
-            </div>
-          </div>
-          <button 
-            onClick={closeSidebar} 
-            className="p-2 text-gray-400 hover:text-white hover:bg-neutral-800 rounded-lg transition-all duration-200"
+              </Text>
+            </Stack>
+          </Flex>
+          <Button
+            kind="tertiary"
+            size="small"
+            onClick={closeSidebar}
+            aria-label="Close sidebar drawer"
+            style={{ 
+              color: 'var(--text-color-inverse)',
+              minWidth: 'auto',
+              padding: '8px'
+            }}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        {/* Content */}
-        <div className="overflow-y-auto flex-1">
-          {view === "citations" && <Citations citations={citations} />}
-        </div>
-      </div>
-    </div>
+            <CloseIcon />
+          </Button>
+        </Flex>
+      }
+    >
+      {view === "citations" && <Citations citations={citations} />}
+    </SidePanel>
   );
 }

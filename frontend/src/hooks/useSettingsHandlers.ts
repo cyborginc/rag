@@ -32,17 +32,18 @@ import { useSettingsStore } from "../store/useSettingsStore";
 export const useSettingsHandlers = () => {
   const { vdbTopK, rerankerTopK, maxTokens, stopTokens, set: setSettings } = useSettingsStore();
   
-  const [vdbTopKInput, setVdbTopKInput] = useState(vdbTopK.toString());
-  const [rerankerTopKInput, setRerankerTopKInput] = useState(rerankerTopK.toString());
-  const [maxTokensInput, setMaxTokensInput] = useState(maxTokens.toString());
-  const [stopTokensInput, setStopTokensInput] = useState(stopTokens.join(", "));
+  // Provide defaults for undefined values
+  const [vdbTopKInput, setVdbTopKInput] = useState((vdbTopK ?? 20).toString());
+  const [rerankerTopKInput, setRerankerTopKInput] = useState((rerankerTopK ?? 5).toString());
+  const [maxTokensInput, setMaxTokensInput] = useState((maxTokens ?? 1024).toString());
+  const [stopTokensInput, setStopTokensInput] = useState((stopTokens ?? []).join(", "));
 
   useEffect(() => {
-    setVdbTopKInput(vdbTopK.toString());
-    setRerankerTopKInput(rerankerTopK.toString());
-    setMaxTokensInput(maxTokens.toString());
-    setStopTokensInput(stopTokens.join(", "));
-  }, [vdbTopK, rerankerTopK, maxTokens, stopTokens]);
+    setVdbTopKInput((vdbTopK ?? 20).toString());
+    setRerankerTopKInput((rerankerTopK ?? 5).toString());
+    setMaxTokensInput((maxTokens ?? 1024).toString());
+
+  }, [vdbTopK, rerankerTopK, maxTokens]);
 
   const handleVdbTopKChange = useCallback((value: string) => {
     setVdbTopKInput(value);

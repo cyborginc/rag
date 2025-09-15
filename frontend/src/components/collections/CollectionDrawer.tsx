@@ -13,31 +13,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useNewCollectionStore } from "../../store/useNewCollectionStore";
 import { useCollectionDrawerStore } from "../../store/useCollectionDrawerStore";
 import { useCollectionActions } from "../../hooks/useCollectionActions";
-import { DrawerHeader } from "../drawer/DrawerHeader";
-import { DrawerContent } from "../drawer/DrawerContent";
 import { DrawerActions } from "../drawer/DrawerActions";
-import { DrawerContainer } from "../drawer/DrawerContainer";
+import { ConfirmationModal } from "../modals/ConfirmationModal";
+import { Block, Notification, SidePanel } from "@kui/react";
+import { DocumentsList } from "../tasks/DocumentsList";
+import { UploaderSection } from "../drawer/UploaderSection";
 
-// Export all drawer components for external use
-export { DrawerHeader } from "../drawer/DrawerHeader";
+// Export all drawer components for external uYou arese
 export { LoadingState } from "../ui/LoadingState";
 export { ErrorState } from "../ui/ErrorState";
 export { EmptyState } from "../ui/EmptyState";
 export { DocumentItem } from "../tasks/DocumentItem";
 export { DocumentsList } from "../tasks/DocumentsList";
 export { UploaderSection } from "../drawer/UploaderSection";
-export { DrawerContent } from "../drawer/DrawerContent";
 export { DrawerActions } from "../drawer/DrawerActions";
-export { DrawerContainer } from "../drawer/DrawerContainer";
 
 export default function CollectionDrawer() {
-  const { activeCollection, closeDrawer, toggleUploader } = useCollectionDrawerStore();
+  const { activeCollection, closeDrawer, toggleUploader, deleteError, showUploader } = useCollectionDrawerStore();
   const { setMetadataSchema } = useNewCollectionStore();
-  const { handleDeleteCollection, isDeleting } = useCollectionActions();
+  const { deleteCollectionWithoutConfirm, isDeleting } = useCollectionActions();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const title = useMemo(() => 
     activeCollection?.collection_name || "Collection", 
@@ -54,25 +53,77 @@ export default function CollectionDrawer() {
     toggleUploader(true);
   }, [activeCollection, setMetadataSchema, toggleUploader]);
 
-  const handleDelete = useCallback(() => {
+  const handleDeleteClick = useCallback(() => {
     if (activeCollection?.collection_name) {
-      handleDeleteCollection(activeCollection.collection_name);
+      setShowDeleteModal(true);
     }
-  }, [activeCollection?.collection_name, handleDeleteCollection]);
+  }, [activeCollection?.collection_name]);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (activeCollection?.collection_name) {
+      deleteCollectionWithoutConfirm(activeCollection.collection_name);
+    }
+  }, [activeCollection?.collection_name, deleteCollectionWithoutConfirm]);
 
   return (
-    <DrawerContainer>
-      <DrawerHeader 
-        title={title}
-        subtitle="Collection Details"
-        onClose={handleClose}
-      />
-      <DrawerContent />
-      <DrawerActions 
-        onDelete={handleDelete}
-        onAddSource={handleAddSource}
-        isDeleting={isDeleting}
-      />
-    </DrawerContainer>
+    <SidePanel
+      style={{
+        "--side-panel-width": "50vw",
+        background: 'var(--background-color-interaction-inverse)',
+        color: 'var(--text-color-inverse)'
+      }}
+      modal
+      open={!!activeCollection}
+      onOpenChange={(open) => {
+        if (!open) {
+          handleClose();
+        }
+      }}
+      side="right"
+      slotHeading={<span style={{ color: 'var(--text-color-inverse)' }}>{title}</span>}
+      slotFooter={
+        <DrawerActions 
+          onDelete={handleDeleteClick}
+          onAddSource={handleAddSource}
+          isDeleting={isDeleting}
+        />
+      }
+      closeOnClickOutside
+    >
+      <Block 
+          style={{ 
+            overflowY: 'auto',
+            flex: 1,
+            height: '100%',
+            padding: '16px'
+          }}
+        >
+          <>
+            <DocumentsList />
+            
+            {deleteError && (
+              <div style={{ color: 'var(--text-color-inverse)' }}>
+                <Notification
+                  status="error"
+                  slotHeading="Delete Error"
+                  slotSubheading={deleteError}
+                />
+              </div>
+            )}
+            
+            {showUploader && <UploaderSection />}
+          </>
+        </Block>
+        
+        <ConfirmationModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleConfirmDelete}
+          title="Delete Collection"
+          message={`Are you sure you want to delete the collection "${activeCollection?.collection_name}"? This action will permanently delete all documents and metadata. This cannot be undone.`}
+          confirmText="Delete Collection"
+          confirmColor="danger"
+        />
+    </SidePanel>
   );
 }

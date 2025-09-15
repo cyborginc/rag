@@ -1,7 +1,7 @@
 envVars:
-  APP_LLM_MODELNAME: "nvidia/llama-3_3-nemotron-super-49b-v1_5"
+  APP_LLM_MODELNAME: "nvidia/llama-3-3-nemotron-super-49b-v1-5"
   APP_LLM_SERVERURL: "nim-llm:8000"
-  APP_QUERYREWRITER_MODELNAME: "nvidia/llama-3_3-nemotron-super-49b-v1_5"
+  APP_QUERYREWRITER_MODELNAME: "nvidia/llama-3-3-nemotron-super-49b-v1-5"
   APP_QUERYREWRITER_SERVERURL: "nim-llm:8000"
 nim-llm:
   enabled: false

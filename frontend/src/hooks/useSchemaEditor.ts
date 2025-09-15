@@ -19,7 +19,7 @@ import type { UIMetadataField } from "../types/collections";
 
 export const useSchemaEditor = () => {
   const { metadataSchema, setMetadataSchema } = useNewCollectionStore();
-  const [showSchemaEditor, setShowSchemaEditor] = useState(false);
+  const [showSchemaEditor, setShowSchemaEditor] = useState(true);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValues, setEditValues] = useState<Record<number, UIMetadataField>>({});
   const [fieldNameError, setFieldNameError] = useState<string | null>(null);

@@ -21,7 +21,7 @@ describe('NewCollectionButton', () => {
     it('renders new collection button', () => {
       render(<NewCollectionButton />);
       
-      expect(screen.getByText('New Collection')).toBeInTheDocument();
+      expect(screen.getByText('+ New Collection')).toBeInTheDocument();
     });
 
     it('renders as a button element', () => {
@@ -35,7 +35,7 @@ describe('NewCollectionButton', () => {
     it('navigates to new collection page when clicked', () => {
       render(<NewCollectionButton />);
       
-      fireEvent.click(screen.getByText('New Collection'));
+      fireEvent.click(screen.getByText('+ New Collection'));
       
       expect(mockNavigate).toHaveBeenCalledWith('/collections/new');
     });
@@ -43,7 +43,7 @@ describe('NewCollectionButton', () => {
     it('navigates to correct route on multiple clicks', () => {
       render(<NewCollectionButton />);
       
-      const button = screen.getByText('New Collection');
+      const button = screen.getByText('+ New Collection');
       fireEvent.click(button);
       fireEvent.click(button);
       

@@ -19,6 +19,7 @@ import MessageInput from "../components/chat/MessageInput";
 import ChatMessageBubble from "../components/chat/ChatMessageBubble";
 import CollectionList from "../components/collections/CollectionList";
 import SidebarDrawer from "../components/drawer/SidebarDrawer";
+import { Flex, Grid, GridItem, Stack } from "@kui/react";
 
 /**
  * Main chat page component that displays the conversation interface.
@@ -37,24 +38,33 @@ export default function Chat() {
   }, [messages]);
 
   return (
-    <div className="flex h-[calc(100vh-56px)] bg-nvidia-dark">
-      <CollectionList />
-      <div className="flex flex-1">
-        <div className="relative flex-1">
-          <div className="flex h-full flex-col">
-            <div className="flex-1 overflow-y-auto p-4">
-              <div className="mx-auto max-w-3xl space-y-6">
-                {messages.map((msg) => (
-                  <ChatMessageBubble key={msg.id} msg={msg} />
-                ))}
-                <div ref={bottomRef} />
-              </div>
-            </div>
+    <>
+      <Grid 
+        cols={12}
+        style={{ 
+          height: "calc(100vh - 48px)",
+          backgroundColor: 'var(--background-color-surface-base)'
+        }}
+      >
+        {/* Sidebar GridItem */}
+        <GridItem cols={3} style={{ height: 'calc(100vh - 48px)' }}>
+          <CollectionList />
+        </GridItem>
+
+        <GridItem cols={9}>
+          <Flex direction="col" justify="between" style={{ height: 'calc(100vh - 48px)' }}>
+            <Stack gap="density-lg" padding="density-lg" style={{ overflow: 'auto' }}>
+              {messages.map((msg) => (
+                <ChatMessageBubble key={msg.id} msg={msg} />
+              ))}
+              <div ref={bottomRef} />
+            </Stack>
             <MessageInput />
-          </div>
-        </div>
-      </div>
+          </Flex>
+        </GridItem>
+      </Grid>
+      
       <SidebarDrawer />
-    </div>
+    </>
   );
 }

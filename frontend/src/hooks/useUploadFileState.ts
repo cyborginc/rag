@@ -35,6 +35,7 @@ interface UploadFileStateOptions {
   acceptedTypes: string[];
   maxFileSize: number;
   maxFiles: number;
+  audioFileMaxSize?: number; // in MB, for .mp3 and .wav files
   onFilesChange?: (files: File[]) => void;
 }
 
@@ -57,10 +58,11 @@ export const useUploadFileState = ({
   acceptedTypes, 
   maxFileSize, 
   maxFiles, 
+  audioFileMaxSize,
   onFilesChange 
 }: UploadFileStateOptions) => {
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
-  const { validateFile } = useFileValidation({ acceptedTypes, maxFileSize });
+  const { validateFile } = useFileValidation({ acceptedTypes, maxFileSize, audioFileMaxSize });
   const { generateFileId } = useFileUtils();
 
   const addFiles = useCallback((files: FileList | File[]) => {
@@ -91,7 +93,7 @@ export const useUploadFileState = ({
     if (validFiles.length > 0) {
       onFilesChange?.(validFiles);
     }
-  }, [uploadFiles.length, maxFiles, validateFile, onFilesChange]);
+  }, [uploadFiles.length, maxFiles, validateFile, onFilesChange, generateFileId]);
 
   const removeFile = useCallback((id: string) => {
     setUploadFiles(prev => prev.filter(f => f.id !== id));

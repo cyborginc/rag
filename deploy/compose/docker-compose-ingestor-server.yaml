@@ -3,7 +3,7 @@ services:
   # Main ingestor server which is responsible for ingestion
   ingestor-server:
     container_name: ingestor-server
-    image: nvcr.io/nvstaging/blueprint/ingestor-server:${TAG:-2.3.0.rc1}
+    image: nvcr.io/nvstaging/blueprint/ingestor-server:${TAG:-2.3.0.rc2}
     build:
       # Set context to repo's root directory
       context: ../../
@@ -14,6 +14,8 @@ services:
     volumes:
       # Mount the prompt.yaml file to the container, path should be absolute
       - ${PROMPT_CONFIG_FILE}:${PROMPT_CONFIG_FILE}
+      # Please mount the volume to the container to the path specified here
+      - ${INGESTOR_SERVER_EXTERNAL_VOLUME_MOUNT:-./volumes/ingestor-server}:${INGESTOR_SERVER_DATA_DIR:-/data/}
 
     # Common customizations to the pipeline can be controlled using env variables
     environment:
@@ -84,11 +86,15 @@ services:
       # Incase of nvidia-hosted caption model, use the endpoint url as - https://integrate.api.nvidia.com/v1
       APP_NVINGEST_CAPTIONENDPOINTURL: ${APP_NVINGEST_CAPTIONENDPOINTURL:-"http://vlm-ms:8000/v1/chat/completions"}
 
+      ##===NV-Ingest Save to Disk Configurations====
+      APP_NVINGEST_SAVETODISK: ${APP_NVINGEST_SAVETODISK:-False}
+      NVINGEST_MINIO_BUCKET: ${NVINGEST_MINIO_BUCKET:-nv-ingest}
+
       # Choose whether to store the extracted content in the vector store for citation support
       ENABLE_CITATIONS: ${ENABLE_CITATIONS:-True}
 
       # Choose the summary model to use for document summary
-      SUMMARY_LLM: ${SUMMARY_LLM:-nvidia/llama-3_3-nemotron-super-49b-v1_5}
+      SUMMARY_LLM: ${SUMMARY_LLM:-nvidia/llama-3-3-nemotron-super-49b-v1-5}
       SUMMARY_LLM_SERVERURL: ${SUMMARY_LLM_SERVERURL-"nim-llm:8000"}
       SUMMARY_LLM_MAX_CHUNK_LENGTH: ${SUMMARY_LLM_MAX_CHUNK_LENGTH:-50000}
       SUMMARY_CHUNK_OVERLAP: ${SUMMARY_CHUNK_OVERLAP:-200}
@@ -103,6 +109,7 @@ services:
       # Bulk upload to MinIO
       ENABLE_MINIO_BULK_UPLOAD: ${ENABLE_MINIO_BULK_UPLOAD:-True}
       TEMP_DIR: ${TEMP_DIR:-/tmp-data}
+      INGESTOR_SERVER_DATA_DIR: ${INGESTOR_SERVER_DATA_DIR:-/data/}
 
       # NV-Ingest Batch Mode Configurations
       NV_INGEST_FILES_PER_BATCH: ${NV_INGEST_FILES_PER_BATCH:-16}
@@ -120,7 +127,7 @@ services:
       - "6379:6379"
 
   nv-ingest-ms-runtime:
-    image: nvcr.io/nvstaging/nim/nv-ingest:25.8.0-RC6
+    image: nvcr.io/nvstaging/nim/nv-ingest:25.9.0-RC3
     cpuset: "0-15"
     volumes:
       - ${DATASET_ROOT:-./data}:/workspace/data
@@ -137,12 +144,6 @@ services:
       - AUDIO_INFER_PROTOCOL=grpc
       - CUDA_VISIBLE_DEVICES=0
       - MAX_INGEST_PROCESS_WORKERS=${MAX_INGEST_PROCESS_WORKERS:-16}
-      - EMBEDDING_NIM_MODEL_NAME=${EMBEDDING_NIM_MODEL_NAME:-${APP_EMBEDDINGS_MODELNAME:-nvidia/llama-3.2-nv-embedqa-1b-v2}}
-      # Incase of self-hosted embedding model, use the endpoint url as - https://integrate.api.nvidia.com/v1
-      - EMBEDDING_NIM_ENDPOINT=${EMBEDDING_NIM_ENDPOINT:-${APP_EMBEDDINGS_SERVERURL-http://nemoretriever-embedding-ms:8000/v1}}
-      # For VLM Embedding Model (Nemoretriever-1b-vlm-embed-v1)
-      # - EMBEDDING_NIM_MODEL_NAME=${EMBEDDING_NIM_MODEL_NAME:-${APP_EMBEDDINGS_MODELNAME:-nvidia/llama-3.2-nemoretriever-1b-vlm-embed-v1}}
-      # - EMBEDDING_NIM_ENDPOINT=${EMBEDDING_NIM_ENDPOINT:-${APP_EMBEDDINGS_SERVERURL-http://nemoretriever-vlm-embedding-ms:8000/v1}}
       - INGEST_LOG_LEVEL=WARNING
       - INGEST_RAY_LOG_LEVEL=PRODUCTION
       - INGEST_EDGE_BUFFER_SIZE=64

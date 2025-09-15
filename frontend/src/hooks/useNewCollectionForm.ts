@@ -21,6 +21,7 @@ import { useCollections, useCreateCollection } from "../api/useCollectionsApi";
 import { useCollectionsStore } from "../store/useCollectionsStore";
 import { useSettingsStore } from "../store/useSettingsStore";
 import type { Collection, UIMetadataField } from "../types/collections";
+import type { CreateCollectionPayload } from "../types/api";
 
 export function useNewCollectionForm() {
   const navigate = useNavigate();
@@ -31,7 +32,8 @@ export function useNewCollectionForm() {
 
   const [collectionName, setCollectionName] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [fileMetadata, setFileMetadata] = useState<Record<string, Record<string, string>>>({});
+
+  const [fileMetadata, setFileMetadata] = useState<Record<string, Record<string, unknown>>>({});
   const [metadataSchema, setMetadataSchema] = useState<UIMetadataField[]>([]);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -62,7 +64,7 @@ export function useNewCollectionForm() {
     });
   };
 
-  const handleMetadataChange = (filename: string, field: string, value: string) => {
+  const handleMetadataChange = (filename: string, field: string, value: unknown) => {
     setFileMetadata((prev) => ({
       ...prev,
       [filename]: { ...prev[filename], [field]: value },
@@ -75,7 +77,14 @@ export function useNewCollectionForm() {
 
   const hasMissingRequired = selectedFiles.some((file) =>
     metadataSchema.some(
-      (field) => !field.optional && !fileMetadata[file.name]?.[field.name]?.trim()
+      (field) => {
+        if (field.optional) return false;
+        const value = fileMetadata[file.name]?.[field.name];
+        if (field.type === "string") {
+          return !value || (typeof value === "string" && !value.trim());
+        }
+        return value === undefined || value === null;
+      }
     )
   );
 
@@ -95,16 +104,22 @@ export function useNewCollectionForm() {
       setIsLoading(true);
       setError(null);
 
-      await createCollection({
+      const collectionPayload: CreateCollectionPayload = {
         collection_name: collectionName,
         embedding_dimension: 2048,
-        vdb_endpoint: vdbEndpoint || import.meta.env.VITE_MILVUS_URL || "http://milvus:19530",
         metadata_schema: metadataSchema.map(({ name, type }) => ({
           name: name.trim(),
           type,
           description: `${name.trim()} field`,
         })),
-      });
+      };
+
+      // Only include vdb_endpoint if explicitly set by user
+      if (vdbEndpoint) {
+        collectionPayload.vdb_endpoint = vdbEndpoint;
+      }
+
+      await createCollection(collectionPayload);
 
       if (selectedFiles.length > 0) {
         const formData = new FormData();

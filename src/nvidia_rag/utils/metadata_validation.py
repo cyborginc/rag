@@ -967,7 +967,17 @@ class BaseValidator:
                 and value_token.children[1].type == "RBRACK"
             ):
                 return "[]"
-            # For non-empty arrays, let them be processed normally by the existing logic
+            # For non-empty arrays, reconstruct the JSON string
+            try:
+                # Extract array elements and reconstruct as JSON
+                elements = self._extract_array_elements_from_tree(
+                    value_token, expected_type="string"
+                )
+                json_str = json.dumps(elements)
+                return json_str
+            except Exception:
+                # Fall back to default logic
+                pass
         elif (
             hasattr(value_token, "data")
             and value_token.data == "value"

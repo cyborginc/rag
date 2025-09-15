@@ -15,6 +15,18 @@
 
 import { useCallback, useState } from "react";
 import type { UIMetadataField, MetadataFieldType, ArrayElementType } from "../../types/collections";
+import { 
+  Button, 
+  TextInput, 
+  Select, 
+  TextArea, 
+  Checkbox, 
+  FormField, 
+  Stack, 
+  Block, 
+  Text, 
+  Flex 
+} from "@kui/react";
 
 interface FieldEditFormProps {
   field: UIMetadataField;
@@ -40,36 +52,16 @@ const ARRAY_TYPES: ArrayElementType[] = [
 export const FieldEditForm = ({ field, onUpdate, onSave, onCancel }: FieldEditFormProps) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate({ name: e.target.value });
+  const handleNameChange = useCallback((value: string) => {
+    onUpdate({ name: value });
   }, [onUpdate]);
 
-  const handleTypeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newType = e.target.value as MetadataFieldType;
-    onUpdate({ 
-      type: newType,
-      // Reset array_type if not an array
-      array_type: newType === "array" ? (field.array_type || "string") : undefined
-    });
-  }, [onUpdate, field.array_type]);
-
-  const handleArrayTypeChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    onUpdate({ array_type: e.target.value as ArrayElementType });
+  const handleRequiredChange = useCallback((checked: string | boolean) => {
+    onUpdate({ required: !!checked });
   }, [onUpdate]);
 
-  const handleRequiredChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate({ required: e.target.checked });
-  }, [onUpdate]);
-
-  const handleMaxLengthChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    onUpdate({ 
-      max_length: value ? parseInt(value) : undefined 
-    });
-  }, [onUpdate]);
-
-  const handleDescriptionChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onUpdate({ description: e.target.value || undefined });
+  const handleDescriptionChange = useCallback((value: string) => {
+    onUpdate({ description: value || undefined });
   }, [onUpdate]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -80,86 +72,85 @@ export const FieldEditForm = ({ field, onUpdate, onSave, onCancel }: FieldEditFo
   }, [onSave]);
 
   return (
-    <div className="rounded-lg border-2 border-[var(--nv-green)] bg-black p-5 space-y-4">
-      <div className="flex items-center gap-2 mb-4">
-        <EditIcon />
-        <span className="text-xs font-medium text-[var(--nv-green)]">Editing Field</span>
-      </div>
-      
-      {/* Basic Fields */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Field Name */}
-        <div>
-          <label className="text-xs font-medium block mb-2 text-gray-300">
-            Field Name <span className="text-red-400">*</span>
-          </label>
-          <input
-            autoFocus
-            value={field.name || ""}
-            onChange={handleNameChange}
-            onKeyDown={handleKeyDown}
-            className="w-full bg-neutral-900 border border-neutral-700 text-white px-3 py-2 rounded-lg text-xs 
-                     focus:border-[var(--nv-green)] focus:ring-1 focus:ring-[var(--nv-green)] focus:outline-none
-                     transition-colors"
-          />
-        </div>
+    <Block padding="5">
+      <Stack gap="4">
+        <Flex align="center" gap="2">
+          <EditIcon />
+          <Text kind="body/bold/xs">
+            Editing Field
+          </Text>
+        </Flex>
+        
+        {/* Basic Fields */}
+        <Flex gap="4" wrap="wrap">
+          {/* Field Name */}
+          <Block style={{ flex: 1 }}>
+            <FormField
+              slotLabel="Field Name"
+              required
+            >
+              <TextInput
+                autoFocus
+                value={field.name || ""}
+                onValueChange={handleNameChange}
+                onKeyDown={handleKeyDown}
+              />
+            </FormField>
+          </Block>
 
-        {/* Field Type */}
-        <div>
-          <label className="text-xs font-medium block mb-2 text-gray-300">
-            Field Type <span className="text-red-400">*</span>
-          </label>
-          <select
-            value={field.type || "string"}
-            onChange={handleTypeChange}
-            className="w-full bg-neutral-900 border border-neutral-700 text-white px-3 py-2 rounded-lg text-xs 
-                     focus:border-[var(--nv-green)] focus:ring-1 focus:ring-[var(--nv-green)] focus:outline-none
-                     transition-colors"
+          {/* Field Type */}
+          <Block style={{ flex: 1 }}>
+            <FormField
+              slotLabel="Field Type"
+              required
+            >
+              <Select
+                value={field.type || "string"}
+                items={FIELD_TYPES}
+                onValueChange={(value) => {
+                  const newType = value as MetadataFieldType;
+                  onUpdate({ 
+                    type: newType,
+                    array_type: newType === "array" ? (field.array_type || "string") : undefined
+                  });
+                }}
+              />
+            </FormField>
+          </Block>
+        </Flex>
+
+        {/* Array Type Selection (only for array fields) */}
+        {field.type === "array" && (
+          <FormField
+            slotLabel="Array Element Type"
+            required
+            slotHelp="The data type for elements stored in this array"
           >
-            {FIELD_TYPES.map(type => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+            <Select
+              value={field.array_type || ""}
+              placeholder="Select element type"
+              items={ARRAY_TYPES}
+              onValueChange={(value) => {
+                onUpdate({ array_type: value as ArrayElementType });
+              }}
+            />
+          </FormField>
+        )}
 
-      {/* Array Type Selection (only for array fields) */}
-      {field.type === "array" && (
-        <div>
-          <label className="text-xs font-medium block mb-2 text-gray-300">
-            Array Element Type <span className="text-red-400">*</span>
-          </label>
-          <select
-            value={field.array_type || ""}
-            onChange={handleArrayTypeChange}
-            className="w-full bg-neutral-900 border border-neutral-700 text-white px-3 py-2 rounded-lg text-xs 
-                     focus:border-[var(--nv-green)] focus:ring-1 focus:ring-[var(--nv-green)] focus:outline-none
-                     transition-colors"
-          >
-            <option value="">Select element type</option>
-            {ARRAY_TYPES.map(type => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-gray-500 mt-1">
-            The data type for elements stored in this array
-          </p>
-        </div>
-      )}
-
-      {/* Advanced Options Toggle */}
-      <div>
-        <button
-          type="button"
+        {/* Advanced Options Toggle */}
+        <Button
+          kind="tertiary"
+          size="small"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="text-xs text-[var(--nv-green)] hover:text-[var(--nv-green)]/80 flex items-center gap-1"
         >
           <svg
-            className={`w-3 h-3 transition-transform ${showAdvanced ? 'rotate-90' : ''}`}
+            style={{ 
+              width: '12px', 
+              height: '12px',
+              transform: showAdvanced ? 'rotate(90deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s',
+              marginRight: '4px'
+            }}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -167,82 +158,81 @@ export const FieldEditForm = ({ field, onUpdate, onSave, onCancel }: FieldEditFo
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
           Advanced Options
-        </button>
-      </div>
+        </Button>
 
-      {/* Advanced Fields */}
-      {showAdvanced && (
-        <div className="space-y-4 p-4 bg-neutral-800/50 rounded-lg border border-neutral-600">
-          {/* Required Field and Max Length side by side */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Required Field */}
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="edit-required"
-                checked={field.required || false}
-                onChange={handleRequiredChange}
-                className="rounded border-neutral-600 bg-neutral-700 text-[var(--nv-green)] focus:ring-1 focus:ring-[var(--nv-green)]"
-              />
-              <label htmlFor="edit-required" className="text-xs text-gray-300">
-                Required field
-              </label>
-            </div>
+        {/* Advanced Fields */}
+        {showAdvanced && (
+          <Block 
+            padding="4" 
+            style={{ 
+              backgroundColor: 'var(--background-color-surface-base)',
+              border: '1px solid var(--border-color-subtle)',
+              borderRadius: '8px'
+            }}
+          >
+            <Stack gap="4">
+              {/* Max Length and Required Field side by side */}
+              <Flex gap="4" wrap="wrap" align="center">
+                {/* Max Length */}
+                {(field.type === "string" || field.type === "array") && (
+                  <Block style={{ flex: 1 }}>
+                    <FormField
+                      slotLabel={`Maximum ${field.type === "string" ? "Length" : "Items"}`}
+                    >
+                      <TextInput
+                        type="number"
+                        min="1"
+                        value={field.max_length?.toString() || ""}
+                        onValueChange={(value) => {
+                          onUpdate({ 
+                            max_length: value ? parseInt(value) : undefined 
+                          });
+                        }}
+                        placeholder={field.type === "string" ? "e.g. 100" : "e.g. 10"}
+                      />
+                    </FormField>
+                  </Block>
+                )}
 
-            {/* Max Length */}
-            {(field.type === "string" || field.type === "array") && (
-              <div>
-                <label className="text-xs font-medium block mb-2 text-gray-300">
-                  Maximum {field.type === "string" ? "Length" : "Items"}
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={field.max_length || ""}
-                  onChange={handleMaxLengthChange}
-                  className="w-full bg-neutral-900 border border-neutral-700 text-white px-3 py-2 rounded-lg text-xs 
-                           focus:border-[var(--nv-green)] focus:ring-1 focus:ring-[var(--nv-green)] focus:outline-none
-                           transition-colors"
-                  placeholder={field.type === "string" ? "e.g. 100" : "e.g. 10"}
+                {/* Required Field */}
+                <Block paddingBottom="1">
+                  <Checkbox
+                    checked={field.required || false}
+                    onCheckedChange={handleRequiredChange}
+                    slotLabel="Required field"
+                  />
+                </Block>
+              </Flex>
+
+              {/* Description */}
+              <FormField slotLabel="Description">
+                <TextArea
+                  value={field.description || ""}
+                  onValueChange={handleDescriptionChange}
+                  onKeyDown={handleKeyDown}
+                  rows={2}
+                  placeholder="Optional description for this field"
                 />
-              </div>
-            )}
-          </div>
+              </FormField>
+            </Stack>
+          </Block>
+        )}
 
-          {/* Description */}
-          <div>
-            <label className="text-xs font-medium block mb-2 text-gray-300">
-              Description
-            </label>
-            <textarea
-              value={field.description || ""}
-              onChange={handleDescriptionChange}
-              onKeyDown={handleKeyDown}
-              rows={2}
-              className="w-full bg-neutral-900 border border-neutral-700 text-white px-3 py-2 rounded-lg text-xs 
-                       focus:border-[var(--nv-green)] focus:ring-1 focus:ring-[var(--nv-green)] focus:outline-none
-                       transition-colors resize-none"
-              placeholder="Optional description for this field"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Save/Cancel Buttons */}
-      <div className="flex justify-end gap-3 pt-2">
-        <button
-          onClick={onCancel}
-          className="px-4 py-2 bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition-colors text-xs"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={onSave}
-          className="px-4 py-2 bg-[var(--nv-green)] text-black rounded-lg hover:bg-[var(--nv-green)]/90 transition-colors text-xs font-medium"
-        >
-          Save Changes
-        </button>
-      </div>
-    </div>
+        {/* Save/Cancel Buttons */}
+        <Flex justify="end" gap="3" style={{ paddingTop: '8px' }}>
+          <Button
+            kind="secondary"
+            onClick={onCancel}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={onSave}
+          >
+            Save Changes
+          </Button>
+        </Flex>
+      </Stack>
+    </Block>
   );
 }; 

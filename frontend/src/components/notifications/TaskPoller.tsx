@@ -14,7 +14,7 @@
 // limitations under the License.
 
 import { useEffect, useRef } from "react";
-import { useIngestionTasksStore } from "../../store/useIngestionTasksStore";
+import { useNotificationStore } from "../../store/useNotificationStore";
 import { useIngestionTasks } from "../../api/useIngestionTasksApi";
 
 /**
@@ -35,7 +35,7 @@ interface TaskPollerProps {
  * @returns Task poller component (renders nothing visible)
  */
 export const TaskPoller = ({ taskId }: TaskPollerProps) => {
-  const { updateTask, allTasks } = useIngestionTasksStore();
+  const { updateTaskNotification, getAllNotifications } = useNotificationStore();
   const { data, isLoading, error } = useIngestionTasks(taskId, true);
   const lastUpdateRef = useRef<string>("");
 
@@ -43,7 +43,9 @@ export const TaskPoller = ({ taskId }: TaskPollerProps) => {
     if (!data || isLoading || error) return;
 
     // Get the existing task to preserve the collection name if API doesn't return it
-    const existingTask = allTasks.find(t => t.id === taskId);
+    const allNotifications = getAllNotifications();
+    const existingTaskNotification = allNotifications.find(n => n.type === "task" && n.task.id === taskId);
+    const existingTask = existingTaskNotification?.type === "task" ? existingTaskNotification.task : undefined;
     
     const task = {
       ...data,
@@ -65,17 +67,14 @@ export const TaskPoller = ({ taskId }: TaskPollerProps) => {
       
       // Update task with latest data from API
       if (task.state !== "PENDING") {
-        // Task completed
-        updateTask(taskId, { 
-          ...task, 
-          completedAt: Date.now() 
-        });
+        // Task completed - completedAt is handled automatically by the store
+        updateTaskNotification(taskId, task);
       } else {
         // Update pending task
-        updateTask(taskId, task);
+        updateTaskNotification(taskId, task);
       }
     }
-  }, [data, isLoading, error, taskId, updateTask]);
+  }, [data, isLoading, error, taskId, updateTaskNotification, getAllNotifications]);
 
   return null;
 }; 

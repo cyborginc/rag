@@ -35,7 +35,7 @@ vi.mock('../CitationScore', () => ({
 }));
 
 vi.mock('../CitationVisualContent', () => ({
-  CitationVisualContent: ({ documentType }: any) => (
+  CitationVisualContent: ({ documentType }: { documentType: string }) => (
     <div data-testid="visual-content">Visual: {documentType}</div>
   )
 }));
@@ -47,7 +47,7 @@ vi.mock('../CitationTextContent', () => ({
 }));
 
 vi.mock('../CitationMetadata', () => ({
-  CitationMetadata: ({ source, score }: any) => (
+  CitationMetadata: ({ source, score }: { source: string; score?: string | number }) => (
     <div data-testid="citation-metadata">{source} - {score}</div>
   )
 }));
@@ -77,6 +77,7 @@ describe('CitationItem', () => {
     });
     
     mockUseCitationText.mockReturnValue({
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       getAbridgedText: vi.fn().mockImplementation((_text, _length) => 'Abridged text...')
     });
     

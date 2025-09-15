@@ -78,6 +78,12 @@ class VectorStoreConfig(ConfigWizard):
         help_txt="Default collection name for vector store",
     )
 
+    ef: int = configfield(
+        "ef",
+        default=100,
+        help_txt="Parameter controlling query time/accuracy trade-off. Higher ef leads to more accurate but slower search.",
+    )
+
 
 @configclass
 class NvIngestConfig(ConfigWizard):
@@ -206,6 +212,12 @@ class NvIngestConfig(ConfigWizard):
         help_txt="Enable audio segmentation for NV Ingest",
     )
 
+    save_to_disk: bool = configfield(
+        "save_to_disk",
+        default=False,
+        help_txt="Enable saving results to disk for NV Ingest",
+    )
+
 
 @configclass
 class ModelParametersConfig(ConfigWizard):
@@ -216,19 +228,22 @@ class ModelParametersConfig(ConfigWizard):
 
     max_tokens: int = configfield(
         "max_tokens",
-        default=1024,
+        env_name="LLM_MAX_TOKENS",
+        default=32768,
         help_txt="The maximum number of tokens to generate in any given call.",
     )
 
     temperature: float = configfield(
         "temperature",
-        default=0.2,
+        env_name="LLM_TEMPERATURE",
+        default=0,
         help_txt="The sampling temperature to use for text generation.",
     )
 
     top_p: float = configfield(
         "top_p",
-        default=0.7,
+        env_name="LLM_TOP_P",
+        default=1.0,
         help_txt="The top-p sampling mass used for text generation.",
     )
 
@@ -248,7 +263,7 @@ class LLMConfig(ConfigWizard):
     )
     model_name: str = configfield(
         "model_name",
-        default="nvidia/llama-3_3-nemotron-super-49b-v1_5",
+        default="nvidia/llama-3-3-nemotron-super-49b-v1-5",
         help_txt="The name of the hosted model.",
     )
     model_engine: str = configfield(
@@ -259,7 +274,6 @@ class LLMConfig(ConfigWizard):
     # Add model parameters configuration
     parameters: ModelParametersConfig = configfield(
         "parameters",
-        env=False,
         help_txt="Model-specific parameters for generation.",
         default=ModelParametersConfig(),
     )
@@ -275,25 +289,6 @@ class LLMConfig(ConfigWizard):
             "temperature": self.parameters.temperature,
             "top_p": self.parameters.top_p,
         }
-
-        # Check for deepseek model
-        if "deepseek-r1" in str(self.model_name):
-            params["max_tokens"] = 128000
-            params["temperature"] = 0.6
-            params["top_p"] = 0.95
-
-        # Check for llama model
-        if "llama-3.3-nemotron-super-49b" in str(self.model_name):
-            if os.getenv("ENABLE_NEMOTRON_THINKING", "false").lower() == "true":
-                params["max_tokens"] = 32768
-                params["temperature"] = 0.6
-                params["top_p"] = 0.95
-            else:
-                params["max_tokens"] = 32768
-                params["temperature"] = 0
-                # TODO: Add support to pass None as top_p
-                params["top_p"] = 0.1
-
         return params
 
 
@@ -303,7 +298,7 @@ class QueryRewriterConfig(ConfigWizard):
 
     model_name: str = configfield(
         "model_name",
-        default="meta/llama-3.1-8b-instruct",
+        default="nvidia/llama-3-3-nemotron-super-49b-v1-5",
         help_txt="The llm name of the query rewriter model",
     )
     server_url: str = configfield(
@@ -327,7 +322,7 @@ class FilterExpressionGeneratorConfig(ConfigWizard):
     model_name: str = configfield(
         "model_name",
         env_name="APP_FILTEREXPRESSIONGENERATOR_MODELNAME",
-        default="nvidia/llama-3_3-nemotron-super-49b-v1_5",
+        default="nvidia/llama-3-3-nemotron-super-49b-v1-5",
         help_txt="The llm name of the filter expression generator model",
     )
     server_url: str = configfield(
@@ -344,17 +339,17 @@ class FilterExpressionGeneratorConfig(ConfigWizard):
     )
     temperature: float = configfield(
         "temperature",
-        default=0.1,
+        default=0,
         help_txt="The sampling temperature for filter expression generation.",
     )
     top_p: float = configfield(
         "top_p",
-        default=0.9,
+        default=1.0,
         help_txt="The top-p sampling mass for filter expression generation.",
     )
     max_tokens: int = configfield(
         "max_tokens",
-        default=1024,
+        default=32768,
         help_txt="The maximum number of tokens for filter expression generation.",
     )
 
@@ -570,7 +565,7 @@ class SummarizerConfig(ConfigWizard):
     model_name: str = configfield(
         "model_name",
         env_name="SUMMARY_LLM",
-        default="nvidia/llama-3_3-nemotron-super-49b-v1_5",
+        default="nvidia/llama-3-3-nemotron-super-49b-v1-5",
         help_txt="The name of the summarizer model",
     )
     server_url: str = configfield(

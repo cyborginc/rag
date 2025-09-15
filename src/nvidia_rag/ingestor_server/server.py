@@ -967,7 +967,6 @@ async def process_file_paths(filepaths: list[str], collection_name: str):
     all_file_paths = []
 
     for file in filepaths:
-        await NV_INGEST_INGESTOR.validate_directory_traversal_attack(file.filename)
         upload_file = os.path.basename(file.filename)
 
         if not upload_file:

@@ -721,21 +721,22 @@ async def retrieve_summary(
 
 
 # Helper functions for content processing
-def _is_empty_content(content: Any) -> bool:
+def _is_empty_content(content: Any) -> str | bool:
     """Check if content is empty (handles both string and list content)."""
     if isinstance(content, str):
-        return not content.strip()
+        return content.strip()
+
     elif isinstance(content, list):
         # Check if all text content in the list is empty
         for item in content:
             if isinstance(item, dict):
                 if item.get("type") == "text" and item.get("text", "").strip():
-                    return False
+                    return True
                 elif item.get("type") == "image_url":
                     # Images are considered non-empty content
-                    return False
-        return True
-    return True
+                    return True
+        return False
+    return False
 
 
 def escape_json_content_multimodal(content: Any) -> Any:

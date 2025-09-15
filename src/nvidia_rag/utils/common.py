@@ -231,26 +231,19 @@ def get_metadata_configuration(
     """
     config = get_config()
 
-    if custom_metadata is None:
-        return (None, None, None)
-
     # Create a temporary directory for custom metadata csv file
-    if len(custom_metadata) > 0:
-        csv_file_path = os.path.join(
-            config.temp_dir,
-            f"custom-metadata/{collection_name}_{str(uuid4())[:8]}/custom_metadata.csv",
-        )
-        os.makedirs(os.path.dirname(csv_file_path), exist_ok=True)
-    else:
-        csv_file_path = None
+    csv_file_path = os.path.join(
+        config.temp_dir,
+        f"custom-metadata/{collection_name}_{str(uuid4())[:8]}/custom_metadata.csv",
+    )
+    os.makedirs(os.path.dirname(csv_file_path), exist_ok=True)
 
     meta_source_field, meta_fields = None, None
-    if csv_file_path is not None:
-        meta_source_field, meta_fields = prepare_custom_metadata_dataframe(
-            all_file_paths=all_file_paths,
-            csv_file_path=csv_file_path,
-            custom_metadata=custom_metadata or [],
-        )
+    meta_source_field, meta_fields = prepare_custom_metadata_dataframe(
+        all_file_paths=all_file_paths,
+        csv_file_path=csv_file_path,
+        custom_metadata=custom_metadata or [],
+    )
 
     return csv_file_path, meta_source_field, meta_fields
 
@@ -265,6 +258,10 @@ def prepare_custom_metadata_dataframe(
         - meta_source_field: str - Source field name
         - all_metadata_fields: List[str] - All metadata fields
     """
+    # Handle case where no file paths are provided (e.g., during collection deletion)
+    if all_file_paths is None:
+        all_file_paths = []
+
     meta_source_field = "source"
     custom_metadata_df_dict = {
         meta_source_field: all_file_paths,

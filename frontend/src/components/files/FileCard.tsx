@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useNewCollectionStore } from "../../store/useNewCollectionStore";
 import { MetadataField } from "./MetadataField";
+import type { UIMetadataField } from "../../types/collections";
 
 interface FileCardProps {
   file: File;
@@ -23,7 +24,7 @@ export const FileCard = ({ file, index }: FileCardProps) => {
     removeFile(index);
   }, [index, removeFile]);
 
-  const handleMetadataChange = useCallback((fieldName: string, value: string) => {
+  const handleMetadataChange = useCallback((fieldName: string, value: unknown) => {
     updateMetadataField(file.name, fieldName, value);
   }, [file.name, updateMetadataField]);
 
@@ -35,15 +36,26 @@ export const FileCard = ({ file, index }: FileCardProps) => {
       </div>
       
       {metadataSchema.length > 0 && (
-        <div className="mt-2 space-y-2">
+        <div className="mt-2 space-y-4">
           {metadataSchema
-            .filter((field: any) => field.name !== 'filename') // Filter out filename field
-            .map((field: any) => (
+            .filter((field: UIMetadataField) => field.name !== 'filename') // Filter out filename field
+            .map((field: UIMetadataField) => (
             <MetadataField
               key={field.name}
               fileName={file.name}
               field={field}
-              value={fileMetadata[file.name]?.[field.name] || ""}
+              value={(() => {
+                const existingValue = fileMetadata[file.name]?.[field.name];
+                if (existingValue !== undefined) return existingValue;
+                switch (field.type) {
+                  case "boolean": return false;
+                  case "array": return [];
+                  case "integer":
+                  case "float":
+                  case "number": return null;
+                  default: return "";
+                }
+              })()}
               onChange={handleMetadataChange}
             />
           ))}

@@ -100,7 +100,7 @@ ranker = get_ranking_model(
     url=CONFIG.ranking.server_url,
     top_n=CONFIG.retriever.top_k,
 )
-query_rewriter_llm_config = {"temperature": 0.7, "top_p": 0.2, "max_tokens": 1024}
+query_rewriter_llm_config = {"temperature": 0, "top_p": 0.1}
 logger.info(
     "Query rewriter llm config: model name %s, url %s, config %s",
     CONFIG.query_rewriter.model_name,
@@ -160,15 +160,16 @@ class NvidiaRAG:
                     "Please make sure all the required methods are implemented."
                 )
 
-    @staticmethod
-    async def health(check_dependencies: bool = False) -> dict[str, Any]:
+    async def health(self, check_dependencies: bool = False) -> dict[str, Any]:
         """Check the health of the RAG server."""
         response_message = "Service is up."
         health_results = {}
         health_results["message"] = response_message
 
+        vdb_op = self.__prepare_vdb_op()
+
         if check_dependencies:
-            dependencies_results = await check_all_services_health()
+            dependencies_results = await check_all_services_health(vdb_op)
             health_results.update(dependencies_results)
         return health_results
 
@@ -328,6 +329,7 @@ class NvidiaRAG:
             "top_p": top_p,
             "max_tokens": max_tokens,
             "enable_guardrails": enable_guardrails,
+            "stop": stop,
         }
 
         if use_knowledge_base:
@@ -545,6 +547,12 @@ class NvidiaRAG:
             logger.info("Setting top k as: %s.", top_k)
 
             retriever_query = query
+            # Query used for specific tasks (filter generation, reflection) - stays clean without history concatenation
+            processed_query = retriever_query
+
+            # Handle multi-turn conversations with two different strategies:
+            # 1. Query rewriting: Creates a standalone, context-aware query (good for both retrieval and tasks)
+            # 2. Query combination: Concatenates history for retrieval, keeps original for specific tasks
             if messages:
                 if enable_query_rewriting:
                     # conversation is tuple so it should be multiple of two
@@ -570,14 +578,28 @@ class NvidiaRAG:
                         "without the chat history. Do NOT answer the question, "
                         "just reformulate it if needed and otherwise return it as is."
                     )
-                    query_rewriter_prompt = prompts.get(
-                        "query_rewriter_prompt", contextualize_q_system_prompt
+                    query_rewriter_prompt_config = prompts.get(
+                        "query_rewriter_prompt", {}
                     )
+                    system_prompt = query_rewriter_prompt_config.get(
+                        "system", contextualize_q_system_prompt
+                    )
+                    human_prompt = query_rewriter_prompt_config.get("human", "{input}")
+
+                    # Format conversation history as a string
+                    formatted_history = ""
+                    if conversation_history:
+                        formatted_history = "\n".join(
+                            [
+                                f"{role.capitalize()}: {content}"
+                                for role, content in conversation_history
+                            ]
+                        )
+
                     contextualize_q_prompt = ChatPromptTemplate.from_messages(
                         [
-                            ("system", query_rewriter_prompt),
-                            MessagesPlaceholder("chat_history"),
-                            ("human", "{input}"),
+                            ("system", system_prompt),
+                            ("human", human_prompt),
                         ]
                     )
                     q_prompt = (
@@ -586,22 +608,33 @@ class NvidiaRAG:
                         | StreamingFilterThinkParser
                         | StrOutputParser()
                     )
-                    # query to be used for document retrieval
-                    logger.info("Query rewriter prompt: %s", contextualize_q_prompt)
+
+                    # Log the complete prompt that will be sent to LLM
+                    try:
+                        formatted_prompt = contextualize_q_prompt.format_messages(
+                            input=query, chat_history=formatted_history
+                        )
+                        logger.info("Complete query rewriter prompt sent to LLM:")
+                        for i, message in enumerate(formatted_prompt):
+                            logger.info(
+                                "  Message %d [%s]: %s",
+                                i,
+                                message.type,
+                                message.content,
+                            )
+                    except Exception as e:
+                        logger.warning("Could not format prompt for logging: %s", e)
+
                     retriever_query = q_prompt.invoke(
-                        {"input": query, "chat_history": conversation_history}
+                        {"input": query, "chat_history": formatted_history}
                     )
-                    logger.info(
-                        "Rewritten Query: %s %s", retriever_query, len(retriever_query)
-                    )
-                    if (
-                        retriever_query.replace('"', "'") == "''"
-                        or len(retriever_query) == 0
-                    ):
-                        return Citations()
+                    logger.info("Rewritten Query: %s", retriever_query)
+
+                    # When query rewriting is enabled, we can use it as processed_query for other modules
+                    processed_query = retriever_query
                 else:
-                    # Use previous user queries and current query to form a
-                    # single query for document retrieval
+                    # Query combination strategy: Concatenate history for better retrieval context
+                    # Note: processed_query remains unchanged (original query) for clean task processing
                     user_queries = [
                         msg.get("content")
                         for msg in messages
@@ -630,7 +663,7 @@ class NvidiaRAG:
 
                                 generated_filter = (
                                     generate_filter_from_natural_language(
-                                        user_request=retriever_query,
+                                        user_request=processed_query,
                                         collection_name=collection_name,
                                         metadata_schema=metadata_schema_data,
                                         prompt_template=prompts.get(
@@ -707,7 +740,7 @@ class NvidiaRAG:
                 reflection_counter = ReflectionCounter(max_loops)
                 docs, is_relevant = check_context_relevance(
                     vdb_op=vdb_op,
-                    retriever_query=retriever_query,
+                    retriever_query=processed_query,
                     collection_names=validated_collections,
                     ranker=local_ranker,
                     reflection_counter=reflection_counter,
@@ -777,7 +810,7 @@ class NvidiaRAG:
 
                     context_reranker_start_time = time.time()
                     docs = context_reranker.invoke(
-                        {"context": docs, "question": retriever_query},
+                        {"context": docs, "question": processed_query},
                         config={"run_name": "context_reranker"},
                     )
                     logger.info(
@@ -828,6 +861,71 @@ class NvidiaRAG:
         )
         return summary_response
 
+    def _handle_prompt_processing(
+        self,
+        chat_history: list[dict[str, Any]],
+        model: str,
+        template_key: str = "chat_template",
+    ) -> tuple[
+        list[tuple[str, str]],
+        list[tuple[str, str]],
+        list[tuple[str, str]],
+        list[tuple[str, str]],
+    ]:
+        """Handle common prompt processing logic for both LLM and RAG chains.
+
+        Args:
+            chat_history: List of conversation messages
+            model: Name of the model used for generation
+            template_key: Key to get the appropriate template from prompts
+
+        Returns:
+            Tuple containing:
+            - system_message: List of system message tuples
+            - conversation_history: List of conversation history tuples
+            - user_message: List of user message tuples from prompt template
+        """
+
+        # Get the base template
+        system_prompt = prompts.get(template_key, {}).get("system", "")
+        # Support both "human" and "user" keys with fallback
+        template_dict = prompts.get(template_key, {})
+        user_prompt = template_dict.get("human", template_dict.get("user", ""))
+        conversation_history = []
+        user_message = []
+
+        is_nemotron_v1 = str(model).endswith("llama-3.3-nemotron-super-49b-v1")
+
+        # Nemotron controls thinking using system prompt, if nemotron v1 model is used update system prompt to enable/disable think
+        if is_nemotron_v1:
+            logger.info("Nemotron v1 model detected, updating system prompt")
+            if os.environ.get("ENABLE_NEMOTRON_THINKING", "false").lower() == "true":
+                logger.info("Setting system prompt as detailed thinking on")
+                system_prompt = "detailed thinking on"
+            else:
+                logger.info("Setting system prompt as detailed thinking off")
+                system_prompt = "detailed thinking off"
+
+        # Process chat history
+        for message in chat_history:
+            # Overwrite system message if provided in conversation history
+            if message.get("role") == "system":
+                content_text = self._extract_text_from_content(message.get("content"))
+                system_prompt = system_prompt + " " + content_text
+            else:
+                content_text = self._extract_text_from_content(message.get("content"))
+                conversation_history.append((message.get("role"), content_text))
+
+        system_message = [("system", system_prompt)]
+        if user_prompt:
+            user_message = [("user", user_prompt)]
+
+        return (
+            system_message,
+            conversation_history,
+            user_message,
+        )
+
     def __llm_chain(
         self,
         llm_settings: dict[str, Any],
@@ -850,51 +948,46 @@ class NvidiaRAG:
             enable_citations: Whether to enable citations in the response
         """
         try:
-            system_message = []
-            conversation_history = []
-            user_message = []
-            nemotron_message = []
-            system_prompt = ""
+            # Limit conversation history to prevent overwhelming the model
+            # conversation is tuple so it should be multiple of two
+            # -1 is to keep last k conversation
+            history_count = int(os.environ.get("CONVERSATION_HISTORY", 15)) * 2 * -1
+            chat_history = chat_history[history_count:]
 
-            system_prompt += prompts.get("chat_template", "")
+            # Use the new prompt processing method
+            (
+                system_message,
+                conversation_history,
+                user_message,
+            ) = self._handle_prompt_processing(chat_history, model, "chat_template")
 
-            if "llama-3.3-nemotron-super-49b" in str(model):
-                if (
-                    os.environ.get("ENABLE_NEMOTRON_THINKING", "false").lower()
-                    == "true"
-                ):
-                    logger.info("Setting system prompt as detailed thinking on")
-                    system_prompt = "detailed thinking on"
-                else:
-                    logger.info("Setting system prompt as detailed thinking off")
-                    system_prompt = "detailed thinking off"
-                nemotron_message += [("user", prompts.get("chat_template", ""))]
+            logger.debug("System message: %s", system_message)
+            logger.debug("User message: %s", user_message)
+            logger.debug("Conversation history: %s", conversation_history)
+            # Prompt template with system message, user message from prompt template
+            message = system_message + user_message
 
-            for message in chat_history:
-                if message.get("role") == "system":
-                    content_text = self._extract_text_from_content(
-                        message.get("content")
-                    )
-                    system_prompt = system_prompt + " " + content_text
-                else:
-                    content_text = self._extract_text_from_content(
-                        message.get("content")
-                    )
-                    conversation_history.append((message.get("role"), content_text))
+            # If conversation history exists, add it as formatted message
+            if conversation_history:
+                # Format conversation history
+                formatted_history = "\n".join(
+                    [
+                        f"{role.title()}: {content}"
+                        for role, content in conversation_history
+                    ]
+                )
+                message += [("user", f"Conversation history:\n{formatted_history}")]
 
-            system_message = [("system", system_prompt)]
-
+            # Add user query to prompt
+            user_query = []
             # Extract text from query for processing
             query_text = self._extract_text_from_content(query)
             logger.info("Query is: %s", query_text)
             if query_text is not None and query_text != "":
-                user_message += [("user", "{question}")]
+                user_query += [("user", "Query: {question}")]
 
-            # Prompt template with system message, conversation history and
-            # user query
-            message = (
-                system_message + nemotron_message + conversation_history + user_message
-            )
+            # Add user query
+            message += user_query
 
             self.__print_conversation_history(message, query_text)
 
@@ -1217,40 +1310,27 @@ class NvidiaRAG:
             # -1 is to keep last k conversation
             history_count = int(os.environ.get("CONVERSATION_HISTORY", 15)) * 2 * -1
             chat_history = chat_history[history_count:]
-            system_prompt = ""
-            conversation_history = []
-            system_prompt += prompts.get("rag_template", "")
-            user_message = []
             retrieval_time_ms = None
             context_reranker_time_ms = None
 
-            if "llama-3.3-nemotron-super-49b" in str(model):
-                if (
-                    os.environ.get("ENABLE_NEMOTRON_THINKING", "false").lower()
-                    == "true"
-                ):
-                    logger.info("Setting system prompt as detailed thinking on")
-                    system_prompt = "detailed thinking on"
-                else:
-                    logger.info("Setting system prompt as detailed thinking off")
-                    system_prompt = "detailed thinking off"
-                user_message += [("user", prompts.get("rag_template", ""))]
-
-            for message in chat_history:
-                if message.get("role") == "system":
-                    content_text = self._extract_text_from_content(
-                        message.get("content")
-                    )
-                    system_prompt = system_prompt + " " + content_text
-                else:
-                    content_text = self._extract_text_from_content(
-                        message.get("content")
-                    )
-                    conversation_history.append((message.get("role"), content_text))
-
-            system_message = [("system", system_prompt)]
+            # Use the new prompt processing method
+            (
+                system_message,
+                conversation_history,
+                user_message,
+            ) = self._handle_prompt_processing(chat_history, model, "rag_template")
+            vlm_message = []
+            logger.debug("System message: %s", system_message)
+            logger.debug("User message: %s", user_message)
+            logger.debug("Conversation history: %s", conversation_history)
             # Build retriever query from multimodal content (includes text and base64 images for VLM embedding)
             retriever_query = self._build_retriever_query_from_content(query)
+            # Query used for specific tasks (filter generation, reflection) - stays clean without history concatenation
+            processed_query = retriever_query
+
+            # Handle multi-turn conversations with two different strategies:
+            # 1. Query rewriting: Creates a standalone, context-aware query (good for both retrieval and tasks)
+            # 2. Query combination: Concatenates history for retrieval, keeps original for specific tasks
             if chat_history:
                 if enable_query_rewriting:
                     # Based on conversation history recreate query for better
@@ -1262,14 +1342,28 @@ class NvidiaRAG:
                         "without the chat history. Do NOT answer the question, "
                         "just reformulate it if needed and otherwise return it as is."
                     )
-                    query_rewriter_prompt = prompts.get(
-                        "query_rewriter_prompt", contextualize_q_system_prompt
+                    query_rewriter_prompt_config = prompts.get(
+                        "query_rewriter_prompt", {}
                     )
+                    system_prompt = query_rewriter_prompt_config.get(
+                        "system", contextualize_q_system_prompt
+                    )
+                    human_prompt = query_rewriter_prompt_config.get("human", "{input}")
+
+                    # Format conversation history as a string
+                    formatted_history = ""
+                    if conversation_history:
+                        formatted_history = "\n".join(
+                            [
+                                f"{role.capitalize()}: {content}"
+                                for role, content in conversation_history
+                            ]
+                        )
+
                     contextualize_q_prompt = ChatPromptTemplate.from_messages(
                         [
-                            ("system", query_rewriter_prompt),
-                            MessagesPlaceholder("chat_history"),
-                            ("human", "{input}"),
+                            ("system", system_prompt),
+                            ("human", human_prompt),
                         ]
                     )
                     q_prompt = (
@@ -1279,37 +1373,45 @@ class NvidiaRAG:
                         | StrOutputParser()
                     )
                     # query to be used for document retrieval
-                    logger.info("Query rewriter prompt: %s", contextualize_q_prompt)
+                    # logger.info("Query rewriter prompt: %s", contextualize_q_prompt)
+
+                    # Log the complete prompt that will be sent to LLM
+                    try:
+                        formatted_prompt = contextualize_q_prompt.format_messages(
+                            input=retriever_query, chat_history=formatted_history
+                        )
+                        logger.info("Complete query rewriter prompt sent to LLM:")
+                        for i, message in enumerate(formatted_prompt):
+                            logger.info(
+                                "  Message %d [%s]: %s",
+                                i,
+                                message.type,
+                                message.content,
+                            )
+                    except Exception as e:
+                        logger.warning("Could not format prompt for logging: %s", e)
+
                     retriever_query = q_prompt.invoke(
                         {
                             "input": retriever_query,
-                            "chat_history": conversation_history,
+                            "chat_history": formatted_history,
                         },
                         config={"run_name": "query-rewriter"},
                     )
                     logger.info(
                         "Rewritten Query: %s %s", retriever_query, len(retriever_query)
                     )
-                    if (
-                        retriever_query.replace('"', "'") == "''"
-                        or len(retriever_query) == 0
-                    ):
-                        return generate_answer(
-                            iter([""]),
-                            [],
-                            model=model,
-                            collection_name=collection_name,
-                            enable_citations=enable_citations,
-                            otel_metrics_client=metrics,
-                        )
+
+                    # When query rewriting is enabled, we can use it as processed_query for other modules
+                    processed_query = retriever_query
                 else:
-                    # Use previous user queries and current query to form a
-                    # single query for document retrieval
+                    # Query combination strategy: Concatenate history for better retrieval context
+                    # Note: processed_query remains unchanged (original query) for clean task processing
                     user_queries = [
                         self._build_retriever_query_from_content(msg.get("content"))
                         for msg in chat_history
                         if msg.get("role") == "user"
-                    ]
+                    ][-1:]
                     # TODO: Find a better way to join this when queries already
                     # have punctuation
                     retriever_query = ". ".join([*user_queries, retriever_query])
@@ -1335,7 +1437,7 @@ class NvidiaRAG:
 
                                 generated_filter = (
                                     generate_filter_from_natural_language(
-                                        user_request=retriever_query,
+                                        user_request=processed_query,
                                         collection_name=collection_name,
                                         metadata_schema=metadata_schema_data,
                                         prompt_template=prompts.get(
@@ -1399,6 +1501,7 @@ class NvidiaRAG:
 
             if enable_query_decomposition:
                 logger.info("Using query decomposition for complex query processing")
+                # TODO: Pass processed_query instead of query and check accuracy
                 return iterative_query_decomposition(
                     query=query,
                     history=conversation_history,
@@ -1411,6 +1514,7 @@ class NvidiaRAG:
                     if validated_collections
                     else "",
                     top_k=top_k,
+                    ranker_top_k=reranker_top_k,
                     confidence_threshold=confidence_threshold,
                     llm_settings=llm_settings,
                 )
@@ -1429,7 +1533,7 @@ class NvidiaRAG:
 
                 context_to_show, is_relevant = check_context_relevance(
                     vdb_op=vdb_op,
-                    retriever_query=retriever_query,
+                    retriever_query=processed_query,
                     collection_names=validated_collections,
                     ranker=ranker,
                     reflection_counter=reflection_counter,
@@ -1474,6 +1578,9 @@ class NvidiaRAG:
                         vectorstores.append(
                             vdb_op.get_langchain_vectorstore(collection_name)
                         )
+                    logger.debug(
+                        "Using retriever query for retrieval %s", retriever_query
+                    )
                     with ThreadPoolExecutor() as executor:
                         futures = [
                             executor.submit(
@@ -1500,8 +1607,11 @@ class NvidiaRAG:
                     )
 
                     context_reranker_start_time = time.time()
+                    logger.debug(
+                        "Using processed query for reranker %s", processed_query
+                    )
                     docs = context_reranker.invoke(
-                        {"context": docs, "question": retriever_query},
+                        {"context": docs, "question": processed_query},
                         config={"run_name": "context_reranker"},
                     )
                     context_reranker_time_ms = (
@@ -1579,12 +1689,14 @@ class NvidiaRAG:
                             "VLM response validated and added to prompt: %s",
                             vlm_response,
                         )
-                        vlm_response_prompt = (
-                            "The following is an answer generated by a Vision-Language Model (VLM) based solely on images cited in the context:\n"
-                            f"---\n{vlm_response.strip()}\n---\n"
-                            "Consider this visual insight when answering the user's query, especially where the textual context is ambiguous or limited."
+                        injection_tmpl = prompts.get(
+                            "vlm_response_injection_template",
+                            "The following is an answer generated by a Vision-Language Model (VLM) based solely on images cited in the context:\n---\n{vlm_response}\n---\nConsider this visual insight when answering the user's query, especially where the textual context is ambiguous or limited.",
                         )
-                        user_message += [("user", vlm_response_prompt)]
+                        vlm_response_prompt = injection_tmpl.format(
+                            vlm_response=vlm_response.strip()
+                        )
+                        vlm_message += [("user", vlm_response_prompt)]
                     else:
                         logger.info(
                             "VLM response skipped (empty or rejected by reasoning gate)."
@@ -1610,8 +1722,23 @@ class NvidiaRAG:
             docs = [self.__format_document_with_source(d) for d in context_to_show]
 
             # Prompt for response generation based on context
-            user_message += [("user", "{question}")]
-            message = system_message + conversation_history + user_message
+            message = system_message + user_message
+
+            if conversation_history:
+                # Format conversation history
+                formatted_history = "\n".join(
+                    [
+                        f"{role.title()}: {content}"
+                        for role, content in conversation_history
+                    ]
+                )
+                message += [("user", f"Conversation history:\n{formatted_history}")]
+
+            # Add vlm response and user query to prompt
+            message += vlm_message
+            user_query = [("user", "Query: {question}")]
+            message += user_query
+
             self.__print_conversation_history(message)
             prompt = ChatPromptTemplate.from_messages(message)
 
@@ -1625,7 +1752,7 @@ class NvidiaRAG:
             ):
                 initial_response = chain.invoke({"question": query, "context": docs})
                 final_response, is_grounded = check_response_groundedness(
-                    initial_response, docs, reflection_counter
+                    query, initial_response, docs, reflection_counter
                 )
                 if not is_grounded:
                     logger.warning(

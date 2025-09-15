@@ -13,7 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useSettingsStore } from "../../store/useSettingsStore";
+import { Stack, FormField, TextInput, Flex, Spinner } from "@kui/react";
+import { useSettingsStore, useHealthDependentFeatures } from "../../store/useSettingsStore";
 
 /**
  * Endpoints section component for configuring API endpoint URLs.
@@ -33,6 +34,7 @@ export const EndpointsSection = () => {
     vdbEndpoint, 
     set: setSettings 
   } = useSettingsStore();
+  const { isHealthLoading, shouldDisableHealthFeatures } = useHealthDependentFeatures();
 
   const endpoints = [
     { key: 'llmEndpoint', label: 'LLM Endpoint', value: llmEndpoint },
@@ -43,22 +45,43 @@ export const EndpointsSection = () => {
   ];
 
   return (
-    <div className="space-y-0">
-      {endpoints.map(({ key, label, value }, index) => (
-        <div 
-          key={key} 
-          className={`py-4 ${index < endpoints.length - 1 ? 'border-b border-neutral-800' : ''}`}
+    <Stack gap="4" slotDivider={<hr />}>
+      {endpoints.map(({ key, label, value }) => (
+        <FormField
+          key={key}
+          slotLabel={
+            <Flex align="center" gap="density-sm">
+              {label}
+              {isHealthLoading && <Spinner size="small" aria-label="Loading endpoint configuration" />}
+            </Flex>
+          }
+          slotHelp={
+            isHealthLoading 
+              ? "Loading endpoint from system configuration..." 
+              : shouldDisableHealthFeatures
+                ? "System configuration unavailable"
+                : "Leave empty to use default endpoint"
+          }
         >
-          <label className="block text-sm font-medium text-white mb-3">{label}</label>
-          <input
-            type="text"
-            value={value}
-            onChange={(e) => setSettings({ [key]: e.target.value })}
-            className="w-full rounded-lg bg-neutral-800 border border-neutral-700 px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-[var(--nv-green)]/50 focus:border-[var(--nv-green)]/50 focus:outline-none transition-colors"
-            placeholder={value ? `Current: ${value}` : "Leave empty for default"}
-          />
-        </div>
+          {(args) => (
+            <TextInput
+              {...args}
+              value={value ?? ""}
+              onValueChange={(newValue) => setSettings({ [key]: newValue.trim() === "" ? undefined : newValue })}
+              placeholder={
+                isHealthLoading
+                  ? "Loading from system configuration..."
+                  : shouldDisableHealthFeatures
+                    ? "System configuration unavailable"
+                    : value 
+                      ? `Current: ${value}` 
+                      : "Leave empty for default"
+              }
+              disabled={shouldDisableHealthFeatures}
+            />
+          )}
+        </FormField>
       ))}
-    </div>
+    </Stack>
   );
 }; 

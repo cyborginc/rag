@@ -1,5 +1,29 @@
 import { useCallback } from "react";
-import type { UIMetadataField } from "../../types/collections";
+import type { UIMetadataField, MetadataFieldType } from "../../types/collections";
+import { 
+  Button, 
+  Text, 
+  Flex, 
+  Badge, 
+  Divider
+} from "@kui/react";
+import { useCollectionsStore } from "../../store/useCollectionsStore";
+
+/**
+ * Type guard to check if a value is a valid MetadataFieldType
+ */
+const isValidMetadataFieldType = (type: unknown): type is MetadataFieldType => {
+  const validTypes: MetadataFieldType[] = [
+    "string", 
+    "integer", 
+    "float", 
+    "number", 
+    "boolean", 
+    "datetime", 
+    "array"
+  ];
+  return typeof type === "string" && validTypes.includes(type as MetadataFieldType);
+};
 
 interface FieldDisplayCardProps {
   field: UIMetadataField;
@@ -32,63 +56,79 @@ const DeleteIcon = () => (
 );
 
 export const FieldDisplayCard = ({ field, onEdit, onDelete }: FieldDisplayCardProps) => {
-  const handleEdit = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
+  const { getFieldTypeColor } = useCollectionsStore();
+  
+  const handleEdit = useCallback(() => {
     onEdit();
   }, [onEdit]);
 
-  const handleDelete = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleDelete = useCallback(() => {
     onDelete();
   }, [onDelete]);
 
+  // Validate field.type and get appropriate color
+  const fieldTypeColor = (() => {
+    if (isValidMetadataFieldType(field.type)) {
+      return getFieldTypeColor(field.type);
+    } else {
+      // Log warning for debugging purposes
+      console.warn(`Invalid field type encountered: "${field.type}" for field "${field.name}". Using default color.`);
+      // Return default color for invalid types
+      return "gray";
+    }
+  })();
+
   return (
-    <div 
-      className="rounded-lg border border-neutral-700 bg-neutral-900 p-4 hover:bg-neutral-800 transition-colors"
-      data-testid="field-display-card"
-    >
-      <div className="flex justify-between items-start">
-        <div 
-          className="flex-1"
-          data-testid="field-content"
+    <>
+    <Flex justify="between" align="start" padding="density-lg">
+      <Flex 
+        align="center" 
+        gap="3" 
+        style={{ flex: 1 }}
+        data-testid="field-content"
+      >
+        <Text 
+          kind="body/bold/md"
+          data-testid="field-name"
         >
-          <div className="flex items-center gap-3 mb-2">
-            <span 
-              className="text-base font-medium text-white capitalize"
-              data-testid="field-name"
-            >
-              {field.name}
-            </span>
-            <span 
-              className="text-xs bg-neutral-800 text-gray-300 px-2 py-1 rounded"
-              data-testid="field-type"
-            >
-              {field.type}
-            </span>
-          </div>
-        </div>
-        <div 
-          className="flex items-center gap-2"
-          data-testid="field-actions"
+          {field.name}
+        </Text>
+          <Badge 
+           kind="solid"
+           color={fieldTypeColor}
+           data-testid="field-type"
+         >
+           {field.type}
+         </Badge>
+      </Flex>
+      
+      <Flex 
+        align="center" 
+        gap="2"
+        data-testid="field-actions"
+      >
+        <Button 
+          kind="tertiary"
+          size="tiny"
+          onClick={handleEdit} 
+          title="Edit"
+          data-testid="edit-button"
         >
-          <button 
-            onClick={handleEdit} 
-            title="Edit"
-            className="p-2 text-gray-400 hover:text-[var(--nv-green)] hover:bg-neutral-800 rounded transition-colors"
-            data-testid="edit-button"
-          >
-            <EditIcon />
-          </button>
-          <button 
-            onClick={handleDelete} 
-            title="Delete"
-            className="p-2 text-gray-400 hover:text-red-400 hover:bg-neutral-800 rounded transition-colors"
-            data-testid="delete-button"
-          >
-            <DeleteIcon />
-          </button>
-        </div>
-      </div>
-    </div>
+          <EditIcon />
+        </Button>
+        <Button 
+          kind="tertiary"
+          size="tiny"
+          onClick={handleDelete} 
+          title="Delete"
+          data-testid="delete-button"
+          style={{ color: 'var(--text-color-danger)' }}
+        >
+          <DeleteIcon />
+        </Button>
+      </Flex>
+    </Flex>
+    <Divider />
+    </>
   );
 }; 

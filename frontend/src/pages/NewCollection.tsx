@@ -13,12 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import NvidiaUpload from "../components/files/NvidiaUpload";
 import MetadataSchemaEditor from "../components/schema/MetadataSchemaEditor";
 import NewCollectionButtons from "../components/collections/NewCollectionButtons";
-import StatusMessages from "../components/layout/StatusMessages";
 import { useNewCollectionStore } from "../store/useNewCollectionStore";
+import { FormField, Grid, GridItem, PageHeader, Panel, Stack, TextInput } from "@kui/react";
 
 /**
  * New Collection page component for creating collections.
@@ -38,51 +38,53 @@ export default function NewCollection() {
     };
   }, [reset]);
 
+  const handleValidationChange = useCallback((hasInvalidFiles: boolean) => {
+    const { setHasInvalidFiles } = useNewCollectionStore.getState();
+    setHasInvalidFiles(hasInvalidFiles);
+  }, []);
+
+  const handleFilesChange = useCallback((files: File[]) => {
+    const { addFiles } = useNewCollectionStore.getState();
+    addFiles(files);
+  }, []);
+
   return (
-    <div className="p-6 text-white mx-auto max-w-6xl">
-      <h1 className="text-2xl font-bold mb-4">Create New Collection</h1>
-      <p className="text-sm text-neutral-400 mb-8">
-        Upload source files and define metadata schema for this collection.
-      </p>
-
-      {/* Main form */}
-      <div className="grid gap-10 md:grid-cols-2">
-        {/* Left column – collection details & metadata schema */}
-        <div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-1">Collection Name</label>
-            <input
-              type="text"
-              value={collectionName}
-              onChange={(e) =>
-                setCollectionName(e.target.value.replace(/\s+/g, "_"))
-              }
-              onBlur={() => setCollectionNameTouched(true)}
-              className="w-full rounded-md px-3 py-2 bg-neutral-800 text-white"
-            />
-          </div>
-
-          <MetadataSchemaEditor />
-        </div>
-
-        {/* Right column – file upload & per-file metadata */}
-        <div>
-          <NvidiaUpload 
-            onFilesChange={(files) => {
-              // Add new files to existing ones
-              const { addFiles } = useNewCollectionStore.getState();
-              addFiles(files);
-            }}
-            acceptedTypes={['.bmp', '.docx', '.html', '.jpeg', '.json', '.md', '.pdf', '.png', '.pptx', '.sh', '.tiff', '.txt', '.mp3', '.wav']}
-            maxFileSize={50}
-            maxFiles={20}
-          />
-        </div>
-      </div>
-
-      {/* Status + actions */}
-      <StatusMessages />
-      <NewCollectionButtons />
-    </div>
+    <Grid cols={12} gap="density-lg" padding="density-lg">
+      <GridItem cols={12}>
+        <PageHeader
+          slotHeading="Create New Collection"
+          slotSubheading="Upload source files and define metadata schema for this collection."
+        />
+      </GridItem>
+      <GridItem cols={6}>
+        <Panel>
+          <Stack gap="density-lg">
+            <FormField
+              slotLabel="Collection Name"
+              slotHelp="We will automatically try to validate the collection name."
+              required
+            >
+              <TextInput
+                value={collectionName}
+                onChange={(e) => setCollectionName(e.target.value.replace(/\s+/g, "_"))}
+                onBlur={() => setCollectionNameTouched(true)}
+              />
+            </FormField>
+            <MetadataSchemaEditor />
+          </Stack>
+        </Panel>
+      </GridItem>
+      <GridItem cols={6}>
+        <NvidiaUpload 
+          onFilesChange={handleFilesChange}
+          onValidationChange={handleValidationChange}
+          acceptedTypes={['.bmp', '.docx', '.html', '.jpeg', '.json', '.md', '.pdf', '.png', '.pptx', '.sh', '.tiff', '.txt', '.mp3', '.wav']}
+          maxFileSize={400}
+        />
+      </GridItem>
+      <GridItem cols={12}>
+        <NewCollectionButtons />
+      </GridItem>
+    </Grid>
   );
 }

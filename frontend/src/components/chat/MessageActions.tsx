@@ -15,13 +15,14 @@
 
 import { useSendMessage } from "../../api/useSendMessage";
 import { useMessageSubmit } from "../../hooks/useMessageSubmit";
+import { Button, Block, Flex, Spinner } from "@kui/react";
 
 const StopIcon = () => (
-  <div className="w-2 h-2 bg-white rounded-sm" />
+  <div style={{ width: '8px', height: '8px', backgroundColor: 'currentColor', borderRadius: '2px' }} />
 );
 
 const SendIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+  <svg style={{ width: '14px', height: '14px' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
   </svg>
 );
@@ -30,32 +31,55 @@ const StopButton = () => {
   const { stopStream } = useSendMessage();
 
   return (
-    <button
-      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium text-xs transition-all duration-200"
+    <Button
+      kind="primary"
+      color="danger"
+      size="small"
       onClick={stopStream}
     >
-      <StopIcon />
-      <span>Stop</span>
-    </button>
+      <Flex align="center" gap="density-xs">
+        <StopIcon />
+        Stop
+      </Flex>
+    </Button>
   );
 };
 
 const SendButton = () => {
-  const { handleSubmit, canSubmit } = useMessageSubmit();
+  const { handleSubmit, canSubmit, isHealthLoading, shouldDisableHealthFeatures } = useMessageSubmit();
+
+  const getButtonContent = () => {
+    if (isHealthLoading) {
+      return (
+        <Flex align="center" gap="density-xs">
+          <Spinner size="small" aria-label="Loading system configuration" />
+        </Flex>
+      );
+    }
+    return <SendIcon />;
+  };
+
+  const getButtonTitle = () => {
+    if (isHealthLoading) {
+      return "Loading system configuration...";
+    }
+    if (shouldDisableHealthFeatures) {
+      return "System configuration unavailable";
+    }
+    return "Send message";
+  };
 
   return (
-    <button
-      className={`p-1.5 rounded-md transition-all duration-200 ${
-        canSubmit 
-          ? 'bg-[var(--nv-green)] hover:bg-[var(--nv-green)]/90 text-black hover:shadow-lg hover:shadow-[var(--nv-green)]/20' 
-          : 'bg-neutral-700 text-gray-400 cursor-not-allowed opacity-50'
-      }`}
+    <Button
+      kind="primary"
+      color="brand"
+      size="small"
       onClick={handleSubmit}
       disabled={!canSubmit}
-      title="Send message"
+      title={getButtonTitle()}
     >
-      <SendIcon />
-    </button>
+      {getButtonContent()}
+    </Button>
   );
 };
 
@@ -63,8 +87,10 @@ export const MessageActions = () => {
   const { isStreaming } = useSendMessage();
 
   return (
-    <div className="absolute right-3 top-3 flex items-center gap-2">
-      {isStreaming ? <StopButton /> : <SendButton />}
-    </div>
+    <Block style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }}>
+      <Flex align="center" gap="density-sm">
+        {isStreaming ? <StopButton /> : <SendButton />}
+      </Flex>
+    </Block>
   );
 }; 

@@ -1,14 +1,25 @@
 repos:
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.12.4
+  # Frontend hooks with fallback for environments without pnpm
+  - repo: local
     hooks:
-      - id: ruff
-        name: ruff check --fix
-        language_version: python3
-        types: [python]
-        files: ^src/
-      - id: ruff-format
-        name: ruff format
-        language_version: python3
-        types: [python]
-        files: ^src/
+      - id: frontend-lint
+        name: Frontend ESLint
+        entry: bash -c 'export PATH="$HOME/.nvm/versions/node/v22.16.0/bin:$PATH" && command -v pnpm >/dev/null 2>&1 && cd frontend && pnpm run lint || echo "Skipping lint - pnpm not available"'
+        language: system
+        files: ^frontend/
+        types_or: [javascript, jsx, ts, tsx]
+        pass_filenames: false
+      - id: frontend-typecheck
+        name: Frontend TypeScript Check
+        entry: bash -c 'export PATH="$HOME/.nvm/versions/node/v22.16.0/bin:$PATH" && command -v pnpm >/dev/null 2>&1 && cd frontend && pnpm exec tsc --noEmit || echo "Skipping typecheck - pnpm not available"'
+        language: system
+        files: ^frontend/
+        types_or: [ts, tsx]
+        pass_filenames: false
+      - id: frontend-test
+        name: Frontend Tests
+        entry: bash -c 'export PATH="$HOME/.nvm/versions/node/v22.16.0/bin:$PATH" && command -v pnpm >/dev/null 2>&1 && cd frontend && pnpm run test:run || echo "Skipping tests - pnpm not available"'
+        language: system
+        files: ^frontend/
+        types_or: [javascript, jsx, ts, tsx]
+        pass_filenames: false

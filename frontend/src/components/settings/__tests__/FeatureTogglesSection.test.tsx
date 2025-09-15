@@ -49,7 +49,7 @@ describe('FeatureTogglesSection', () => {
     it('renders toggle buttons for all features', () => {
       render(<FeatureTogglesSection onShowWarning={mockOnShowWarning} />);
       
-      const toggleButtons = screen.getAllByRole('button');
+      const toggleButtons = screen.getAllByRole('switch');
       expect(toggleButtons).toHaveLength(6);
     });
   });
@@ -58,10 +58,10 @@ describe('FeatureTogglesSection', () => {
     it('shows disabled state for false values', () => {
       render(<FeatureTogglesSection onShowWarning={mockOnShowWarning} />);
       
-      const toggleButtons = screen.getAllByRole('button');
+      const toggleButtons = screen.getAllByRole('switch');
       toggleButtons.forEach(button => {
-        expect(button).toHaveClass('bg-neutral-600');
-        expect(button).not.toHaveClass('bg-[var(--nv-green)]');
+        expect(button).toHaveAttribute('aria-checked', 'false');
+        expect(button).toHaveAttribute('data-state', 'unchecked');
       });
     });
 
@@ -77,47 +77,33 @@ describe('FeatureTogglesSection', () => {
 
       render(<FeatureTogglesSection onShowWarning={mockOnShowWarning} />);
       
-      const toggleButtons = screen.getAllByRole('button');
+      const toggleButtons = screen.getAllByRole('switch');
       
       // First two should be enabled
-      expect(toggleButtons[0]).toHaveClass('bg-[var(--nv-green)]');
-      expect(toggleButtons[1]).toHaveClass('bg-[var(--nv-green)]');
+      expect(toggleButtons[0]).toHaveAttribute('aria-checked', 'true');
+      expect(toggleButtons[0]).toHaveAttribute('data-state', 'checked');
+      expect(toggleButtons[1]).toHaveAttribute('aria-checked', 'true');
+      expect(toggleButtons[1]).toHaveAttribute('data-state', 'checked');
       
       // Rest should be disabled
-      expect(toggleButtons[2]).toHaveClass('bg-neutral-600');
-      expect(toggleButtons[3]).toHaveClass('bg-neutral-600');
-      expect(toggleButtons[4]).toHaveClass('bg-neutral-600');
-      expect(toggleButtons[5]).toHaveClass('bg-neutral-600');
+      expect(toggleButtons[2]).toHaveAttribute('aria-checked', 'false');
+      expect(toggleButtons[2]).toHaveAttribute('data-state', 'unchecked');
+      expect(toggleButtons[3]).toHaveAttribute('aria-checked', 'false');
+      expect(toggleButtons[3]).toHaveAttribute('data-state', 'unchecked');
+      expect(toggleButtons[4]).toHaveAttribute('aria-checked', 'false');
+      expect(toggleButtons[4]).toHaveAttribute('data-state', 'unchecked');
+      expect(toggleButtons[5]).toHaveAttribute('aria-checked', 'false');
+      expect(toggleButtons[5]).toHaveAttribute('data-state', 'unchecked');
     });
 
-    it('positions toggle indicator correctly based on state', () => {
-      mockUseSettingsStore.mockReturnValue({
-        enableReranker: true,
-        includeCitations: false,
-        useGuardrails: false,
-        enableQueryRewriting: false,
-        enableVlmInference: false,
-        enableFilterGenerator: false
-      });
-
-      const { container } = render(<FeatureTogglesSection onShowWarning={mockOnShowWarning} />);
-      
-      const indicators = container.querySelectorAll('.inline-block.h-4.w-4');
-      
-      // First indicator should be in "on" position
-      expect(indicators[0]).toHaveClass('translate-x-6');
-      
-      // Others should be in "off" position
-      expect(indicators[1]).toHaveClass('translate-x-1');
-      expect(indicators[2]).toHaveClass('translate-x-1');
-    });
+    // Note: KUI Switch component handles visual positioning internally
   });
 
   describe('Toggle Interactions', () => {
     it('calls onShowWarning when Enable Reranker is clicked', () => {
       render(<FeatureTogglesSection onShowWarning={mockOnShowWarning} />);
       
-      const rerankerToggle = screen.getAllByRole('button')[0];
+      const rerankerToggle = screen.getAllByRole('switch')[0];
       fireEvent.click(rerankerToggle);
       
       expect(mockOnShowWarning).toHaveBeenCalledWith('enableReranker', true);
@@ -126,7 +112,7 @@ describe('FeatureTogglesSection', () => {
     it('calls onShowWarning when Include Citations is clicked', () => {
       render(<FeatureTogglesSection onShowWarning={mockOnShowWarning} />);
       
-      const citationsToggle = screen.getAllByRole('button')[1];
+      const citationsToggle = screen.getAllByRole('switch')[1];
       fireEvent.click(citationsToggle);
       
       expect(mockOnShowWarning).toHaveBeenCalledWith('includeCitations', true);
@@ -144,7 +130,7 @@ describe('FeatureTogglesSection', () => {
 
       render(<FeatureTogglesSection onShowWarning={mockOnShowWarning} />);
       
-      const rerankerToggle = screen.getAllByRole('button')[0];
+      const rerankerToggle = screen.getAllByRole('switch')[0];
       fireEvent.click(rerankerToggle);
       
       expect(mockOnShowWarning).toHaveBeenCalledWith('enableReranker', false);
@@ -153,7 +139,7 @@ describe('FeatureTogglesSection', () => {
     it('calls onShowWarning for all different feature keys', () => {
       render(<FeatureTogglesSection onShowWarning={mockOnShowWarning} />);
       
-      const toggleButtons = screen.getAllByRole('button');
+      const toggleButtons = screen.getAllByRole('switch');
       const expectedKeys = [
         'enableReranker',
         'includeCitations', 
@@ -185,15 +171,15 @@ describe('FeatureTogglesSection', () => {
 
       render(<FeatureTogglesSection onShowWarning={mockOnShowWarning} />);
       
-      const toggleButtons = screen.getAllByRole('button');
+      const toggleButtons = screen.getAllByRole('switch');
       
       // Check specific patterns
-      expect(toggleButtons[0]).toHaveClass('bg-[var(--nv-green)]'); // enabled
-      expect(toggleButtons[1]).toHaveClass('bg-neutral-600'); // disabled
-      expect(toggleButtons[2]).toHaveClass('bg-[var(--nv-green)]'); // enabled
-      expect(toggleButtons[3]).toHaveClass('bg-neutral-600'); // disabled
-      expect(toggleButtons[4]).toHaveClass('bg-[var(--nv-green)]'); // enabled
-      expect(toggleButtons[5]).toHaveClass('bg-neutral-600'); // disabled
+      expect(toggleButtons[0]).toHaveAttribute('aria-checked', 'true'); // enabled
+      expect(toggleButtons[1]).toHaveAttribute('aria-checked', 'false'); // disabled
+      expect(toggleButtons[2]).toHaveAttribute('aria-checked', 'true'); // enabled
+      expect(toggleButtons[3]).toHaveAttribute('aria-checked', 'false'); // disabled
+      expect(toggleButtons[4]).toHaveAttribute('aria-checked', 'true'); // enabled
+      expect(toggleButtons[5]).toHaveAttribute('aria-checked', 'false'); // disabled
     });
   });
 

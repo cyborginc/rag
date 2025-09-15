@@ -61,21 +61,22 @@ describe('NewCollectionButtons', () => {
       expect(screen.getByText('Create Collection')).toBeInTheDocument();
     });
 
-    it('applies correct container styling', () => {
-      const { container } = render(<NewCollectionButtons />);
-      
-      const buttonContainer = container.firstChild as HTMLElement;
-      expect(buttonContainer).toHaveClass('mt-6', 'space-y-3');
-    });
-
-    it('applies correct button styling', () => {
+    it('renders button container with KUI components', () => {
       render(<NewCollectionButtons />);
       
-      const cancelButton = screen.getByText('Cancel');
-      expect(cancelButton).toHaveClass('px-4', 'py-2', 'text-sm', 'rounded', 'border');
+      // KUI components handle styling internally
+      const buttonContainer = screen.getByTestId('button-container');
+      expect(buttonContainer).toBeInTheDocument();
+    });
+
+    it('uses KUI Button components with correct props', () => {
+      render(<NewCollectionButtons />);
       
-      const createButton = screen.getByText('Create Collection');
-      expect(createButton).toHaveClass('px-4', 'py-2', 'text-sm', 'rounded', 'bg-[var(--nv-green)]');
+      const cancelButton = screen.getByTestId('cancel-button');
+      expect(cancelButton).toBeInTheDocument();
+      
+      const createButton = screen.getByTestId('create-button');
+      expect(createButton).toBeInTheDocument();
     });
   });
 
@@ -151,11 +152,12 @@ describe('NewCollectionButtons', () => {
 
       render(<NewCollectionButtons />);
       
-      const createButton = screen.getByText('Processing...');
+      // KUI shows spinner inside button when loading, button should be disabled
+      const createButton = screen.getByTestId('create-button');
       expect(createButton).toBeDisabled();
     });
 
-    it('shows processing text when loading', () => {
+    it('shows spinner when loading', () => {
       mockUseNewCollectionStore.mockReturnValue({
         collectionName: 'valid_name',
         metadataSchema: [],
@@ -167,7 +169,11 @@ describe('NewCollectionButtons', () => {
 
       render(<NewCollectionButtons />);
       
-      expect(screen.getByText('Processing...')).toBeInTheDocument();
+      // KUI Spinner component is rendered inside the button when loading
+      const createButton = screen.getByTestId('create-button');
+      expect(createButton).toBeDisabled();
+      // The button shows spinner instead of text when loading
+      expect(createButton).not.toHaveTextContent('Create Collection');
     });
   });
 

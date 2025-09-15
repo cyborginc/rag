@@ -13,8 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import type { Filter } from "../../types/chat";
+import type { MetadataFieldType, Collection, APIMetadataField } from "../../types/collections";
 import { useCollections } from "../../api/useCollectionsApi";
 import { useMetadataValues } from "../../api/useMetadataValues";
 import { useCollectionsStore } from "../../store/useCollectionsStore";
@@ -24,9 +25,14 @@ interface Props {
   setFilters: (filters: Filter[]) => void;
 }
 
-const OPS: Record<"string" | "datetime", string[]> = {
-  string: ["=", "!="],
-  datetime: ["=", "!=", ">", "<", ">=", "<="],
+const OPS: Record<MetadataFieldType, string[]> = {
+  string: ["=", "!=", "contains", "like", "in", "not in"],
+  integer: ["=", "!=", ">", "<", ">=", "<=", "between", "in", "not in"],
+  float: ["=", "!=", ">", "<", ">=", "<=", "between", "in", "not in"],
+  number: ["=", "!=", ">", "<", ">=", "<=", "between", "in", "not in"],
+  boolean: ["=", "!="],
+  datetime: ["=", "!=", ">", "<", ">=", "<=", "between", "before", "after", "in", "not in"],
+  array: ["in", "contains", "array_contains", "array_contains_all", "array_contains_any", "array_length"],
 };
 
 export default function FilterBar({ filters, setFilters }: Props) {
@@ -43,13 +49,13 @@ export default function FilterBar({ filters, setFilters }: Props) {
 
   // Build metadata field map
   const fieldMeta = useMemo(() => {
-    const map: Record<string, "string" | "datetime"> = {};
-    const source = selectedCollections.length
-      ? collections.filter((c: any) => selectedCollections.includes(c.collection_name))
-      : collections;
-    source.forEach((col: any) => {
-      (col.metadata_schema || []).forEach((f: any) => {
-        map[f.name] = (f.type as any) || "string";
+    const map: Record<string, MetadataFieldType> = {};
+  const source = selectedCollections.length
+    ? collections.filter((c: Collection) => selectedCollections.includes(c.collection_name))
+    : collections;
+  source.forEach((col: Collection) => {
+    (col.metadata_schema || []).forEach((f: APIMetadataField) => {
+        map[f.name] = f.type || "string";
       });
     });
     return map;
@@ -59,7 +65,7 @@ export default function FilterBar({ filters, setFilters }: Props) {
 
   // Fetch distinct metadata values for current field across selected collections
   const { data: valueOptions = [], isLoading: valuesLoading, error: valuesError } = useMetadataValues(
-    selectedCollections.length ? selectedCollections : collections.map((c: any) => c.collection_name),
+    selectedCollections.length ? selectedCollections : collections.map((c: Collection) => c.collection_name),
     draft.field || ""
   );
 
@@ -90,13 +96,61 @@ export default function FilterBar({ filters, setFilters }: Props) {
     show
   });
 
+  // Convert string input value to appropriate type based on field metadata
+  const convertValueToType = (value: string, fieldType: MetadataFieldType): string | number | boolean => {
+    const trimmedValue = value.trim();
+    
+    switch (fieldType) {
+      case "integer": {
+        const intValue = parseInt(trimmedValue, 10);
+        return isNaN(intValue) ? trimmedValue : intValue;
+      }
+      
+      case "float":
+      case "number": {
+        const numValue = parseFloat(trimmedValue);
+        return isNaN(numValue) ? trimmedValue : numValue;
+      }
+      
+      case "boolean": {
+        const lowerValue = trimmedValue.toLowerCase();
+        if (lowerValue === "true") return true;
+        if (lowerValue === "false") return false;
+        return trimmedValue; // Keep as string if not a valid boolean
+      }
+      
+      case "string":
+      case "datetime":
+      case "array":
+      default:
+        return trimmedValue;
+    }
+  };
+
   const commitFilter = () => {
     if (draft.field && draft.op && draft.value?.trim()) {
-      setFilters([...filters, { field: draft.field, operator: draft.op as any, value: draft.value.trim() }]);
+      const fieldType = fieldMeta[draft.field] || "string";
+      const convertedValue = convertValueToType(draft.value, fieldType);
+      
+      const newFilter: Filter = {
+        field: draft.field, 
+        operator: draft.op as Filter['operator'], 
+        value: convertedValue,
+        // Set default logical operator to OR for filters after the first one
+        ...(filters.length > 0 && { logicalOperator: "OR" }),
+      };
+      
+      setFilters([...filters, newFilter]);
       setDraft({});
       setStage("field");
       setInput("");
     }
+  };
+
+  const updateFilterLogicalOperator = (index: number, logicalOperator: "AND" | "OR") => {
+    const updatedFilters = [...filters];
+    updatedFilters[index] = { ...updatedFilters[index], logicalOperator };
+    setFilters(updatedFilters);
   };
 
   const chooseSuggestion = (idx: number) => {
@@ -123,7 +177,14 @@ export default function FilterBar({ filters, setFilters }: Props) {
       // Auto-commit the filter when value is selected
       setTimeout(() => {
         if (draft.field && draft.op && choice.trim()) {
-          setFilters([...filters, { field: draft.field, operator: draft.op as any, value: choice.trim() }]);
+          const fieldType = fieldMeta[draft.field] || "string";
+          const convertedValue = convertValueToType(choice, fieldType);
+          
+          setFilters([...filters, { 
+            field: draft.field, 
+            operator: draft.op as Filter['operator'], 
+            value: convertedValue 
+          }]);
           setDraft({});
           setStage("field");
           setInput("");
@@ -158,9 +219,9 @@ export default function FilterBar({ filters, setFilters }: Props) {
         const updated = [...filters];
         const last = updated.pop()!;
         setFilters(updated);
-        setDraft({ field: last.field, op: last.operator, value: last.value });
+        setDraft({ field: last.field, op: last.operator, value: String(last.value) });
         setStage("value");
-        setInput(last.value);
+        setInput(String(last.value));
       }
     }
   };
@@ -203,24 +264,55 @@ export default function FilterBar({ filters, setFilters }: Props) {
         </div>
 
         {filters.map((f, i) => (
-          <div key={`${f.field}-${i}`} className="flex items-center gap-1.5 bg-[var(--nv-green)]/20 border border-[var(--nv-green)]/40 text-[var(--nv-green)] px-2.5 py-1 rounded-md text-xs font-medium">
-            <span className="font-semibold">{f.field}</span>
-            <span className="text-xs opacity-80">{f.operator}</span>
-            <span className="font-medium">"{f.value}"</span>
-            <button
-              onClick={() => {
-                const updated = filters.filter((_, idx) => idx !== i);
-                setFilters(updated);
-              }}
-              className="ml-1 hover:text-red-400 transition-colors"
-              aria-label="Remove filter"
-              title="Remove filter"
-            >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+          <React.Fragment key={`${f.field}-${i}`}>
+            {/* Show logical operator selector between filters */}
+            {i > 0 && (
+              <div className="flex items-center gap-0">
+                <button
+                  onClick={() => updateFilterLogicalOperator(i, "AND")}
+                  className={`px-1.5 py-1 text-xs font-medium rounded-l-md border transition-colors ${
+                    f.logicalOperator === "AND" 
+                      ? "bg-[var(--nv-green)] text-black border-[var(--nv-green)]" 
+                      : "bg-neutral-700 text-gray-300 border-neutral-600 hover:bg-neutral-600"
+                  }`}
+                >
+                  AND
+                </button>
+                <button
+                  onClick={() => updateFilterLogicalOperator(i, "OR")}
+                  className={`px-1.5 py-1 text-xs font-medium rounded-r-md border-l-0 border transition-colors ${
+                    f.logicalOperator === "OR" || !f.logicalOperator
+                      ? "bg-[var(--nv-green)] text-black border-[var(--nv-green)]" 
+                      : "bg-neutral-700 text-gray-300 border-neutral-600 hover:bg-neutral-600"
+                  }`}
+                >
+                  OR
+                </button>
+              </div>
+            )}
+            
+            {/* Filter tag */}
+            <div className="flex items-center gap-1.5 bg-[var(--nv-green)]/20 border border-[var(--nv-green)]/40 text-[var(--nv-green)] px-2.5 py-1 rounded-md text-xs font-medium">
+              <span className="font-semibold">{f.field}</span>
+              <span className="text-xs opacity-80">{f.operator}</span>
+              <span className="font-medium">
+                {typeof f.value === 'string' ? `"${f.value}"` : String(f.value)}
+              </span>
+              <button
+                onClick={() => {
+                  const updated = filters.filter((_, idx) => idx !== i);
+                  setFilters(updated);
+                }}
+                className="ml-1 hover:text-red-400 transition-colors"
+                aria-label="Remove filter"
+                title="Remove filter"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </React.Fragment>
         ))}
 
         {/* Draft chip */}

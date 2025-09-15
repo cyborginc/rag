@@ -24,6 +24,7 @@ from langchain.prompts import ChatPromptTemplate
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_nvidia_ai_endpoints import ChatNVIDIA, NVIDIAEmbeddings, NVIDIARerank
+from opentelemetry import context as otel_context
 
 from nvidia_rag.rag_server.response_generator import generate_answer
 from nvidia_rag.utils.common import filter_documents_by_confidence, get_config
@@ -36,12 +37,9 @@ logger = logging.getLogger(__name__)
 # Configuration
 config = get_config()
 RECURSION_DEPTH = config.query_decomposition.recursion_depth
-
-# Update param for thinking off in query decomposition
-LLM_PARAMS = {
-    "temperature": 0,
-    "top_p": 1.0,
-}
+# While merging the context, documents should be limited to this number to avoid llm 
+# TODO: configure this from config
+MAX_DOCUMENTS_FOR_GENERATION = 20
 
 
 def format_conversation_history(history: list[tuple[str, str]]) -> str:
@@ -106,6 +104,36 @@ def normalize_relevance_scores(
     return documents
 
 
+def merge_contexts(query: str, contexts: list[Document] = [], sub_query_contexts: dict[str, Any] = {}, max_documents: int = MAX_DOCUMENTS_FOR_GENERATION, reranker: NVIDIARerank | None = None, filter_docs: bool = True) -> list[Document]:
+    """
+    Merge multiple contexts into a single context.
+    """
+    all_contexts = []
+    all_contexts.extend(contexts)
+    for sub_query in sub_query_contexts:
+        all_contexts.extend(sub_query_contexts[sub_query]["context"])
+
+    # Remove duplicates based on page_content
+    seen_contents = set()
+    unique_contexts = []
+    
+    for doc in all_contexts:
+        if doc.page_content not in seen_contents:
+            seen_contents.add(doc.page_content)
+            unique_contexts.append(doc)
+    
+    all_contexts = unique_contexts
+
+    if filter_docs and reranker:
+        reranker.top_n = max_documents
+        all_contexts = reranker.compress_documents(
+            query=query, documents=all_contexts
+        )
+        all_contexts = normalize_relevance_scores(all_contexts, filter_docs=False)
+
+    return all_contexts
+
+
 def generate_subqueries(query: str, llm: ChatNVIDIA) -> list[str]:
     """
     Generate multiple perspectives/subqueries from the original query.
@@ -139,7 +167,9 @@ def generate_subqueries(query: str, llm: ChatNVIDIA) -> list[str]:
         )
     )
 
-    questions = generate_queries.invoke({"question": query})
+    questions = generate_queries.invoke(
+        {"question": query}, config={"run_name": "sub-queries-generation"}
+    )
     logger.info(f"Generated {len(questions)} subqueries from original query")
     logger.info(f"Subqueries: {questions}")
 
@@ -185,7 +215,9 @@ def rewrite_query_with_context(
         "question": question,
     }
 
-    rewritten_query = query_rewriter_chain.invoke(chain_input)
+    rewritten_query = query_rewriter_chain.invoke(
+        chain_input, config={"run_name": "contextual-query-rewriting"}
+    )
 
     logger.info(f"Query rewritten: '{question}' -> '{rewritten_query}'")
     return rewritten_query.strip()
@@ -198,6 +230,7 @@ def retrieve_and_rank_documents(
     ranker: NVIDIARerank | None,
     collection_name: str = config.vector_store.default_collection_name,
     top_k: int = config.retriever.top_k,
+    ranker_top_k: int = config.retriever.top_k,
 ) -> list[Document]:
     """
     Retrieve and optionally rerank documents for a query.
@@ -211,14 +244,17 @@ def retrieve_and_rank_documents(
     Returns:
         List of retrieved and ranked documents
     """
+    otel_ctx = otel_context.get_current()
     retrieved_docs = vdb_op.retrieval_langchain(
         query=query,
         collection_name=collection_name,
         top_k=top_k,
+        otel_ctx=otel_ctx,
     )
     logger.info(f"Retrieved {len(retrieved_docs)} documents for query")
 
     if ranker and retrieved_docs:
+        ranker.top_n = ranker_top_k
         retrieved_docs = ranker.compress_documents(
             query=original_query, documents=retrieved_docs
         )
@@ -253,7 +289,10 @@ def generate_answer_for_query(
     )
     rag_chain = prompt | llm | StrOutputParser()
 
-    answer = rag_chain.invoke({"question": question, "context": documents})
+    answer = rag_chain.invoke(
+        {"question": question, "context": documents},
+        config={"run_name": "sub-query-answer-generation"},
+    )
     logger.info(f"Generated answer for question: '{question[:50]}...'")
 
     return answer
@@ -302,7 +341,8 @@ def generate_followup_question(
             "conversation_history": format_conversation_history(history),
             "question": original_query,
             "context": f"{contexts}",
-        }
+        },
+        config={"run_name": "follow-up-question-generation"},
     )
 
     # Clean up the follow-up question
@@ -324,7 +364,9 @@ def process_subqueries(
     ranker: NVIDIARerank | None,
     collection_name: str = config.vector_store.default_collection_name,
     top_k: int = config.retriever.top_k,
+    ranker_top_k: int = config.retriever.top_k,
     confidence_threshold: float = config.default_confidence_threshold,
+    history: list[tuple[str, str]] | None = None,
 ) -> tuple[list[tuple[str, str]], list[Document]]:
     """
     Process a list of subqueries and return conversation history and contexts.
@@ -339,8 +381,10 @@ def process_subqueries(
     Returns:
         Tuple of (conversation_history, final_contexts)
     """
-    history = []
-    final_contexts = []
+    if history is None:
+        history = []
+    
+    final_contexts = {}
 
     for i, question in enumerate(questions):
         logger.info(f"Processing question {i + 1}/{len(questions)}: {question}")
@@ -351,20 +395,26 @@ def process_subqueries(
 
         # Retrieve and rank documents
         retrieved_docs = retrieve_and_rank_documents(
-            rewritten_query, original_query, vdb_op, ranker, collection_name, top_k
+            rewritten_query, original_query, vdb_op, ranker, collection_name, top_k, ranker_top_k
         )
 
-        # Add normalized documents to final contexts
-        if ranker and retrieved_docs:
-            final_contexts.extend(
-                normalize_relevance_scores(
-                    retrieved_docs, confidence_threshold=confidence_threshold
-                )
-            )
+        final_contexts[question] = {
+            "context": retrieved_docs,
+            "rewritten_query": rewritten_query,
+        }
+
+        # # Add normalized documents to final contexts
+        # if ranker and retrieved_docs:
+        #     final_contexts.extend(
+        #         normalize_relevance_scores(
+        #             retrieved_docs, confidence_threshold=confidence_threshold
+        #         )
+        #     )
 
         # Generate answer
         answer = generate_answer_for_query(rewritten_query, retrieved_docs, llm)
         logger.info(f"Generated answer: {answer}")
+        final_contexts[question]["answer"] = answer
 
         history.append((question, answer))
 
@@ -414,7 +464,8 @@ def generate_final_response(
                 "conversation_history": format_conversation_history(history),
                 "context": f"{contexts}",
                 "question": original_query,
-            }
+            },
+            config={"run_name": "final-response-generation"},
         ),
         contexts=contexts,
         model=llm.model,
@@ -433,6 +484,7 @@ def iterative_query_decomposition(
     enable_citations: bool = True,
     collection_name: str = config.vector_store.default_collection_name,
     top_k: int = config.retriever.top_k,
+    ranker_top_k: int = config.retriever.top_k,
     confidence_threshold: float = config.default_confidence_threshold,
     llm_settings: dict[str, Any] | None = None,
 ):
@@ -466,12 +518,8 @@ def iterative_query_decomposition(
 
     if llm_settings is None:
         llm_settings = {}
-    # Update LLM params for thinking off in query decomposition
-    llm_params = LLM_PARAMS.copy()
-    llm_params["model"] = llm_settings.get("model", config.llm.model_name)
-    llm_params["llm_endpoint"] = llm_settings.get("llm_endpoint", config.llm.server_url)
-    logger.info(f"Using LLM: {llm_params}")
-    llm = get_llm(**llm_params)
+
+    llm = get_llm(**llm_settings)
     # Generate initial subqueries
     questions = generate_subqueries(query, llm)
 
@@ -482,11 +530,12 @@ def iterative_query_decomposition(
 
         # Retrieve and rank documents for the single query
         retrieved_docs = retrieve_and_rank_documents(
-            single_query, query, vdb_op, ranker, collection_name, top_k
+            single_query, query, vdb_op, ranker, collection_name, top_k, ranker_top_k
         )
 
         # Normalize relevance scores if reranker is used
         if ranker and retrieved_docs:
+            ranker.top_n = ranker_top_k
             retrieved_docs = normalize_relevance_scores(
                 retrieved_docs,
                 filter_docs=False,
@@ -503,14 +552,17 @@ def iterative_query_decomposition(
             collection_name=collection_name,
         )
 
-    final_contexts = []
+    # query: context pair, this will contain all the subqueries and their contexts
+    final_contexts = {}
+    # This will contains all the subqueries and their response
+    conversation_history = []
 
     # Iterative refinement process
     for depth in range(recursion_depth):
         logger.info(f"Recursion depth: {depth + 1}/{recursion_depth}")
 
         # Process current set of questions
-        iteration_history, iteration_contexts = process_subqueries(
+        _ , iteration_contexts = process_subqueries(
             questions,
             query,
             llm,
@@ -518,24 +570,38 @@ def iterative_query_decomposition(
             ranker,
             collection_name,
             top_k,
+            ranker_top_k,
             confidence_threshold,
+            conversation_history,
         )
-        final_contexts.extend(iteration_contexts)
+        final_contexts.update(iteration_contexts)
+        # conversation_history.extend(iteration_history)
 
         # Generate follow-up question for next iteration
         followup_question = generate_followup_question(
-            iteration_history, query, final_contexts, llm
+            conversation_history, query, final_contexts, llm
         )
 
-        if followup_question.strip():
+        if followup_question.strip().strip("'").strip('"'):
             questions = [followup_question]
             logger.info(f"Continue with follow-up question: {followup_question}")
         else:
             logger.info(f"No follow-up needed, stopping at depth {depth + 1}")
             break
 
+    # Search document from original query as well
+    retrieved_docs = retrieve_and_rank_documents(
+        query, query, vdb_op, ranker, collection_name, top_k, ranker_top_k
+    )
+
+    contexts = merge_contexts(query, retrieved_docs, final_contexts, max_documents=MAX_DOCUMENTS_FOR_GENERATION, reranker=ranker, filter_docs=True)
     # Generate final comprehensive response
     logger.info("Generating final response with all collected contexts")
     return generate_final_response(
-        iteration_history, final_contexts, query, llm, enable_citations, collection_name
+        conversation_history,
+        contexts,
+        query,
+        llm,
+        enable_citations,
+        collection_name,
     )

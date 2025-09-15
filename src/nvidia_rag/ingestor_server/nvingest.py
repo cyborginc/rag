@@ -22,12 +22,11 @@ import logging
 import os
 
 from nv_ingest_client.client import Ingestor, NvIngestClient
-from nv_ingest_client.util.milvus import pandas_file_reader
 
 from nvidia_rag.utils.common import (
     get_config,
     get_env_variable,
-    prepare_custom_metadata_dataframe,
+    sanitize_nim_url,
 )
 from nvidia_rag.utils.vdb.vdb_base import VDBRag
 
@@ -107,7 +106,7 @@ def get_nv_ingest_ingestor(
 
     # Add splitting task (By default only works for text documents)
     split_options = split_options or {}
-    split_source_types = ["text", "html", "mp3"]
+    split_source_types = ["text", "html", "mp3", "docx"]
     split_source_types = (
         ["PDF"] + split_source_types
         if config.nv_ingest.enable_pdf_splitter
@@ -138,19 +137,48 @@ def get_nv_ingest_ingestor(
 
     # Add Embedding task
     if ENABLE_NV_INGEST_VDB_UPLOAD:
+        embedding_url = sanitize_nim_url(
+            config.embeddings.server_url, config.embeddings.model_name, "embedding"
+        )
+        logger.info(
+            f"Enabling embedding task. Embedding Endpoint URL: {embedding_url}, Embedding Model Name: {config.embeddings.model_name}"
+        )
         if config.nv_ingest.structured_elements_modality:
             ingestor = ingestor.embed(
-                structured_elements_modality=config.nv_ingest.structured_elements_modality
+                structured_elements_modality=config.nv_ingest.structured_elements_modality,
+                endpoint_url=embedding_url,
+                model_name=config.embeddings.model_name,
             )
         elif config.nv_ingest.image_elements_modality:
             ingestor = ingestor.embed(
-                image_elements_modality=config.nv_ingest.image_elements_modality
+                image_elements_modality=config.nv_ingest.image_elements_modality,
+                endpoint_url=embedding_url,
+                model_name=config.embeddings.model_name,
             )
         else:
-            ingestor = ingestor.embed()
+            ingestor = ingestor.embed(
+                endpoint_url=embedding_url,
+                model_name=config.embeddings.model_name,
+            )
+
+    # Add save to disk task
+    if config.nv_ingest.save_to_disk:
+        output_directory = os.path.join(
+            os.getenv("INGESTOR_SERVER_DATA_DIR", "/data/"),
+            "nv-ingest-results",
+            vdb_op.collection_name,
+        )
+        os.makedirs(output_directory, exist_ok=True)
+        ingestor = ingestor.save_to_disk(
+            output_directory=output_directory,
+            cleanup=not config.nv_ingest.save_to_disk,
+        )
 
     # Add Vector-DB upload task
     if ENABLE_NV_INGEST_VDB_UPLOAD:
-        ingestor = ingestor.vdb_upload(vdb_op=vdb_op)
+        ingestor = ingestor.vdb_upload(
+            vdb_op=vdb_op,
+            purge_results_after_upload=not config.nv_ingest.save_to_disk,
+        )
 
     return ingestor

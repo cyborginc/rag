@@ -19,6 +19,12 @@ import { useStreamingStore } from "../../store/useStreamingStore";
 import { MessageContent } from "./MessageContent";
 import { StreamingIndicator } from "./StreamingIndicator";
 import { CitationButton } from "../citations/CitationButton";
+import { 
+  Block, 
+  Flex, 
+  Stack, 
+  Panel
+} from "@kui/react";
 
 interface ChatMessageBubbleProps {
   msg: ChatMessage;
@@ -31,34 +37,40 @@ const MessageContainer = ({
   role: "user" | "assistant"; 
   children: React.ReactNode;
 }) => (
-  <div className={`flex ${role === "user" ? "justify-end" : "justify-start"}`}>
-    <div
-      className={`max-w-2xl rounded-lg p-4 ${
-        role === "user"
-          ? "bg-[var(--nv-green)] text-black"
-          : "bg-neutral-900 text-white"
-      }`}
+  <Flex justify={role === "user" ? "end" : "start"}>
+    <Panel
+      style={{
+        maxWidth: '32rem',
+        backgroundColor: role === "user" 
+          ? 'var(--color-brand)' 
+          : 'var(--background-color-component-track-inverse)',
+        color: role === "user" 
+          ? 'black' 
+          : 'var(--text-color-accent-green)'
+      }}
     >
       {children}
-    </div>
-  </div>
+    </Panel>
+  </Flex>
 );
 
 const StreamingMessage = ({ content }: { content: string }) => (
   <MessageContainer role="assistant">
-    <div className="flex items-center gap-2">
+    <Flex align="center" gap="2">
       <MessageContent content={content} />
       {!content && <StreamingIndicator />}
-    </div>
+    </Flex>
   </MessageContainer>
 );
 
 const RegularMessage = ({ msg }: { msg: ChatMessage }) => (
   <MessageContainer role={msg.role}>
-    <div className="text-sm">
-      <MessageContent content={msg.content ?? ""} />
-    </div>
-    {msg.citations?.length && <CitationButton citations={msg.citations} />}
+    <Stack gap="2">
+      <Block>
+        <MessageContent content={msg.content ?? ""} />
+      </Block>
+      {msg.citations?.length && <CitationButton citations={msg.citations} />}
+    </Stack>
   </MessageContainer>
 );
 

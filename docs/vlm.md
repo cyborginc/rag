@@ -132,6 +132,9 @@ Set the following environment variables to enable VLM inference:
 export ENABLE_VLM_INFERENCE="true"
 export APP_VLM_MODELNAME="nvidia/llama-3.1-nemotron-nano-vl-8b-v1"
 export APP_VLM_SERVERURL="http://vlm-ms:8000/v1"
+
+# Apply by restarting rag-server
+docker compose -f deploy/compose/docker-compose-rag-server.yaml up -d
 ```
 
 - `ENABLE_VLM_INFERENCE`: Enables VLM inference in the RAG server
@@ -152,6 +155,9 @@ To use a remote NVIDIA-hosted NIM for VLM inference:
 export ENABLE_VLM_INFERENCE="true"
 export APP_VLM_MODELNAME="nvidia/llama-3.1-nemotron-nano-vl-8b-v1"
 export APP_VLM_SERVERURL="https://integrate.api.nvidia.com/v1/"
+
+# Apply by restarting rag-server
+docker compose -f deploy/compose/docker-compose-rag-server.yaml up -d
 ```
 
 Continue following the rest of steps [in quickstart](quickstart.md) to deploy the ingestion-server and rag-server containers.
@@ -187,7 +193,7 @@ To enable VLM inference in Helm-based deployments, follow these steps:
    Run the following command to upgrade or install your deployment:
 
    ```
-   helm upgrade --install rag -n <namespace> https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc1.tgz \
+   helm upgrade --install rag -n <namespace> https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \
      --username '$oauthtoken' \
      --password "${NGC_API_KEY}" \
      --set imagePullSecret.password=$NGC_API_KEY \
@@ -236,6 +242,9 @@ By default, VLM response reasoning is disabled. If you observe incorrect or low-
   ```bash
   export ENABLE_VLM_INFERENCE="true"
   export ENABLE_VLM_RESPONSE_REASONING="true"
+
+  # Apply by restarting rag-server
+  docker compose -f deploy/compose/docker-compose-rag-server.yaml up -d
   ```
 
 - Programmatic/config toggle:
@@ -262,11 +271,37 @@ export ENABLE_VLM_INFERENCE="true"
 export APP_VLM_MAX_TOTAL_IMAGES="4"
 export APP_VLM_MAX_QUERY_IMAGES="1"
 export APP_VLM_MAX_CONTEXT_IMAGES="3"
+
+# Apply by restarting rag-server
+docker compose -f deploy/compose/docker-compose-rag-server.yaml up -d
 ```
 
 ### VLM response as final answer
 
 By default, the VLM's response is added to the LLM as additional context, and the LLM generates the final response incorporating both textual and visual insights. You can configure the system to use the VLM's response directly as the final answer, bypassing the LLM reasoning step entirely.
+
+#### Use VLM response as the final answer with a dedicated profile
+
+If you want the VLM output to be returned as the final answer and avoid starting the `nim-llm` service, use the dedicated compose profile that runs only the VLM, embedding, and reranker microservices.
+
+1) Set the environment variables for the RAG server:
+
+```bash
+export ENABLE_VLM_INFERENCE="true"
+export APP_VLM_RESPONSE_AS_FINAL_ANSWER="true"
+```
+
+2) Start only the required NIM services (VLM, Embedding, Reranker) using the `vlm-final-answer` profile defined in `deploy/compose/nims.yaml`:
+
+```bash
+USERID=$(id -u) docker compose -f deploy/compose/nims.yaml --profile vlm-final-answer up -d
+```
+
+This profile starts the following services and skips `nim-llm`:
+
+- nemoretriever-embedding-ms
+- nemoretriever-ranking-ms
+- vlm-ms
 
 - `APP_VLM_RESPONSE_AS_FINAL_ANSWER` (default: false): When enabled, the VLM's response becomes the final answer without additional LLM processing.
 
@@ -275,9 +310,54 @@ Enable at runtime (docker compose):
 ```bash
 export ENABLE_VLM_INFERENCE="true"
 export APP_VLM_RESPONSE_AS_FINAL_ANSWER="true"
+
+# Apply by restarting rag-server
+docker compose -f deploy/compose/docker-compose-rag-server.yaml up -d
 ```
 
 **Important Notes:**
 - When this flag is enabled and images are provided as input (either from context or query), the VLM response will always be used as the final answer
 - This mode is useful when you want pure visual analysis without additional text interpretation or reasoning
 - The response will be based solely on what the VLM can extract from the images, without incorporating textual context from retrieved documents
+
+#### Use VLM response as the final answer (Helm)
+
+To enable final-answer mode with Helm (skip `nim-llm` and return the VLM output directly):
+
+1) In your `values.yaml` for the chart at `deploy/helm/nvidia-blueprint-rag/values.yaml`, set the following under `envVars`:
+
+```yaml
+ENABLE_VLM_INFERENCE: "true"
+APP_VLM_RESPONSE_AS_FINAL_ANSWER: "true"
+```
+
+2) Enable the VLM NIM and disable the LLM NIM:
+
+```yaml
+nim-vlm:
+  enabled: true
+
+nim-llm:
+  enabled: false
+```
+
+3) (Optional, recommended) Ensure features that depend on the LLM remain disabled:
+
+```yaml
+ENABLE_QUERYREWRITER: "False"
+ENABLE_REFLECTION: "False"
+```
+
+4) Apply or upgrade the release:
+
+```bash
+helm upgrade --install rag -n <namespace> https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc1.tgz \
+  --username '$oauthtoken' \
+  --password "${NGC_API_KEY}" \
+  --set imagePullSecret.password=$NGC_API_KEY \
+  --set ngcApiSecret.password=$NGC_API_KEY \
+  -f deploy/helm/nvidia-blueprint-rag/values.yaml
+```
+
+> [!Note]
+> In this mode, the RAG server will use the VLM output as the final response. Keep the embedding and reranker services enabled as in the default chart configuration. If you use a local VLM, also set `APP_VLM_SERVERURL` (for example, `http://nim-vlm:8000/v1`) and enable the `nim-vlm` subchart as shown above.

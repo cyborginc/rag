@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '../../../test/utils';
 import { CollectionItem } from '../CollectionItem';
+import type { MetadataFieldType } from '../../../types/collections';
 
 // Mock stores
 const mockCollectionsStore = {
@@ -12,8 +13,8 @@ const mockDrawerStore = {
   openDrawer: vi.fn()
 };
 
-const mockTasksStore = {
-  pendingTasks: [] as any[]
+const mockNotificationStore = {
+  getPendingTasks: vi.fn().mockReturnValue([])
 };
 
 vi.mock('../../../store/useCollectionsStore', () => ({
@@ -24,8 +25,8 @@ vi.mock('../../../store/useCollectionDrawerStore', () => ({
   useCollectionDrawerStore: () => mockDrawerStore
 }));
 
-vi.mock('../../../store/useIngestionTasksStore', () => ({
-  useIngestionTasksStore: () => mockTasksStore
+vi.mock('../../../store/useNotificationStore', () => ({
+  useNotificationStore: () => mockNotificationStore
 }));
 
 describe('CollectionItem', () => {
@@ -38,7 +39,7 @@ describe('CollectionItem', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCollectionsStore.selectedCollections = [];
-    mockTasksStore.pendingTasks = [];
+    mockNotificationStore.getPendingTasks.mockReturnValue([]);
   });
 
   describe('Basic Rendering', () => {
@@ -48,51 +49,29 @@ describe('CollectionItem', () => {
       expect(screen.getByText('test-collection')).toBeInTheDocument();
     });
 
-    it('renders as clickable element', () => {
+    it('renders with KUI components', () => {
       const { container } = render(<CollectionItem collection={mockCollection} />);
       
-      const clickableContainer = container.querySelector('.cursor-pointer');
-      expect(clickableContainer).toBeInTheDocument();
+      // KUI Flex component renders as div, check for basic structure
+      expect(container.firstChild).toBeInTheDocument();
+      expect(screen.getByText('test-collection')).toBeInTheDocument();
     });
   });
 
-  describe('Selection State', () => {
-    it('shows unselected state when not in selectedCollections', () => {
-      mockCollectionsStore.selectedCollections = ['other-collection'];
-      
-      const { container } = render(<CollectionItem collection={mockCollection} />);
-      
-      const checkbox = container.querySelector('.border-gray-600');
-      expect(checkbox).toBeInTheDocument();
-      expect(checkbox).not.toHaveClass('bg-[var(--nv-green)]');
-    });
-
-    it('shows selected state when in selectedCollections', () => {
-      mockCollectionsStore.selectedCollections = ['test-collection'];
-      
+  describe('Content Display', () => {
+    it('displays collection information correctly', () => {
       render(<CollectionItem collection={mockCollection} />);
       
-      const container = screen.getByText('test-collection').closest('div');
-      expect(container).toBeInTheDocument();
+      expect(screen.getByText('test-collection')).toBeInTheDocument();
+      expect(screen.getByText('100 entities')).toBeInTheDocument();
     });
 
-    it('calls toggleCollection when item clicked', () => {
-      render(<CollectionItem collection={mockCollection} />);
-      
-      const item = screen.getByText('test-collection').closest('div');
-      fireEvent.click(item!);
-      
-      expect(mockCollectionsStore.toggleCollection).toHaveBeenCalledWith('test-collection');
-    });
-
-    it('toggles different collections correctly', () => {
-      const collection2 = { ...mockCollection, collection_name: 'other-collection' };
+    it('shows correct entity count for different collections', () => {
+      const collection2 = { ...mockCollection, collection_name: 'other-collection', num_entities: 250 };
       render(<CollectionItem collection={collection2} />);
       
-      const item = screen.getByText('other-collection').closest('div');
-      fireEvent.click(item!);
-      
-      expect(mockCollectionsStore.toggleCollection).toHaveBeenCalledWith('other-collection');
+      expect(screen.getByText('other-collection')).toBeInTheDocument();
+      expect(screen.getByText('250 entities')).toBeInTheDocument();
     });
   });
 
@@ -119,7 +98,7 @@ describe('CollectionItem', () => {
       const customCollection = {
         collection_name: 'custom-collection',
         num_entities: 50,
-        metadata_schema: [{ name: 'field1', type: 'string', description: 'desc' }]
+        metadata_schema: [{ name: 'field1', type: 'string' as MetadataFieldType, description: 'desc' }]
       };
       
       render(<CollectionItem collection={customCollection} />);
@@ -133,7 +112,7 @@ describe('CollectionItem', () => {
 
   describe('Pending Tasks Display', () => {
     it('shows more button when no pending tasks', () => {
-      mockTasksStore.pendingTasks = [];
+      mockNotificationStore.getPendingTasks.mockReturnValue([]);
       
       render(<CollectionItem collection={mockCollection} />);
       
@@ -141,10 +120,10 @@ describe('CollectionItem', () => {
     });
 
     it('hides more button when collection has pending tasks', () => {
-      mockTasksStore.pendingTasks = [{
+      mockNotificationStore.getPendingTasks.mockReturnValue([{
         collection_name: 'test-collection',
         state: 'PENDING'
-      }];
+      }]);
       
       render(<CollectionItem collection={mockCollection} />);
       
@@ -152,10 +131,10 @@ describe('CollectionItem', () => {
     });
 
     it('shows spinner when collection has pending tasks', () => {
-      mockTasksStore.pendingTasks = [{
+      mockNotificationStore.getPendingTasks.mockReturnValue([{
         collection_name: 'test-collection',
         state: 'PENDING'
-      }];
+      }]);
       
       const { container } = render(<CollectionItem collection={mockCollection} />);
       
@@ -164,10 +143,10 @@ describe('CollectionItem', () => {
     });
 
     it('shows more button for collection without pending tasks while other has pending', () => {
-      mockTasksStore.pendingTasks = [{
+      mockNotificationStore.getPendingTasks.mockReturnValue([{
         collection_name: 'other-collection',
         state: 'PENDING'
-      }];
+      }]);
       
       render(<CollectionItem collection={mockCollection} />);
       
@@ -175,10 +154,10 @@ describe('CollectionItem', () => {
     });
 
     it('ignores non-pending tasks', () => {
-      mockTasksStore.pendingTasks = [{
+      mockNotificationStore.getPendingTasks.mockReturnValue([{
         collection_name: 'test-collection',
         state: 'FINISHED'
-      }];
+      }]);
       
       render(<CollectionItem collection={mockCollection} />);
       

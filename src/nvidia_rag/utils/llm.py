@@ -139,6 +139,7 @@ def get_llm(**kwargs) -> LLM | SimpleChatModel:
                         temperature=kwargs.get("temperature", None),
                         top_p=kwargs.get("top_p", None),
                         max_tokens=kwargs.get("max_tokens", None),
+                        stop=kwargs.get("stop", []),
                     )
                 except (requests.RequestException, requests.ConnectionError) as e:
                     error_msg = f"Failed to connect to guardrails service at {
@@ -158,6 +159,7 @@ def get_llm(**kwargs) -> LLM | SimpleChatModel:
                 temperature=kwargs.get("temperature", None),
                 top_p=kwargs.get("top_p", None),
                 max_tokens=kwargs.get("max_tokens", None),
+                stop=kwargs.get("stop", []),
             )
 
         logger.info("Using llm model %s from api catalog", kwargs.get("model"))
@@ -166,6 +168,7 @@ def get_llm(**kwargs) -> LLM | SimpleChatModel:
             temperature=kwargs.get("temperature", None),
             top_p=kwargs.get("top_p", None),
             max_tokens=kwargs.get("max_tokens", None),
+            stop=kwargs.get("stop", []),
         )
 
     raise RuntimeError(

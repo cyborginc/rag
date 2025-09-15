@@ -55,7 +55,7 @@ describe('MessageActions', () => {
       
       const sendButton = screen.getByTitle('Send message');
       expect(sendButton).not.toBeDisabled();
-      expect(sendButton).toHaveClass('bg-[var(--nv-green)]');
+      // KUI Button handles styling internally
     });
 
     it('renders send button as disabled when canSubmit is false', () => {
@@ -68,7 +68,7 @@ describe('MessageActions', () => {
       
       const sendButton = screen.getByTitle('Send message');
       expect(sendButton).toBeDisabled();
-      expect(sendButton).toHaveClass('bg-neutral-700', 'cursor-not-allowed');
+      // KUI Button handles disabled styling internally
     });
 
     it('calls handleSubmit when send button is clicked', () => {
@@ -140,8 +140,10 @@ describe('MessageActions', () => {
     it('renders with correct container positioning', () => {
       const { container } = render(<MessageActions />);
       
+      // Check that the KUI Block container is positioned absolutely
       const actionsContainer = container.firstChild as HTMLElement;
-      expect(actionsContainer).toHaveClass('absolute', 'right-3', 'top-3', 'flex', 'items-center', 'gap-2');
+      expect(actionsContainer).toBeInTheDocument();
+      expect(actionsContainer).toHaveStyle('position: absolute');
     });
 
     it('renders send icon correctly', () => {
@@ -150,7 +152,7 @@ describe('MessageActions', () => {
       const sendButton = screen.getByTitle('Send message');
       const svg = sendButton.querySelector('svg');
       expect(svg).toBeInTheDocument();
-      expect(svg).toHaveClass('w-4', 'h-4');
+      // KUI components handle icon sizing internally
     });
 
     it('renders stop icon correctly', () => {
@@ -162,8 +164,8 @@ describe('MessageActions', () => {
       render(<MessageActions />);
       
       const stopButton = screen.getByText('Stop');
-      // Check that the stop button contains the stop icon structure
-      expect(stopButton).toContainHTML('Stop');
+      // Check that the stop button contains the stop text
+      expect(stopButton).toHaveTextContent('Stop');
     });
   });
 
@@ -209,14 +211,15 @@ describe('MessageActions', () => {
   });
 
   describe('Button Styling States', () => {
-    it('applies hover effects to enabled send button', () => {
+    it('enabled send button is interactive', () => {
       render(<MessageActions />);
       
       const sendButton = screen.getByTitle('Send message');
-      expect(sendButton).toHaveClass('hover:bg-[var(--nv-green)]/90', 'hover:shadow-lg');
+      expect(sendButton).not.toBeDisabled();
+      // KUI Button handles hover effects internally
     });
 
-    it('applies disabled styling to disabled send button', () => {
+    it('disabled send button has correct state', () => {
       mockUseMessageSubmit.mockReturnValue({
         handleSubmit: mockHandleSubmit,
         canSubmit: false
@@ -225,14 +228,16 @@ describe('MessageActions', () => {
       render(<MessageActions />);
       
       const sendButton = screen.getByTitle('Send message');
-      expect(sendButton).toHaveClass('opacity-50', 'text-gray-400');
+      expect(sendButton).toBeDisabled();
+      // KUI Button handles disabled styling internally
     });
 
-    it('applies correct transition classes', () => {
+    it('buttons have correct KUI structure', () => {
       render(<MessageActions />);
       
       const sendButton = screen.getByTitle('Send message');
-      expect(sendButton).toHaveClass('transition-all', 'duration-200');
+      expect(sendButton).toBeInTheDocument();
+      // KUI Button handles all transitions and animations internally
     });
   });
 }); 

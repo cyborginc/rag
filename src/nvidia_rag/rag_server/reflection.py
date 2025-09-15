@@ -14,11 +14,22 @@
 # limitations under the License.
 """
 This module contains the reflection logic for the RAG server.
-Reflection is a technique used to improve the quality of the generated response by checking the relevance of the retrieved context and the groundedness of the generated response.
+
+Reflection is a technique used to improve the quality of the generated response by checking
+the relevance of the retrieved context and the groundedness of the generated response.
+The module uses deterministic sampling parameters and structured prompts for consistent,
+reproducible reflection results.
+
+Components:
 1. ReflectionCounter: A class that tracks the number of reflection iterations across query rewrites and response regeneration.
 2. check_context_relevance: Check relevance of retrieved context and optionally rewrite query for better results.
 3. check_response_groundedness: Check groundedness of generated response against retrieved context.
 4. _retry_score_generation: Helper method to retry score generation with error handling.
+
+Features:
+- Deterministic reflection using temperature=0 and low top_p for reproducible results
+- Large context window support (32K tokens) for comprehensive analysis
+- Structured prompts with system and human message pairs for precise instruction following
 """
 
 import logging
@@ -101,22 +112,37 @@ def check_context_relevance(
 ) -> tuple[list[str], bool]:
     """Check relevance of retrieved context and optionally rewrite query for better results.
 
+    This function evaluates the relevance of retrieved context documents using a deterministic
+    reflection LLM. If the context doesn't meet the relevance threshold, it attempts to rewrite
+    the query for better retrieval results using structured prompts with both system and human
+    message components.
+
     Args:
+        vdb_op (VDBRag): Vector database operations instance
         retriever_query (str): Current query to use for retrieval
-        retrievers: List of Document retriever instances or tuples of (retriever, filter_expr)
-        ranker: Optional document ranker instance
-        reflection_counter: ReflectionCounter instance to track loop count
-        enable_reranker: Whether to use the reranker if available
-        filter_expr: Filter expression to filter the retrieved documents from Milvus collection
+        collection_names (list[str]): List of collection names to search
+        ranker: Optional document ranker instance for reranking results
+        reflection_counter (ReflectionCounter): Instance to track reflection iteration count
+        top_k (int): Number of top documents to retrieve (default: 10)
+        enable_reranker (bool): Whether to use the reranker if available (default: True)
+        collection_filter_mapping: Filter expressions for filtering documents from collections
 
     Returns:
-        Tuple[List[str], bool]: Retrieved documents and whether they meet relevance threshold
+        Tuple[List[str], bool]: A tuple containing:
+            - List of retrieved document objects
+            - Boolean indicating whether they meet the relevance threshold
+
+    Note:
+        - Uses deterministic sampling (temperature=0, top_p=0.1) for reproducible results
+        - Supports large context windows (32768 tokens) for comprehensive evaluation
+        - Employs structured prompts with system and human message pairs for both
+          relevance checking and query rewriting
     """
     relevance_threshold = int(os.environ.get("CONTEXT_RELEVANCE_THRESHOLD", 1))
     reflection_llm_name = (
         get_env_variable(
             variable_name="REFLECTION_LLM",
-            default_value="nvidia/llama-3_3-nemotron-super-49b-v1_5",
+            default_value="nvidia/llama-3-3-nemotron-super-49b-v1-5",
         )
         .strip('"')
         .strip("'")
@@ -127,9 +153,9 @@ def check_context_relevance(
 
     llm_params = {
         "model": reflection_llm_name,
-        "temperature": 0.2,
-        "top_p": 0.9,
-        "max_tokens": 512,
+        "temperature": 0,
+        "top_p": 0.1,
+        "max_tokens": 32768,
     }
 
     if reflection_llm_endpoint:
@@ -140,12 +166,14 @@ def check_context_relevance(
     relevance_template = ChatPromptTemplate.from_messages(
         [
             ("system", prompts["reflection_relevance_check_prompt"]["system"]),
+            ("human", prompts["reflection_relevance_check_prompt"]["human"]),
         ]
     )
 
     query_rewrite_template = ChatPromptTemplate.from_messages(
         [
             ("system", prompts["reflection_query_rewriter_prompt"]["system"]),
+            ("human", prompts["reflection_query_rewriter_prompt"]["human"]),
         ]
     )
 
@@ -238,25 +266,50 @@ def check_context_relevance(
 
 
 def check_response_groundedness(
+    query: str,
     response: str,
     context: list[str],
     reflection_counter: ReflectionCounter,
 ) -> tuple[str, bool]:
     """Check groundedness of generated response against retrieved context.
 
+    This function evaluates whether the generated response is well-grounded in the
+    provided context documents using a deterministic reflection LLM. If the response
+    doesn't meet the groundedness threshold, it attempts to regenerate a better response
+    using structured prompts with both system and human message components.
+
+    The function uses deterministic parameters (temperature=0, low top_p) for consistent
+    evaluation and supports large context windows (32K tokens) for comprehensive analysis.
+
     Args:
-        response (str): Generated response to check
-        context (List[str]): List of context documents
-        reflection_counter: ReflectionCounter instance to track loop count
+        query (str): The original user query
+        response (str): Generated response to check for groundedness
+        context (List[str]): List of context documents used for grounding evaluation
+        reflection_counter (ReflectionCounter): Instance to track reflection iteration count
 
     Returns:
-        Tuple[str, bool]: Final response and whether it meets groundedness threshold
+        Tuple[str, bool]: A tuple containing:
+            - str: The final response (original or regenerated)
+            - bool: Whether the response meets the groundedness threshold (True) or not (False)
+
+    Environment Variables:
+        RESPONSE_GROUNDEDNESS_THRESHOLD: Minimum score required for response to be considered grounded (default: 1)
+        REFLECTION_LLM: Model name for the reflection LLM (default: nvidia/llama-3-3-nemotron-super-49b-v1-5)
+        REFLECTION_LLM_SERVERURL: Optional custom endpoint for the reflection LLM
+
+    Note:
+        - Uses deterministic sampling (temperature=0, top_p=0.1) for reproducible results
+        - Supports large context windows (32768 tokens) for comprehensive evaluation
+        - Employs structured prompts with system and human message pairs
     """
+    # Get configuration values for groundedness evaluation
     groundedness_threshold = int(os.environ.get("RESPONSE_GROUNDEDNESS_THRESHOLD", 1))
+
+    # Configure the reflection LLM for groundedness checking and response regeneration
     reflection_llm_name = (
         get_env_variable(
             variable_name="REFLECTION_LLM",
-            default_value="nvidia/llama-3_3-nemotron-super-49b-v1_5",
+            default_value="nvidia/llama-3-3-nemotron-super-49b-v1-5",
         )
         .strip('"')
         .strip("'")
@@ -265,11 +318,12 @@ def check_response_groundedness(
         os.environ.get("REFLECTION_LLM_SERVERURL", "").strip('"').strip("'")
     )
 
+    # Set deterministic LLM parameters for consistent and reproducible reflection
     llm_params = {
         "model": reflection_llm_name,
-        "temperature": 0.2,
-        "top_p": 0.9,
-        "max_tokens": 1024,
+        "temperature": 0,  # Deterministic sampling for reproducible results
+        "top_p": 0.1,  # Very low top_p for focused, deterministic responses
+        "max_tokens": 32768,  # Large token limit for comprehensive analysis and long responses
     }
 
     if reflection_llm_endpoint:
@@ -277,16 +331,22 @@ def check_response_groundedness(
 
     reflection_llm = get_llm(**llm_params)
 
+    # Prepare structured prompt template for groundedness evaluation
+    # Uses both system and human messages for more precise instruction following
     groundedness_template = ChatPromptTemplate.from_messages(
         [
             ("system", prompts["reflection_groundedness_check_prompt"]["system"]),
+            ("human", prompts["reflection_groundedness_check_prompt"]["human"]),
         ]
     )
 
+    # Prepare context and response for evaluation
     context_text = "\n".join(context)
     current_response = response
 
+    # Main reflection loop: evaluate groundedness and regenerate if needed
     while reflection_counter.remaining > 0:
+        # Evaluate how well the current response is grounded in the provided context
         groundedness_chain = groundedness_template | reflection_llm | StrOutputParser()
         groundedness_score = _retry_score_generation(
             groundedness_chain, {"context": context_text, "response": current_response}
@@ -297,25 +357,43 @@ def check_response_groundedness(
         )
         reflection_counter.increment()
 
+        # If response meets the groundedness threshold, return it as successful
         if groundedness_score >= groundedness_threshold:
             return current_response, True
 
+        # If we have remaining iterations, attempt to regenerate a better response
         if reflection_counter.remaining > 0:
+            # Prepare structured prompt template for response regeneration
+            # Uses both system and human messages for comprehensive instruction delivery
             regen_prompt = ChatPromptTemplate.from_messages(
                 [
                     (
                         "system",
                         prompts["reflection_response_regeneration_prompt"]["system"],
                     ),
+                    (
+                        "human",
+                        prompts["reflection_response_regeneration_prompt"]["human"],
+                    ),
                 ]
             )
 
+            # Generate a new response using the deterministic reflection LLM
             regen_chain = regen_prompt | reflection_llm | StrOutputParser()
             current_response = regen_chain.invoke(
-                {"context": context_text}, config={"run_name": "response-regenerator"}
+                {"query": query, "context": context_text},
+                config={"run_name": "response-regenerator"},
             )
+
+            # Check if the model indicates the query is out of context
+            # If so, return the original response and stop the reflection process
+            if "OUT OF CONTEXT" in current_response:
+                return response, False
+
             logger.info(
                 f"Regenerated response (iteration {reflection_counter.current_count})"
             )
 
+    # Return the final response after all reflection iterations are exhausted
+    # The boolean False indicates that the groundedness threshold was not met
     return current_response, False

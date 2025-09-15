@@ -15,7 +15,11 @@ describe('DocumentsList', () => {
     vi.spyOn(useCollectionDocumentsModule, 'useCollectionDocuments').mockReturnValue({
       data: undefined,
       isLoading: true,
-      error: null
+      error: null,
+      isError: false,
+      isPending: false,
+      isLoadingError: false,
+      isRefetchError: false
     } as any);
 
     render(<DocumentsList />);
@@ -26,7 +30,11 @@ describe('DocumentsList', () => {
     vi.spyOn(useCollectionDocumentsModule, 'useCollectionDocuments').mockReturnValue({
       data: undefined,
       isLoading: false,
-      error: new Error('Failed to fetch')
+      error: new Error('Failed to fetch'),
+      isError: true,
+      isPending: false,
+      isLoadingError: false,
+      isRefetchError: false
     } as any);
 
     render(<DocumentsList />);
@@ -35,7 +43,11 @@ describe('DocumentsList', () => {
 
   it('shows empty state when no documents', () => {
     vi.spyOn(useCollectionDocumentsModule, 'useCollectionDocuments').mockReturnValue({
-      data: { documents: [] },
+      data: {
+        message: 'Success',
+        total_documents: 0,
+        documents: []
+      },
       isLoading: false,
       error: null
     } as any);
@@ -47,6 +59,8 @@ describe('DocumentsList', () => {
   it('renders documents when data available', () => {
     vi.spyOn(useCollectionDocumentsModule, 'useCollectionDocuments').mockReturnValue({
       data: {
+        message: 'Success',
+        total_documents: 2,
         documents: [
           { document_name: 'doc1.pdf', metadata: {} },
           { document_name: 'doc2.txt', metadata: {} }

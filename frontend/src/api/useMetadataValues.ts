@@ -14,6 +14,7 @@
 // limitations under the License.
 
 import { useQuery } from "@tanstack/react-query";
+import type { DocumentItem } from "../types/api";
 
 /**
  * Custom hook to fetch unique metadata values for a specific field across collections.
@@ -42,7 +43,7 @@ export function useMetadataValues(collectionNames: string[], field: string) {
         );
         if (!res.ok) throw new Error("Failed to fetch documents");
         const json = await res.json();
-        (json.documents || []).forEach((doc: any) => {
+        (json.documents || []).forEach((doc: DocumentItem) => {
           const v = doc.metadata?.[field];
           if (v != null && v !== "") seen.add(String(v));
         });

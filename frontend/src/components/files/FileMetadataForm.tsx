@@ -25,7 +25,7 @@ interface FileMetadataFormProps {
 export const FileMetadataForm = ({ fileName }: FileMetadataFormProps) => {
   const { metadataSchema, fileMetadata, updateMetadataField } = useNewCollectionStore();
 
-  const handleFieldChange = useCallback((fieldName: string, value: string) => {
+  const handleFieldChange = useCallback((fieldName: string, value: unknown) => {
     updateMetadataField(fileName, fieldName, value);
   }, [fileName, updateMetadataField]);
 
@@ -43,7 +43,18 @@ export const FileMetadataForm = ({ fileName }: FileMetadataFormProps) => {
             key={field.name}
             fileName={fileName}
             field={field}
-            value={fileMetadata[fileName]?.[field.name] || ""}
+            value={(() => {
+              const existingValue = fileMetadata[fileName]?.[field.name];
+              if (existingValue !== undefined) return existingValue;
+              switch (field.type) {
+                case "boolean": return false;
+                case "array": return [];
+                case "integer":
+                case "float":
+                case "number": return null;
+                default: return "";
+              }
+            })()}
             onChange={handleFieldChange}
           />
         ))}

@@ -18,21 +18,16 @@ import { useNewCollectionStore } from "../../store/useNewCollectionStore";
 import { useCollectionDrawerStore } from "../../store/useCollectionDrawerStore";
 import { useCollectionActions } from "../../hooks/useCollectionActions";
 import NvidiaUpload from "../files/NvidiaUpload";
+import { Button, Stack, Flex, Text, Spinner } from "@kui/react";
 
 const CloseIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+  <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
   </svg>
 );
 
-const AddIcon = () => (
-  <svg className="w-3 h-3 text-black" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-  </svg>
-);
-
 export const UploaderSection = () => {
-  const { selectedFiles } = useNewCollectionStore();
+  const { selectedFiles, hasInvalidFiles } = useNewCollectionStore();
   const { toggleUploader } = useCollectionDrawerStore();
   const { handleUploadDocuments, isUploading } = useCollectionActions();
 
@@ -41,49 +36,70 @@ export const UploaderSection = () => {
     useNewCollectionStore.getState().reset();
   }, [toggleUploader]);
 
+  const handleValidationChange = useCallback((hasInvalidFiles: boolean) => {
+    useNewCollectionStore.getState().setHasInvalidFiles(hasInvalidFiles);
+  }, []);
+
+  const handleFilesChange = useCallback((files: File[]) => {
+    useNewCollectionStore.getState().addFiles(files);
+  }, []);
+
   return (
-    <div className="border-t border-neutral-600 pt-6 mt-6 space-y-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-6 h-6 rounded-lg bg-[var(--nv-green)] flex items-center justify-center">
-            <AddIcon />
-          </div>
-          <h3 className="text-lg font-semibold text-white">Add New Documents</h3>
-        </div>
-        <button
+    <Stack 
+      gap="density-xl" 
+      style={{ 
+        borderTop: '1px solid var(--border-color-subtle)',
+        paddingTop: '24px',
+        marginTop: '24px'
+      }}
+    >
+      <Flex justify="between" align="center" style={{ marginBottom: '16px' }}>
+        <Flex align="center" gap="density-md">
+          <Text kind="body/bold/lg" style={{ color: 'var(--text-color-inverse)' }}>
+            Add New Documents
+          </Text>
+        </Flex>
+        <Button
           onClick={handleCloseUploader}
-          className="p-1 text-gray-400 hover:text-white hover:bg-neutral-800 rounded-lg transition-colors"
           disabled={isUploading}
+          kind="tertiary"
+          color="neutral"
+          size="small"
+          style={{ 
+            color: 'var(--text-color-secondary-inverse)',
+            transition: 'all 0.2s'
+          }}
         >
           <CloseIcon />
-        </button>
-      </div>
+        </Button>
+      </Flex>
       
       <NvidiaUpload
-        onFilesChange={(files) => {
-          useNewCollectionStore.getState().addFiles(files);
-        }}
+        onFilesChange={handleFilesChange}
+        onValidationChange={handleValidationChange}
         acceptedTypes={['.bmp', '.docx', '.html', '.jpeg', '.json', '.md', '.pdf', '.png', '.pptx', '.sh', '.tiff', '.txt', '.mp3', '.wav']}
-        maxFileSize={50}
-        maxFiles={20}
+        maxFileSize={400}
       />
       
       {selectedFiles.length > 0 && (
-        <button
+        <Button
           onClick={handleUploadDocuments}
-          disabled={isUploading}
-          className="w-full px-6 py-3 bg-[var(--nv-green)] hover:bg-[var(--nv-green)]/90 text-sm rounded-xl font-semibold text-black transition-all duration-200 hover:shadow-lg hover:shadow-[var(--nv-green)]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isUploading || hasInvalidFiles}
+          kind="primary"
+          color="brand"
+          size="large"
+          style={{ width: '100%' }}
         >
           {isUploading ? (
-            <>
-              <div className="inline-block w-4 h-4 mr-2 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+            <Flex align="center" gap="density-sm">
+              <Spinner size="small" aria-label="Uploading files" />
               Uploading {selectedFiles.length} File{selectedFiles.length > 1 ? 's' : ''}...
-            </>
+            </Flex>
           ) : (
             `Upload ${selectedFiles.length} File${selectedFiles.length > 1 ? 's' : ''}`
           )}
-        </button>
+        </Button>
       )}
-    </div>
+    </Stack>
   );
 }; 

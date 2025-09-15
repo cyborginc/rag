@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { Flex, Text } from "@kui/react";
+
 interface StreamingIndicatorProps {
   text?: string;
 }
@@ -20,12 +22,42 @@ interface StreamingIndicatorProps {
 export const StreamingIndicator = ({ 
   text 
 }: StreamingIndicatorProps) => (
-  <div className="flex items-center gap-2">
-    {text && <span className="text-gray-400 text-sm">{text}</span>}
-    <div className="flex space-x-1">
-      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-      <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
-    </div>
-  </div>
+  <Flex align="center" gap="2">
+    {text && (
+      <Text kind="body/regular/sm" style={{ color: 'var(--text-color-subtle)' }}>
+        {text}
+      </Text>
+    )}
+    <Flex gap="1">
+      <div 
+        style={{
+          width: '6px',
+          height: '6px',
+          backgroundColor: 'var(--color-brand)',
+          borderRadius: '50%',
+          animation: 'bounce 1.4s infinite',
+          animationDelay: '-0.32s'
+        }}
+      />
+      <div 
+        style={{
+          width: '6px',
+          height: '6px',
+          backgroundColor: 'var(--color-brand)',
+          borderRadius: '50%',
+          animation: 'bounce 1.4s infinite',
+          animationDelay: '-0.16s'
+        }}
+      />
+      <div 
+        style={{
+          width: '6px',
+          height: '6px',
+          backgroundColor: 'var(--color-brand)',
+          borderRadius: '50%',
+          animation: 'bounce 1.4s infinite'
+        }}
+      />
+    </Flex>
+  </Flex>
 ); 

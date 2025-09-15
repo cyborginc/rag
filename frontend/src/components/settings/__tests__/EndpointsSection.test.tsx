@@ -3,9 +3,11 @@ import { render, screen, fireEvent } from '../../../test/utils';
 import { EndpointsSection } from '../EndpointsSection';
 
 const mockUseSettingsStore = vi.fn();
+const mockUseHealthDependentFeatures = vi.fn();
 
 vi.mock('../../../store/useSettingsStore', () => ({
-  useSettingsStore: () => mockUseSettingsStore()
+  useSettingsStore: () => mockUseSettingsStore(),
+  useHealthDependentFeatures: () => mockUseHealthDependentFeatures()
 }));
 
 describe('EndpointsSection', () => {
@@ -20,6 +22,10 @@ describe('EndpointsSection', () => {
       vlmEndpoint: '',
       vdbEndpoint: '',
       set: mockSetSettings
+    });
+    mockUseHealthDependentFeatures.mockReturnValue({
+      isHealthLoading: false,
+      shouldDisableHealthFeatures: false
     });
   });
 
@@ -122,7 +128,7 @@ describe('EndpointsSection', () => {
       const llmInput = screen.getByDisplayValue('http://existing-llm');
       fireEvent.change(llmInput, { target: { value: '' } });
       
-      expect(mockSetSettings).toHaveBeenCalledWith({ llmEndpoint: '' });
+      expect(mockSetSettings).toHaveBeenCalledWith({ llmEndpoint: undefined });
     });
   });
 

@@ -38,8 +38,15 @@ ENV VITE_MODEL_NAME=${VITE_MODEL_NAME}
 # Copy app files
 COPY . .
 
-# Install and build
-RUN rm -rf node_modules && pnpm install --frozen-lockfile
+# Change to frontend directory and install/build
+WORKDIR /app/frontend
+
+# Set environment variable to make pnpm non-interactive
+ENV CI=true
+ENV PNPM_HOME=/usr/local/bin
+ENV npm_config_yes=true
+
+RUN rm -rf ../node_modules ./node_modules && pnpm install --frozen-lockfile --reporter=silent
 RUN pnpm add -D @types/node
 RUN pnpm run build
 

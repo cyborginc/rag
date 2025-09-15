@@ -690,7 +690,7 @@
             "maximum": 1,
             "minimum": 0,
             "title": "Confidence Threshold",
-            "description": "Minimum confidence score threshold for filtering chunks. Only chunks with relevance scores \u003E= this threshold will be included. Range: 0.0 to 1.0. Default: 0.0 (no filtering). Note: Requires enable_reranker=True to generate relevance scores.",
+            "description": "Minimum confidence score threshold for filtering chunks. Only chunks with relevance scores >= this threshold will be included. Range: 0.0 to 1.0. Default: 0.0 (no filtering). Note: Requires enable_reranker=True to generate relevance scores. Warning: Setting threshold too high may result in 0 documents being returned, causing the RAG server to be unable to provide answers due to lack of context. Recommended threshold range: 0.3-0.5 for optimal balance of quality and coverage. Consider setting a reasonable minimum threshold to ensure sufficient context is available.",
             "default": 0
           }
         },

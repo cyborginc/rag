@@ -3,7 +3,7 @@ services:
   # Main orchestrator server which stiches together all calls to different services to fulfill the user request
   rag-server:
     container_name: rag-server
-    image: nvcr.io/nvstaging/blueprint/rag-server:${TAG:-2.3.0.rc1}
+    image: nvcr.io/nvstaging/blueprint/rag-server:${TAG:-2.3.0.rc2}
     build:
       # Set context to repo's root directory
       context: ../../
@@ -37,6 +37,10 @@ services:
       APP_VECTORSTORE_INDEXTYPE: ${APP_VECTORSTORE_INDEXTYPE:-"GPU_CAGRA"}
       # Type of vectordb search to be used
       APP_VECTORSTORE_SEARCHTYPE: ${APP_VECTORSTORE_SEARCHTYPE:-"dense"} # Can be dense or hybrid
+      # Boolean to control GPU search for milvus vectorstore specific to rag-server
+      APP_VECTORSTORE_ENABLEGPUSEARCH: ${APP_VECTORSTORE_ENABLEGPUSEARCH:-True}
+      # ef: Parameter controlling query time/accuracy trade-off. Higher ef leads to more accurate but slower search.
+      APP_VECTORSTORE_EF: ${APP_VECTORSTORE_EF:-100} # Must be greater or equal to VECTOR_DB_TOPK
       # vectorstore collection name to store embeddings
       COLLECTION_NAME: ${COLLECTION_NAME:-multimodal_data}
       APP_RETRIEVER_SCORETHRESHOLD: 0.25
@@ -44,17 +48,21 @@ services:
       VECTOR_DB_TOPK: ${VECTOR_DB_TOPK:-100}
 
       ##===LLM Model specific configurations===
-      APP_LLM_MODELNAME: ${APP_LLM_MODELNAME:-"nvidia/llama-3_3-nemotron-super-49b-v1_5"}
+      APP_LLM_MODELNAME: ${APP_LLM_MODELNAME:-"nvidia/llama-3-3-nemotron-super-49b-v1-5"}
       # url on which llm model is hosted. If "", Nvidia hosted API is used
       APP_LLM_SERVERURL: ${APP_LLM_SERVERURL-"nim-llm:8000"}
+      # LLM model parameters
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-32768}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0}
+      LLM_TOP_P: ${LLM_TOP_P:-1.0}
 
       ##===Query Rewriter Model specific configurations===
-      APP_QUERYREWRITER_MODELNAME: ${APP_QUERYREWRITER_MODELNAME:-"meta/llama-3.1-8b-instruct"}
+      APP_QUERYREWRITER_MODELNAME: ${APP_QUERYREWRITER_MODELNAME:-"nvidia/llama-3-3-nemotron-super-49b-v1-5"}
       # url on which query rewriter model is hosted. If "", Nvidia hosted API is used
-      APP_QUERYREWRITER_SERVERURL: ${APP_QUERYREWRITER_SERVERURL-"nim-llm-llama-8b:8000"}
+      APP_QUERYREWRITER_SERVERURL: ${APP_QUERYREWRITER_SERVERURL-"nim-llm:8000"}
 
       ##===Filter Expression Generator Model specific configurations===
-      APP_FILTEREXPRESSIONGENERATOR_MODELNAME: ${APP_FILTEREXPRESSIONGENERATOR_MODELNAME:-"nvidia/llama-3_3-nemotron-super-49b-v1_5"}
+      APP_FILTEREXPRESSIONGENERATOR_MODELNAME: ${APP_FILTEREXPRESSIONGENERATOR_MODELNAME:-"nvidia/llama-3-3-nemotron-super-49b-v1-5"}
       # url on which filter expression generator model is hosted. If "", Nvidia hosted API is used
       APP_FILTEREXPRESSIONGENERATOR_SERVERURL: ${APP_FILTEREXPRESSIONGENERATOR_SERVERURL-"nim-llm:8000"}
       # enable filter expression generator for natural language to filter expression conversion
@@ -86,7 +94,11 @@ services:
       APP_VLM_MAX_QUERY_IMAGES: ${APP_VLM_MAX_QUERY_IMAGES:-1}
       # Max number of context images to include in VLM input
       APP_VLM_MAX_CONTEXT_IMAGES: ${APP_VLM_MAX_CONTEXT_IMAGES:-1}
+      # Use VLM only for final response generation
+      APP_VLM_RESPONSE_AS_FINAL_ANSWER: ${APP_VLM_RESPONSE_AS_FINAL_ANSWER:-true}
+      # VLM server URL
       APP_VLM_SERVERURL: ${APP_VLM_SERVERURL-"http://vlm-ms:8000/v1"}
+      # VLM model name
       APP_VLM_MODELNAME: ${APP_VLM_MODELNAME:-"nvidia/llama-3.1-nemotron-nano-vl-8b-v1"}
 
       NVIDIA_API_KEY: ${NGC_API_KEY:?"NGC_API_KEY is required"}
@@ -96,10 +108,6 @@ services:
 
       # Log level for server, supported level NOTSET, DEBUG, INFO, WARN, ERROR, CRITICAL
       LOGLEVEL: ${LOGLEVEL:-INFO}
-
-      # enable multi-turn conversation in the rag chain - this controls conversation history usage
-      # while doing query rewriting and in LLM prompt
-      ENABLE_MULTITURN: ${ENABLE_MULTITURN:-True}
 
       # enable query rewriting for multiturn conversation in the rag chain.
       # This will improve accuracy of the retrieiver pipeline but increase latency due to an additional LLM call
@@ -130,9 +138,6 @@ services:
       # Whether to filter content within <think></think> tags in model responses
       FILTER_THINK_TOKENS: ${FILTER_THINK_TOKENS:-true}
 
-      # Whether to enable thinking in the rag chain for llama-3.3-nemotron-super-49b model
-      ENABLE_NEMOTRON_THINKING: ${ENABLE_NEMOTRON_THINKING:-false}
-
       # enable reflection (context relevance and response groundedness checking) in the rag chain
       ENABLE_REFLECTION: ${ENABLE_REFLECTION:-false}
       # Maximum number of context relevance loop iterations
@@ -142,7 +147,7 @@ services:
       # Minimum groundedness score threshold (0-2)
       RESPONSE_GROUNDEDNESS_THRESHOLD: ${RESPONSE_GROUNDEDNESS_THRESHOLD:-1}
       # reflection llm
-      REFLECTION_LLM: ${REFLECTION_LLM:-"nvidia/llama-3_3-nemotron-super-49b-v1_5"}
+      REFLECTION_LLM: ${REFLECTION_LLM:-"nvidia/llama-3-3-nemotron-super-49b-v1-5"}
       # reflection llm server url. If "", Nvidia hosted API is used
       REFLECTION_LLM_SERVERURL: ${REFLECTION_LLM_SERVERURL-"nim-llm:8000"}
       # enable iterative query decomposition
@@ -157,9 +162,9 @@ services:
     shm_size: 5gb
 
   # Sample UI container which interacts with APIs exposed by rag-server container
-  rag-playground:
-    container_name: rag-playground
-    image: nvcr.io/nvstaging/blueprint/rag-playground:${TAG:-2.3.0.rc1}
+  rag-frontend:
+    container_name: rag-frontend
+    image: nvcr.io/nvstaging/blueprint/rag-frontend:${TAG:-2.3.0.rc2}
     build:
       # Set context to repo's root directory
       context: ../../frontend

@@ -1,59 +1,22 @@
-@import "tailwindcss";
-@source "./src/**/*.{js,jsx,ts,tsx}";
+@import "tailwindcss/theme.css";
+@import "tailwindcss/preflight.css";
+@import "tailwindcss/utilities.css";
+@import "@kui/react/base.css";
 
-:root {
-  --nv-green: #76b900;
+@plugin "@kui/foundations" {
+  disable-component-utilities: true;
+  themes: "nv-dark --prefersdark";
+  default-themes: "nv-dark --default, nv-light, nv-density-standard --default";
 }
 
-@theme {
-  --color-nvidia-dark: #121212;
-  --color-nvidia-darker: #1A1A1A;
-  --color-nv-green: #76b900;
-}
-
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-@layer utilities {
-  .scrollbar-hide {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
+/* Bounce animation for StreamingIndicator dots */
+@keyframes bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
   }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none; /* Chrome, Safari and Opera */
+  40% {
+    transform: scale(1);
+    opacity: 1;
   }
-}
-
-@keyframes slide-in {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0%);
-  }
-}
-
-.animate-slide-in {
-  animation: slide-in 0.2s ease-out;
-}
-
-/* Custom scrollbar styling */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
 }

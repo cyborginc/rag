@@ -29,7 +29,7 @@ vi.mock('../../../hooks/useFormValidation', () => ({
 }));
 
 vi.mock('../ModalContainer', () => ({
-  ModalContainer: ({ onClose }: any) => (
+  ModalContainer: ({ onClose }: { onClose: () => void }) => (
     <div data-testid="settings-modal">
       <button data-testid="close-button" onClick={onClose}>Close</button>
     </div>

@@ -111,10 +111,10 @@ export const ModelConfigSection = ({ isExpanded, onToggle }: ModelConfigSectionP
   } = useSettingsStore();
 
   const models = [
-    { key: 'model', label: 'LLM Model', value: model },
-    { key: 'embeddingModel', label: 'Embedding Model', value: embeddingModel },
-    { key: 'rerankerModel', label: 'Reranker Model', value: rerankerModel },
-    { key: 'vlmModel', label: 'VLM Model', value: vlmModel },
+    { key: 'model', label: 'LLM Model', value: model ?? "" },
+    { key: 'embeddingModel', label: 'Embedding Model', value: embeddingModel ?? "" },
+    { key: 'rerankerModel', label: 'Reranker Model', value: rerankerModel ?? "" },
+    { key: 'vlmModel', label: 'VLM Model', value: vlmModel ?? "" },
   ];
 
   return (
@@ -142,11 +142,11 @@ export const EndpointConfigSection = ({ isExpanded, onToggle }: EndpointConfigSe
   } = useSettingsStore();
 
   const endpoints = [
-    { key: 'llmEndpoint', label: 'LLM Endpoint', value: llmEndpoint },
-    { key: 'embeddingEndpoint', label: 'Embedding Endpoint', value: embeddingEndpoint },
-    { key: 'rerankerEndpoint', label: 'Reranker Endpoint', value: rerankerEndpoint },
-    { key: 'vlmEndpoint', label: 'VLM Endpoint', value: vlmEndpoint },
-    { key: 'vdbEndpoint', label: 'Vector Database Endpoint', value: vdbEndpoint },
+    { key: 'llmEndpoint', label: 'LLM Endpoint', value: llmEndpoint ?? "" },
+    { key: 'embeddingEndpoint', label: 'Embedding Endpoint', value: embeddingEndpoint ?? "" },
+    { key: 'rerankerEndpoint', label: 'Reranker Endpoint', value: rerankerEndpoint ?? "" },
+    { key: 'vlmEndpoint', label: 'VLM Endpoint', value: vlmEndpoint ?? "" },
+    { key: 'vdbEndpoint', label: 'Vector Database Endpoint', value: vdbEndpoint ?? "" },
   ];
 
   return (

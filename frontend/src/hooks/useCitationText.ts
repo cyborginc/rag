@@ -35,10 +35,10 @@ export function useCitationText() {
         result.push(`- ${line.slice(1).trim()}`);
         continue;
       }
-      if (/^\d+[\.\)]\s*/.test(line)) {
+      if (/^\d+[.)]\s*/.test(line)) {
         if (buffer) result.push(buffer.trim());
         buffer = "";
-        result.push(`1. ${line.replace(/^\d+[\.\)]\s*/, "")}`);
+        result.push(`1. ${line.replace(/^\d+[.)]\s*/, "")}`);
         continue;
       }
       if (buffer && !buffer.trim().endsWith(".") && !buffer.trim().endsWith(":")) {

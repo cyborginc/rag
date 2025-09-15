@@ -7,10 +7,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Allow switching proxy targets when running FE on host (port 3000)
-const useLocalhost = process.env.USE_LOCALHOST === '1' || process.env.USE_LOCALHOST === 'true';
-const CHAT_TARGET = useLocalhost ? 'http://localhost:8081/v1' : 'http://rag-server:8081/v1';
-const VDB_TARGET = useLocalhost ? 'http://localhost:8082/v1' : 'http://ingestor-server:8082/v1';
+// Use VITE environment variables from Docker, with fallbacks for development
+const CHAT_TARGET = process.env.VITE_API_CHAT_URL || 'http://localhost:8081/v1';
+const VDB_TARGET = process.env.VITE_API_VDB_URL || 'http://localhost:8082/v1';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -48,6 +47,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+      '/api/health': {
+        target: VDB_TARGET,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
     },
   },
   preview: {
@@ -75,6 +79,11 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
       '/api/status': {
+        target: VDB_TARGET,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+      '/api/health': {
         target: VDB_TARGET,
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),

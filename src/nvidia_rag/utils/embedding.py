@@ -28,20 +28,10 @@ from nvidia_rag.utils.common import get_config, sanitize_nim_url
 
 logger = logging.getLogger(__name__)
 
-try:
-    import torch
-except Exception:
-    logger.warning("Optional module torch not installed.")
-
 
 @lru_cache
 def get_embedding_model(model: str, url: str) -> Embeddings:
     """Create the embedding model."""
-    model_kwargs = {"device": "cpu"}
-    if torch.cuda.is_available():
-        model_kwargs["device"] = "cuda:0"
-
-    encode_kwargs = {"normalize_embeddings": False}
     settings = get_config()
 
     # Sanitize the URL
@@ -52,14 +42,6 @@ def get_embedding_model(model: str, url: str) -> Embeddings:
         settings.embeddings.model_engine,
         model,
     )
-    if settings.embeddings.model_engine == "huggingface":
-        hf_embeddings = HuggingFaceEmbeddings(
-            model_name=settings.embeddings.model_name,
-            model_kwargs=model_kwargs,
-            encode_kwargs=encode_kwargs,
-        )
-        # Load in a specific embedding model
-        return hf_embeddings
 
     if settings.embeddings.model_engine == "nvidia-ai-endpoints":
         if url:

@@ -13,12 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { useEffect } from "react";
-import { useIngestionTasksStore } from "../../store/useIngestionTasksStore";
-import { useDropdownToggle } from "../../hooks/useDropdownToggle";
+import { useEffect, useState, useRef } from "react";
+import { Popover, Button, ThemeProvider } from "@kui/react";
+import { useNotificationStore } from "../../store/useNotificationStore";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { NotificationBadge } from "./NotificationBadge";
 import { TaskPoller } from "./TaskPoller";
+import type { TaskNotification } from "../../types/notifications";
 
 /**
  * Global reference to notification toggle function for external access.
@@ -34,6 +35,7 @@ let globalNotificationToggle: (() => void) | null = null;
  * openNotificationPanel(); // Opens the notification dropdown
  * ```
  */
+/* eslint-disable-next-line react-refresh/only-export-components */
 export const openNotificationPanel = () => {
   if (globalNotificationToggle) {
     globalNotificationToggle();
@@ -41,59 +43,80 @@ export const openNotificationPanel = () => {
 };
 
 /**
- * Notification bell component that displays task notifications and manages dropdown state.
+ * Notification bell component that displays task notifications and manages popover state.
  * 
  * Shows a bell icon with a badge indicating unread notifications. When clicked, opens
- * a dropdown showing pending and completed ingestion tasks. Automatically polls for
+ * a KUI Popover showing pending and completed ingestion tasks. Automatically polls for
  * task updates and manages global notification panel access.
  * 
- * @returns Notification bell component with dropdown functionality
+ * @returns Notification bell component with popover functionality using KUI components
  */
 export default function NotificationBell() {
-  const { isOpen, ref, toggle, open } = useDropdownToggle();
+  const [isOpen, setIsOpen] = useState(false);
+  const hasHydrated = useRef(false);
   const { 
-    getPendingTasks, 
-    getCompletedTasks, 
-    getUnreadCount,
-    hydrate 
-  } = useIngestionTasksStore();
+    notifications,
+    hydrate,
+    cleanupDuplicates 
+  } = useNotificationStore();
 
-  // Hydrate from localStorage on mount (only once)
+  // Hydrate from localStorage on mount (only once) and cleanup duplicates
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    // Only hydrate once, regardless of notifications.length changes
+    if (!hasHydrated.current) {
+      hasHydrated.current = true;
+      hydrate();
+      
+      // Clean up any existing duplicates after initial hydration
+      const timeoutId = setTimeout(() => cleanupDuplicates(), 100);
+      
+      // Return cleanup function to clear timeout
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [hydrate, cleanupDuplicates]);
 
   // Set global reference for external access
   useEffect(() => {
-    globalNotificationToggle = open;
+    globalNotificationToggle = () => setIsOpen(true);
     return () => {
       globalNotificationToggle = null;
     };
-  }, [open]);
+  }, []);
 
-  const pendingTasks = getPendingTasks();
-  const completedTasks = getCompletedTasks();
-  const unreadCount = getUnreadCount();
+  // Calculate unread count reactively from notifications
+  const unreadCount = notifications.filter(n => !n.read && !n.dismissed).length;
+  
+  // Get pending tasks for TaskPoller components
+  const pendingTasks = notifications
+    .filter((n): n is TaskNotification => n.type === "task" && !n.dismissed && n.task.state === "PENDING")
+    .map(n => n.task);
 
   return (
-    <div ref={ref} className="relative">
-      <button 
-        onClick={toggle}
-        className="flex items-center gap-2 p-2 text-gray-400 transition-colors hover:text-[var(--nv-green)] hover:bg-neutral-900 rounded-lg relative"
+    <ThemeProvider theme="dark">
+      <Popover
+        open={isOpen}
+        onOpenChange={setIsOpen}
+        side="bottom"
+        align="end"
+        slotContent={
+          <NotificationDropdown />
+        }
+        style={{ background: 'var(--background-color-interaction-inverse)' }}
       >
-        <NotificationBadge count={unreadCount} />
-      </button>
-
-      {isOpen && (
-        <NotificationDropdown 
-          pendingTasks={pendingTasks}
-          completedTasks={completedTasks}
-        />
-      )}
+        <Button 
+          kind="tertiary" 
+          size="small"
+          className="relative"
+        >
+          <NotificationBadge count={unreadCount} />
+        </Button>
+      </Popover>
 
       {pendingTasks.map((task) => (
         <TaskPoller key={task.id} taskId={task.id} />
       ))}
-    </div>
+    </ThemeProvider>
   );
 }

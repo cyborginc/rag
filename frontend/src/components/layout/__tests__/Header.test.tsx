@@ -35,7 +35,9 @@ describe('Header', () => {
     it('renders logo and title', () => {
       render(<Header />);
       
-      expect(screen.getByAltText('NVIDIA Logo')).toBeInTheDocument();
+      // KUI Logo renders multiple logo elements, check they exist
+      const logoElements = screen.getAllByTestId('nv-logo-root');
+      expect(logoElements).toHaveLength(2); // KUI renders two logo sizes
       expect(screen.getByText('RAG Blueprint')).toBeInTheDocument();
     });
 
@@ -51,13 +53,15 @@ describe('Header', () => {
   });
 
   describe('Navigation Behavior', () => {
-    it('navigates to home when logo clicked', () => {
+    it('renders KUI AppBar with logo area', () => {
       render(<Header />);
       
-      const logoButton = screen.getByRole('button', { name: /nvidia logo/i });
-      fireEvent.click(logoButton);
+      // KUI Logo renders multiple logo elements 
+      const logoElements = screen.getAllByTestId('nv-logo-root');
+      expect(logoElements).toHaveLength(2);
       
-      expect(mockNavigate).toHaveBeenCalledWith('/');
+      // KUI AppBar handles the overall header structure
+      expect(screen.getByTestId('nv-app-bar-root')).toBeInTheDocument();
     });
 
     it('navigates to settings when on home page', () => {
@@ -92,10 +96,12 @@ describe('Header', () => {
   });
 
   describe('Button Interactions', () => {
-    it('has clickable logo button', () => {
+    it('renders KUI logo structure', () => {
       render(<Header />);
-      const logoButton = screen.getByRole('button', { name: /nvidia logo/i });
-      expect(logoButton).toBeInTheDocument();
+      
+      // KUI Logo renders multiple logo elements 
+      const logoElements = screen.getAllByTestId('nv-logo-root');
+      expect(logoElements).toHaveLength(2);
     });
 
     it('has clickable settings button', () => {

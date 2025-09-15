@@ -33,7 +33,7 @@ describe('ChatActionsMenu', () => {
     vi.mocked(useChatStore).mockReturnValue({
       messages: mockMessages,
       clearMessages: mockClearMessages,
-    } as any);
+    } as ReturnType<typeof useChatStore>);
   });
 
   describe('Menu Toggle', () => {
@@ -96,10 +96,9 @@ describe('ChatActionsMenu', () => {
       const button = screen.getByRole('button', { name: /chat options/i });
       await user.click(button);
       
-      const clearButton = screen.getByRole('button', { name: /clear chat/i });
+      const clearButton = screen.getByRole('menuitem', { name: /clear chat/i });
       expect(clearButton).toBeInTheDocument();
-      expect(clearButton).not.toBeDisabled();
-      expect(clearButton).toHaveClass('text-white', 'hover:bg-neutral-700');
+      expect(clearButton).not.toHaveAttribute('aria-disabled', 'true');
     });
 
     it('shows disabled clear chat option when no messages exist', async () => {
@@ -109,62 +108,74 @@ describe('ChatActionsMenu', () => {
       vi.mocked(useChatStore).mockReturnValue({
         messages: [],
         clearMessages: mockClearMessages,
-      } as any);
+      } as ReturnType<typeof useChatStore>);
       
       render(<ChatActionsMenu />);
       
       const button = screen.getByRole('button', { name: /chat options/i });
       await user.click(button);
       
-      const clearButton = screen.getByRole('button', { name: /clear chat/i });
+      const clearButton = screen.getByRole('menuitem', { name: /clear chat/i });
       expect(clearButton).toBeInTheDocument();
-      expect(clearButton).toBeDisabled();
-      expect(clearButton).toHaveClass('text-gray-500', 'cursor-not-allowed');
+      expect(clearButton).toHaveAttribute('aria-disabled', 'true');
     });
 
     it('calls clearMessages when confirmed', async () => {
       const user = userEvent.setup();
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
       
       render(<ChatActionsMenu />);
       
       const button = screen.getByRole('button', { name: /chat options/i });
       await user.click(button);
       
-      const clearButton = screen.getByRole('button', { name: /clear chat/i });
+      const clearButton = screen.getByRole('menuitem', { name: /clear chat/i });
       await user.click(clearButton);
       
-      expect(window.confirm).toHaveBeenCalledWith('Clear all chat messages? This action cannot be undone.');
+      // Modal should be visible
+      expect(screen.getByText(/Are you sure you want to clear all chat messages/)).toBeInTheDocument();
+      
+      // Click the confirm button in the modal
+      const confirmButton = screen.getByRole('button', { name: /clear chat/i });
+      await user.click(confirmButton);
+      
       expect(mockClearMessages).toHaveBeenCalled();
     });
 
     it('does not call clearMessages when cancelled', async () => {
       const user = userEvent.setup();
-      vi.spyOn(window, 'confirm').mockReturnValue(false);
       
       render(<ChatActionsMenu />);
       
       const button = screen.getByRole('button', { name: /chat options/i });
       await user.click(button);
       
-      const clearButton = screen.getByRole('button', { name: /clear chat/i });
+      const clearButton = screen.getByRole('menuitem', { name: /clear chat/i });
       await user.click(clearButton);
       
-      expect(window.confirm).toHaveBeenCalledWith('Clear all chat messages? This action cannot be undone.');
+      // Modal should be visible
+      expect(screen.getByText(/Are you sure you want to clear all chat messages/)).toBeInTheDocument();
+      
+      // Click the cancel button in the modal
+      const cancelButton = screen.getByRole('button', { name: /cancel/i });
+      await user.click(cancelButton);
+      
       expect(mockClearMessages).not.toHaveBeenCalled();
     });
 
     it('closes menu after successful clear', async () => {
       const user = userEvent.setup();
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
       
       render(<ChatActionsMenu />);
       
       const button = screen.getByRole('button', { name: /chat options/i });
       await user.click(button);
       
-      const clearButton = screen.getByRole('button', { name: /clear chat/i });
+      const clearButton = screen.getByRole('menuitem', { name: /clear chat/i });
       await user.click(clearButton);
+      
+      // Confirm the clear in the modal
+      const confirmButton = screen.getByRole('button', { name: /clear chat/i });
+      await user.click(confirmButton);
       
       await waitFor(() => {
         expect(screen.queryByText('Clear chat')).not.toBeInTheDocument();
@@ -178,18 +189,19 @@ describe('ChatActionsMenu', () => {
       vi.mocked(useChatStore).mockReturnValue({
         messages: [],
         clearMessages: mockClearMessages,
-      } as any);
+      } as ReturnType<typeof useChatStore>);
       
       render(<ChatActionsMenu />);
       
       const button = screen.getByRole('button', { name: /chat options/i });
       await user.click(button);
       
-      const clearButton = screen.getByRole('button', { name: /clear chat/i });
+      const clearButton = screen.getByRole('menuitem', { name: /clear chat/i });
       await user.click(clearButton);
       
+      // Should not show modal or call clearMessages when no messages exist
       expect(mockClearMessages).not.toHaveBeenCalled();
-      expect(window.confirm).not.toHaveBeenCalled();
+      expect(screen.queryByText(/Are you sure you want to clear all chat messages/)).not.toBeInTheDocument();
     });
   });
 }); 

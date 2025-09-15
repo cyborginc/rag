@@ -17,6 +17,7 @@ import { useCallback } from "react";
 import { useSchemaEditor } from "../../hooks/useSchemaEditor";
 import { FieldEditForm } from "./FieldEditForm";
 import { FieldDisplayCard } from "./FieldDisplayCard";
+import type { UIMetadataField } from "../../types/collections";
 
 export const FieldsList = () => {
   const {
@@ -30,7 +31,7 @@ export const FieldsList = () => {
     deleteField,
   } = useSchemaEditor();
 
-  const handleUpdate = useCallback((idx: number) => (updates: any) => {
+  const handleUpdate = useCallback((idx: number) => (updates: Partial<UIMetadataField>) => {
     updateEditValue(idx, updates);
   }, [updateEditValue]);
 

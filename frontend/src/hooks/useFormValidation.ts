@@ -19,7 +19,7 @@ import { useState, useCallback } from "react";
  * Interface representing a form field's state and validation status.
  */
 interface FormField {
-  value: any;
+  value: unknown;
   stringValue: string;
   isValid: boolean;
   hasChanged: boolean;
@@ -43,10 +43,10 @@ interface FormField {
 export const useFormValidation = () => {
   const [fields, setFields] = useState<Record<string, FormField>>({});
 
-  const registerField = useCallback((name: string, initialValue: any) => {
+  const registerField = useCallback((name: string, initialValue: unknown) => {
     const stringValue = Array.isArray(initialValue) 
       ? initialValue.join(", ") 
-      : initialValue.toString();
+      : (initialValue != null ? String(initialValue) : "");
     
     setFields(prev => ({
       ...prev,
@@ -59,12 +59,12 @@ export const useFormValidation = () => {
     }));
   }, []);
 
-  const updateField = useCallback((name: string, stringValue: string, parser?: (value: string) => any) => {
+  const updateField = useCallback((name: string, stringValue: string, parser?: (value: string) => unknown) => {
     setFields(prev => {
       const field = prev[name];
       if (!field) return prev;
 
-      let parsedValue = stringValue;
+      let parsedValue: unknown = stringValue;
       let isValid = true;
 
       if (parser) {
@@ -88,14 +88,14 @@ export const useFormValidation = () => {
     });
   }, []);
 
-  const syncField = useCallback((name: string, externalValue: any) => {
+  const syncField = useCallback((name: string, externalValue: unknown) => {
     setFields(prev => {
       const field = prev[name];
       if (!field) return prev;
 
       const stringValue = Array.isArray(externalValue) 
         ? externalValue.join(", ") 
-        : externalValue.toString();
+        : (externalValue != null ? String(externalValue) : "");
 
       return {
         ...prev,

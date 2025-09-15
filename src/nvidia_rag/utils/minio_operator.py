@@ -54,7 +54,11 @@ class MinioOperator:
     def _make_bucket(self, bucket_name: str):
         """Create new bucket if doesn't exists"""
         if not self.client.bucket_exists(bucket_name):
+            logger.info(f"Creating bucket: {bucket_name}")
             self.client.make_bucket(bucket_name)
+            logger.info(f"Bucket created: {bucket_name}")
+        else:
+            logger.info(f"Bucket already exists: {bucket_name}")
 
     def put_payload(self, payload: dict, object_name: str):
         """Put dictionary to S3 storage using minio client"""

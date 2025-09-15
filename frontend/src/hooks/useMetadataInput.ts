@@ -35,64 +35,83 @@ import type { MetadataFieldType } from "../types/collections";
 export const useMetadataInput = () => {
   const { updateMetadataField } = useNewCollectionStore();
 
-  const validateValue = useCallback((value: string, fieldType: MetadataFieldType): string => {
-    if (!value) return value;
+  const validateValue = useCallback((value: unknown, fieldType: MetadataFieldType): unknown => {
+    if (value === null || value === undefined) return value;
+
+    // Convert to string for validation if it's not already processed
+    const stringValue = typeof value === 'string' ? value : String(value);
+    
+    if (!stringValue) return stringValue;
 
     switch (fieldType) {
       case "datetime":
         // Fix datetime format if needed (add seconds if missing)
-        if (value.length === 16) {
-          return `${value}:00`;
+        if (stringValue.length === 16) {
+          return `${stringValue}:00`;
         }
-        return value;
+        return stringValue;
       
-      case "integer":
-        // Validate integer
-        const intVal = parseInt(value);
-        if (isNaN(intVal)) {
-          throw new Error(`Invalid integer value: ${value}`);
+      case "integer": {
+        // Return actual integer, not string
+        if (typeof value === 'number' && Number.isInteger(value)) {
+          return value;
         }
-        return intVal.toString();
+        const intVal = parseInt(stringValue);
+        if (isNaN(intVal)) {
+          throw new Error(`Invalid integer value: ${stringValue}`);
+        }
+        return intVal;
+      }
       
       case "float":
-      case "number":
-        // Validate float/number
-        const floatVal = parseFloat(value);
+      case "number": {
+        // Return actual number, not string
+        if (typeof value === 'number') {
+          return value;
+        }
+        const floatVal = parseFloat(stringValue);
         if (isNaN(floatVal)) {
-          throw new Error(`Invalid number value: ${value}`);
+          throw new Error(`Invalid number value: ${stringValue}`);
         }
-        return floatVal.toString();
+        return floatVal;
+      }
       
-      case "boolean":
-        // Normalize boolean values
-        const lowerValue = value.toLowerCase();
-        if (["true", "1", "yes", "on"].includes(lowerValue)) {
-          return "true";
-        } else if (["false", "0", "no", "off"].includes(lowerValue)) {
-          return "false";
-        } else {
-          throw new Error(`Invalid boolean value: ${value}. Use true/false, 1/0, yes/no, or on/off`);
+      case "boolean": {
+        // Return actual boolean, not string
+        if (typeof value === 'boolean') {
+          return value;
         }
+        const lowerValue = stringValue.toLowerCase();
+        if (["true", "1", "yes", "on"].includes(lowerValue)) {
+          return true;
+        } else if (["false", "0", "no", "off"].includes(lowerValue)) {
+          return false;
+        } else {
+          throw new Error(`Invalid boolean value: ${stringValue}. Use true/false, 1/0, yes/no, or on/off`);
+        }
+      }
       
       case "array":
-        // Arrays are handled specially in the component as JSON strings
-        try {
-          JSON.parse(value);
+        // Return actual array, not JSON string
+        if (Array.isArray(value)) {
           return value;
+        }
+        try {
+          return JSON.parse(stringValue);
         } catch {
-          throw new Error(`Invalid array value: ${value}`);
+          throw new Error(`Invalid array value: ${stringValue}`);
         }
       
       case "string":
       default:
-        return value;
+        return stringValue;
     }
   }, []);
 
   const handleFieldChange = useCallback((
     fileName: string, 
     fieldName: string, 
-    value: string, 
+    value: unknown, 
     fieldType: MetadataFieldType
   ) => {
     try {
@@ -110,58 +129,71 @@ export const useMetadataInput = () => {
     fieldName: string, 
     fieldType: MetadataFieldType
   ) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value;
+    let value: unknown = e.target.value;
     
     // Handle checkbox inputs for boolean fields
     if (fieldType === "boolean" && e.target.type === "checkbox") {
-      value = e.target.checked.toString();
+      value = e.target.checked;
     }
     
     handleFieldChange(fileName, fieldName, value, fieldType);
   }, [handleFieldChange]);
 
   const validateFieldValue = useCallback((
-    value: string, 
+    value: unknown, 
     fieldType: MetadataFieldType, 
     required: boolean = false,
     maxLength?: number
   ): { isValid: boolean; error?: string } => {
+    const stringValue = typeof value === 'string' ? value : String(value || '');
+    
     // Check required fields - for boolean fields, "false" is a valid value
     if (required) {
       if (fieldType === "boolean") {
-        // For boolean fields, any value that can be parsed as boolean is valid
-        const lowerValue = value.toLowerCase().trim();
-        const validBooleanValues = ["true", "false", "1", "0", "yes", "no", "on", "off"];
-        if (!lowerValue || !validBooleanValues.includes(lowerValue)) {
-          return { isValid: false, error: "This field is required" };
+        // For boolean fields, check if we have a boolean value or a valid string representation
+        if (typeof value === 'boolean') {
+          return { isValid: true };
+        }
+        if (typeof value === 'string') {
+          const lowerValue = value.toLowerCase().trim();
+          const validBooleanValues = ["true", "false", "1", "0", "yes", "no", "on", "off"];
+          if (!lowerValue || !validBooleanValues.includes(lowerValue)) {
+            return { isValid: false, error: "This field is required" };
+          }
         }
       } else {
         // For non-boolean fields, check if value is empty
-        if (!value.trim()) {
+        if (!stringValue.trim()) {
           return { isValid: false, error: "This field is required" };
         }
       }
     }
 
     // Skip validation for empty optional fields
-    if (!value.trim() && !required) {
+    if (!stringValue.trim() && !required) {
       return { isValid: true };
     }
 
     // Check max length for strings
-    if (fieldType === "string" && maxLength && value.length > maxLength) {
+    if (fieldType === "string" && maxLength && stringValue.length > maxLength) {
       return { isValid: false, error: `Maximum length is ${maxLength} characters` };
     }
 
     // Check array max length
     if (fieldType === "array" && maxLength) {
-      try {
-        const arrayValue = JSON.parse(value);
-        if (Array.isArray(arrayValue) && arrayValue.length > maxLength) {
-          return { isValid: false, error: `Maximum ${maxLength} items allowed` };
+      let arrayValue: unknown;
+      if (Array.isArray(value)) {
+        arrayValue = value;
+      } else {
+        try {
+          arrayValue = JSON.parse(stringValue);
+        } catch {
+          return { isValid: false, error: "Invalid array format" };
         }
-      } catch {
-        return { isValid: false, error: "Invalid array format" };
+      }
+      
+      if (Array.isArray(arrayValue) && arrayValue.length > maxLength) {
+        return { isValid: false, error: `Maximum ${maxLength} items allowed` };
       }
     }
 

@@ -48,8 +48,8 @@ export const useTaskSorting = (
 
     return allTasks.sort((a, b) => {
       // First priority: unread tasks go to top
-      const aUnread = a.state === "PENDING" || (a as any).read !== true;
-      const bUnread = b.state === "PENDING" || (b as any).read !== true;
+      const aUnread = a.state === "PENDING" || (a as unknown as { read?: boolean }).read !== true;
+      const bUnread = b.state === "PENDING" || (b as unknown as { read?: boolean }).read !== true;
       
       if (aUnread && !bUnread) return -1;
       if (!aUnread && bUnread) return 1;

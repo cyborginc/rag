@@ -27,16 +27,25 @@ describe('TaskDisplay', () => {
   describe('Read/Unread States', () => {
     it('shows unread styling when task is unread', () => {
       render(<TaskDisplay task={{ ...mockTask, read: false }} />);
-      const container = screen.getByTestId('task-display');
-      expect(container).toHaveClass('border-[var(--nv-green)]');
-      expect(container).toHaveClass('ring-1');
-      expect(container).toHaveClass('ring-[var(--nv-green)]/30');
+      const taskDisplay = screen.getByTestId('task-display');
+      expect(taskDisplay).toBeInTheDocument();
+      
+      // Check that the task display element renders correctly
+      expect(taskDisplay).not.toHaveClass('opacity-75'); // Should not have read opacity
+      
+      // Check that task name is styled for unread (white text)
+      const taskName = screen.getByTestId('task-collection-name');
+      expect(taskName).toHaveClass('text-white');
     });
 
     it('shows read styling when task is read', () => {
       render(<TaskDisplay task={{ ...mockTask, read: true }} />);
-      const container = screen.getByTestId('task-display');
-      expect(container).toHaveClass('border-neutral-700');
+      const taskDisplay = screen.getByTestId('task-display');
+      expect(taskDisplay).toBeInTheDocument();
+      
+      // Check that task name is styled for read (neutral text)
+      const taskName = screen.getByTestId('task-collection-name');
+      expect(taskName).toHaveClass('text-neutral-400');
     });
 
     it('calls onMarkRead when clicked and handler provided', () => {

@@ -14,11 +14,19 @@
 // limitations under the License.
 
 import React from 'react';
+import { Panel, Stack, Text } from "@kui/react";
 import { RagConfigSection } from './RagConfigSection';
 import { FeatureTogglesSection } from './FeatureTogglesSection';
 import { ModelsSection } from './ModelsSection';
 import { EndpointsSection } from './EndpointsSection';
 import { AdvancedSection } from './AdvancedSection';
+import { 
+  RagIcon, 
+  FeaturesIcon, 
+  ModelsIcon, 
+  EndpointsIcon, 
+  AdvancedIcon 
+} from '../icons';
 
 interface SettingsContentProps {
   activeSection: string;
@@ -33,99 +41,111 @@ export const SettingsContent: React.FC<SettingsContentProps> = ({
     switch (activeSection) {
       case 'ragConfig':
         return (
-          <div className="space-y-8">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-white">RAG Configuration</h2>
-              <p className="text-gray-400 text-sm leading-relaxed">
+          <Panel
+            slotHeading="RAG Configuration"
+            slotIcon={<RagIcon className="w-6 h-6" />}
+            elevation="mid"
+            density="standard"
+          >
+            <Stack gap="4">
+              <Text kind="body/regular/sm">
                 Configure retrieval-augmented generation settings and parameters.
-              </p>
-            </div>
-            <div className="bg-neutral-900/40 border border-neutral-800 rounded-xl p-6">
+              </Text>
               <RagConfigSection />
-            </div>
-          </div>
+            </Stack>
+          </Panel>
         );
       
       case 'features':
         return (
-          <div className="space-y-8">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-white">Feature Toggles</h2>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Enable or disable experimental features and functionality.
-              </p>
-            </div>
-            <div className="bg-neutral-900/40 border border-neutral-800 rounded-xl p-6">
+          <Panel
+            slotHeading="Feature Toggles"
+            slotIcon={<FeaturesIcon className="w-6 h-6" />}
+            elevation="mid"
+            density="standard"
+          >
+            <Stack gap="4">
+              <Text kind="body/regular/sm">
+                Manage feature flags and experimental functionality.
+              </Text>
               <FeatureTogglesSection onShowWarning={onShowWarning || (() => {})} />
-            </div>
-          </div>
+            </Stack>
+          </Panel>
         );
-      
+
       case 'models':
         return (
-          <div className="space-y-8">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-white">Model Configuration</h2>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Configure AI models and their parameters for different tasks.
-              </p>
-            </div>
-            <div className="bg-neutral-900/40 border border-neutral-800 rounded-xl p-6">
+          <Panel
+            slotHeading="Model Configuration"
+            slotIcon={<ModelsIcon className="w-6 h-6" />}
+            elevation="mid"
+            density="standard"
+          >
+              <Stack gap="4">
+                <Text kind="body/regular/sm">
+                  Configure AI models for language generation, embeddings, and reranking.
+              </Text>
               <ModelsSection />
-            </div>
-          </div>
+            </Stack>
+          </Panel>
         );
-      
+
       case 'endpoints':
         return (
-          <div className="space-y-8">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-white">Endpoint Configuration</h2>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Configure API endpoints and connection settings.
-              </p>
-            </div>
-            <div className="bg-neutral-900/40 border border-neutral-800 rounded-xl p-6">
+          <Panel
+            slotHeading="Endpoint Configuration"
+            slotIcon={<EndpointsIcon className="w-6 h-6" />}
+            elevation="mid"
+            density="standard"
+          >
+              <Stack gap="4">
+                <Text kind="body/regular/sm">
+                  Set up API endpoints and connection settings.
+              </Text>
               <EndpointsSection />
-            </div>
-          </div>
+            </Stack>
+          </Panel>
         );
-      
+
       case 'advanced':
         return (
-          <div className="space-y-8">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-white">Advanced Settings</h2>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Advanced configuration options and system settings.
-              </p>
-            </div>
-            <div className="bg-neutral-900/40 border border-neutral-800 rounded-xl p-6">
+          <Panel
+            slotHeading="Advanced Settings"
+            slotIcon={<AdvancedIcon className="w-6 h-6" />}
+            elevation="mid"
+            density="standard"
+          >
+              <Stack gap="4">
+                <Text kind="body/regular/sm">
+                  Advanced configuration options and system settings.
+              </Text>
               <AdvancedSection />
-            </div>
-          </div>
+            </Stack>
+          </Panel>
         );
-      
+
       default:
         return (
-          <div className="space-y-8">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-white">RAG Configuration</h2>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Configure retrieval-augmented generation settings and parameters.
-              </p>
-            </div>
-            <div className="bg-neutral-900/40 border border-neutral-800 rounded-xl p-6">
+          <Panel
+            slotHeading="RAG Configuration"
+            slotIcon={<RagIcon className="w-6 h-6" />}
+            elevation="mid"
+            density="standard"
+          >
+              <Stack gap="4">
+                <Text kind="body/regular/sm">
+                  Configure retrieval-augmented generation settings and parameters.
+              </Text>
               <RagConfigSection />
-            </div>
-          </div>
+            </Stack>
+          </Panel>
         );
     }
   };
 
   return (
-    <div className="flex-1 px-8 py-8 overflow-y-auto">
+    <Stack gap="6" padding="6">
       {renderContent()}
-    </div>
+    </Stack>
   );
 }; 

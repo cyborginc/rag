@@ -41,7 +41,6 @@ describe('MessageInputContainer', () => {
       expect(screen.getByTestId('message-textarea')).toBeInTheDocument();
       expect(screen.getByTestId('message-actions')).toBeInTheDocument();
       expect(screen.getByTestId('chat-actions-menu')).toBeInTheDocument();
-      expect(document.querySelector('.relative')).toBeInTheDocument();
     });
   });
 
@@ -49,7 +48,8 @@ describe('MessageInputContainer', () => {
     it('wraps components in relative positioned container', () => {
       const { container } = render(<MessageInputContainer />);
       
-      expect(container.firstChild).toHaveClass('relative');
+      const firstChild = container.firstChild as HTMLElement;
+      expect(firstChild).toHaveStyle({ position: 'relative' });
     });
   });
 
@@ -65,7 +65,8 @@ describe('MessageInputContainer', () => {
     it('uses relative positioning for action overlay', () => {
       const { container } = render(<MessageInputContainer />);
       
-      expect(container.firstElementChild).toHaveClass('relative');
+      const firstChild = container.firstElementChild as HTMLElement;
+      expect(firstChild).toHaveStyle({ position: 'relative' });
     });
   });
 }); 

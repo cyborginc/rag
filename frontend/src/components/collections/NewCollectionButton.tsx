@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import { Button } from "@kui/react";
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -40,14 +41,15 @@ export const NewCollectionButton = ({ disabled = false }: NewCollectionButtonPro
   }, [navigate]);
 
   return (
-    <div className="mt-auto flex gap-2">
-      <button
-        className="flex w-full items-center justify-center gap-2 rounded-full border border-[var(--nv-green)] bg-black px-4 py-2 font-medium text-white transition-colors hover:bg-nvidia-darker disabled:cursor-not-allowed disabled:opacity-50"
-        onClick={handleClick}
-        disabled={disabled}
-      >
-        <span className="text-sm">New Collection</span>
-      </button>
-    </div>
+    <Button 
+      kind="secondary"
+      color="brand"
+      onClick={handleClick} 
+      disabled={disabled}
+      size="large"
+      style={{ width: '100%' }}
+    >
+      + New Collection
+    </Button>
   );
 }; 

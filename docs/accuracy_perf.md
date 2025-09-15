@@ -53,6 +53,16 @@ These parameters allow fine-tuning RAG performance based on specific accuracy vs
   - ❌ May need a seperate judge LLM model to be deployed increasing GPU requirement.
   - Check out [this](./self-reflection.md) section to learn more. Default is off.
 
+- **Enable Confidence Threshold Filtering**
+  - ✅ Filters documents by relevance score (0.0 to 1.0), faster retrieval by processing fewer documents
+  - ✅ May improve accuracy by excluding low-relevance documents
+  - ❌ Requires reranker to be enabled for effective filtering
+  - ❌ May filter out too many documents if threshold is set too high, potentially causing RAG server to be unable to provide answers due to lack of context
+  - Controlled via `RERANKER_CONFIDENCE_THRESHOLD` environment variable. Default is 0.0 (no filtering).
+  - API parameter: `confidence_threshold` in `/search` and `/generate` endpoints
+  - Recommended threshold range: 0.3-0.5 for optimal balance of quality and coverage
+  - See [Python Client](./python-client.md) for usage examples with confidence threshold filtering
+
 - **Enable Hybrid search in Milvus**
   - ✅ May provide better retrieval accuracy for domain-specific content
   - ❌ May induce slightly higher latency for large number of documents; default setting is dense search.
@@ -101,6 +111,14 @@ These parameters allow fine-tuning RAG performance based on specific accuracy vs
   - ❌ May increase processing time during audio ingestion
   - Controlled via `APP_NVINGEST_SEGMENTAUDIO` environment variable. Default is `False`.
   - Enable with: `export APP_NVINGEST_SEGMENTAUDIO=True`
+
+- **Disable Dynamic Scaling**
+  - ✅ When disabled, provides better ingestion performance and throughput
+  - ✅ More predictable resource allocation and processing behavior
+  - ❌ Higher memory utilization as resources are statically allocated
+  - ❌ Less efficient memory usage when processing smaller workloads
+  - Controlled via `INGEST_DISABLE_DYNAMIC_SCALING` environment variable (nv-ingest-ms-runtime specific). Default is `True` (dynamic scaling disabled).
+  - To enable dynamic scaling: `export INGEST_DISABLE_DYNAMIC_SCALING=False`
 
 ## Ingestion Batch Mode Optimization
 

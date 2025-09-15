@@ -843,6 +843,17 @@ async def document_search(
     tags=["Retrieval APIs"],
     response_model=SummaryResponse,
     responses={
+        400: {
+            "description": "Bad request (invalid timeout value)",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "message": "Invalid timeout value. Timeout must be a non-negative integer.",
+                        "error": "Provided timeout value: -1",
+                    }
+                }
+            },
+        },
         404: {
             "description": "Summary not found (non-blocking mode)",
             "content": {
@@ -891,7 +902,7 @@ async def get_summary(
     collection_name: str,
     file_name: str,
     blocking: bool = False,
-    timeout: int = 300,
+    timeout: float = 300,
 ) -> JSONResponse:
     """
     Retrieve document summary from the collection.
@@ -904,7 +915,7 @@ async def get_summary(
         collection_name (str): Name of the document collection
         file_name (str): Name of the file to get summary for
         blocking (bool, optional): If True, waits for summary generation. Defaults to False
-        timeout (int, optional): Maximum time to wait in seconds. Defaults to 300
+        timeout (float, optional): Maximum time to wait in seconds. Will be converted to int. Defaults to 300
 
     Returns:
         JSONResponse: Contains either:
@@ -912,11 +923,23 @@ async def get_summary(
             - Error message: {"message": str, "status": str}
 
     Status Codes:
+        400: Bad request (invalid timeout value)
         404: Summary not found (non-blocking mode)
         408: Timeout waiting for summary (blocking mode)
         499: Client Closed Request
         500: Internal server error
     """
+
+    # Convert float timeout to int and validate to avoid negative values
+    timeout = int(timeout)
+    if timeout < 0:
+        return JSONResponse(
+            content={
+                "message": "Invalid timeout value. Timeout must be a non-negative integer.",
+                "error": f"Provided timeout value: {timeout}",
+            },
+            status_code=400,
+        )
 
     try:
         response = await NVIDIA_RAG.get_summary(

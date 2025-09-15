@@ -5,7 +5,7 @@ import { FileMetadataForm } from '../FileMetadataForm';
 // Mock the store
 const mockStore = {
   metadataSchema: [] as Array<{ name: string; type: string }>,
-  fileMetadata: {} as Record<string, Record<string, string>>,
+  fileMetadata: {} as Record<string, Record<string, unknown>>,
   updateMetadataField: vi.fn()
 };
 

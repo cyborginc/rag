@@ -71,7 +71,12 @@ describe('FileItem', () => {
       
       render(<FileItem uploadFile={uploadFile} onRemove={onRemove} />);
       
+      // Click remove button to open modal
       fireEvent.click(screen.getByTitle('Remove file'));
+      
+      // Find and click the confirm button in the modal
+      const confirmButton = screen.getByText('Remove');
+      fireEvent.click(confirmButton);
       
       expect(onRemove).toHaveBeenCalledWith('test-id');
     });
@@ -82,7 +87,12 @@ describe('FileItem', () => {
       
       render(<FileItem uploadFile={uploadFile} onRemove={onRemove} />);
       
+      // Click remove button to open modal
       fireEvent.click(screen.getByTitle('Remove file'));
+      
+      // Find and click the confirm button in the modal
+      const confirmButton = screen.getByText('Remove');
+      fireEvent.click(confirmButton);
       
       expect(onRemove).toHaveBeenCalledWith('different-id');
     });
@@ -100,7 +110,7 @@ describe('FileItem', () => {
       const uploadFile = createMockUploadFile('error', 'Upload failed');
       render(<FileItem uploadFile={uploadFile} onRemove={vi.fn()} />);
       
-      expect(screen.getByText('Error message during upload')).toBeInTheDocument();
+      expect(screen.getByText('Upload failed')).toBeInTheDocument();
     });
 
     it('shows no status for uploading files', () => {

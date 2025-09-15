@@ -4,12 +4,48 @@
 
 Query decomposition is an advanced RAG (Retrieval-Augmented Generation) technique that breaks down complex, multi-faceted queries into simpler, focused subqueries. Each subquery is processed independently to gather comprehensive context, which is then synthesized into a final comprehensive response.
 
-## ⚙️ Configuration Options
-You can enable query decomposition in RAG pipeline by exporting following environment variable
-### Environment Variables
+### Deployment Options
+You can enable query decomposition in both Docker and Helm deployments:
+
+1. **Docker Deployment** – Use Docker to deploy RAG on your hardware
+2. **Helm Deployment** – Deploys as a Helm chart on a Kubernetes cluster (local deployment only)
+
+## Option 1: Docker Deployment (Default)
+
+### Step 1: Deploy all the dependent services
+You can follow instructions from [quickstart.md](./quickstart.md#deploy-with-docker-compose) to deploy on-prem or cloud deployment.
+
+### Step 2: Enable query decomposition
+
+Set the environment variable to enable query decomposition:
+
 ```bash
 export ENABLE_QUERY_DECOMPOSITION=true
 export MAX_RECURSION_DEPTH=3
+```
+
+After setting these environment variables, you must restart the RAG server for `ENABLE_QUERY_DECOMPOSITION` to take effect:
+
+```bash
+docker compose -f deploy/compose/docker-compose-rag-server.yaml up -d
+```
+
+## Option 2: Helm Deployment (Local Deployment Only)
+
+Alternatively, you can deploy RAG with query decomposition using Helm for Kubernetes environments.
+
+### Update RAG Blueprint Deployment with Query Decomposition
+
+Use the Helm upgrade command below to enable query decomposition in RAG Blueprint by setting `ENABLE_QUERY_DECOMPOSITION` and `MAX_RECURSION_DEPTH`:
+
+```bash
+helm upgrade rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \
+  --username '$oauthtoken' \
+  --password "${NGC_API_KEY}" \
+  --set imagePullSecret.password=${NGC_API_KEY} \
+  --set ngcApiSecret.password=${NGC_API_KEY} \
+  --set envVars.ENABLE_QUERY_DECOMPOSITION="true" \
+  --set envVars.MAX_RECURSION_DEPTH="3"
 ```
 
 ### Key Benefits
@@ -32,12 +68,12 @@ Query decomposition is especially valuable for multi-hop or complex queries that
 and her surname is the same as the second assassinated president's mother's maiden name,
 what is my future wife's name?"
 
-// This query requires multiple interconnected steps:
-// 1. Identify the 15th first lady of the United States
-// 2. Find the 15th first lady's mother's first name
-// 3. Identify the second assassinated president
-// 4. Find that president's mother's maiden name
-// 5. Combine the two names to form the final answer
+This query requires multiple interconnected steps:
+1. Identify the 15th first lady of the United States
+2. Find the 15th first lady's mother's first name
+3. Identify the second assassinated president
+4. Find that president's mother's maiden name
+5. Combine the two names to form the final answer
 ```
 
 ### ❌ When NOT to Use Query Decomposition
@@ -45,25 +81,25 @@ what is my future wife's name?"
 #### 1. **Simple Factual Questions**
 ```
 "What is the capital of France?" 
-// Simple lookup, no decomposition needed
+(Simple lookup, no decomposition needed)
 ```
 
 #### 2. **Single-concept Queries**
 ```
 "Define machine learning"
-// Direct definition, no sub-aspects needed
+(Direct definition, no sub-aspects needed)
 ```
 
 #### 3. **Time-sensitive Queries**
 ```
 "What's the current stock price of NVIDIA?"
-// Real-time data, decomposition adds latency
+(Real-time data, decomposition adds latency)
 ```
 
 #### 4. **Highly Specific Technical Questions**
 ```
 "What's the syntax for creating a Python dictionary?"
-// Specific syntax, no multiple perspectives needed
+(Specific syntax, no multiple perspectives needed)
 ```
 
 ## How Query Decomposition Works

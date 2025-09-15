@@ -17,26 +17,49 @@ import { create } from "zustand";
 import type { UIMetadataField } from "../types/collections";
 
 /**
+ * Get the default value for a metadata field based on its type.
+ */
+const getDefaultValueForField = (field: UIMetadataField): unknown => {
+  switch (field.type) {
+    case "string":
+    case "datetime":
+      return "";
+    case "integer":
+    case "float":
+    case "number":
+      return null;
+    case "boolean":
+      return false;
+    case "array":
+      return [];
+    default:
+      return "";
+  }
+};
+
+/**
  * State interface for the new collection creation flow.
  */
 interface NewCollectionState {
   collectionName: string;
   collectionNameTouched: boolean;
   selectedFiles: File[];
-  fileMetadata: Record<string, Record<string, string>>;
+  fileMetadata: Record<string, Record<string, unknown>>;
   metadataSchema: UIMetadataField[];
   isLoading: boolean;
   uploadComplete: boolean;
   error: string | null;
+  hasInvalidFiles: boolean; // New state to track file validation
   setCollectionName: (name: string) => void;
   setCollectionNameTouched: (touched: boolean) => void;
   setMetadataSchema: (schema: UIMetadataField[]) => void;
   setIsLoading: (v: boolean) => void;
   setUploadComplete: (v: boolean) => void;
   setError: (msg: string | null) => void;
+  setHasInvalidFiles: (hasInvalidFiles: boolean) => void; // New setter
   addFiles: (files: File[]) => void;
   removeFile: (index: number) => void;
-  updateMetadataField: (filename: string, field: string, value: string) => void;
+  updateMetadataField: (filename: string, field: string, value: unknown) => void;
   reset: () => void;
 }
 
@@ -64,23 +87,25 @@ export const useNewCollectionStore = create<NewCollectionState>((set, get) => ({
   isLoading: false,
   uploadComplete: false,
   error: null,
+  hasInvalidFiles: false,
 
   setCollectionName: (name) => set({ collectionName: name }),
   setCollectionNameTouched: (touched) => set({ collectionNameTouched: touched }),
   setIsLoading: (v) => set({ isLoading: v }),
   setUploadComplete: (v) => set({ uploadComplete: v }),
   setError: (msg) => set({ error: msg }),
+  setHasInvalidFiles: (hasInvalidFiles) => set({ hasInvalidFiles }),
 
   setMetadataSchema: (schema) => {
     const { selectedFiles, fileMetadata } = get();
-    const updatedMetadata: Record<string, Record<string, string>> = {};
+    const updatedMetadata: Record<string, Record<string, unknown>> = {};
 
     for (const file of selectedFiles) {
       const existing = fileMetadata[file.name] || {};
       updatedMetadata[file.name] = {};
 
       for (const field of schema) {
-        updatedMetadata[file.name][field.name] = existing[field.name] || "";
+        updatedMetadata[file.name][field.name] = existing[field.name] ?? getDefaultValueForField(field);
       }
     }
 
@@ -99,7 +124,7 @@ export const useNewCollectionStore = create<NewCollectionState>((set, get) => ({
       if (!updatedMetadata[file.name]) {
         updatedMetadata[file.name] = {};
         for (const field of metadataSchema) {
-          updatedMetadata[file.name][field.name] = "";
+          updatedMetadata[file.name][field.name] = getDefaultValueForField(field);
         }
       }
     }
@@ -124,13 +149,57 @@ export const useNewCollectionStore = create<NewCollectionState>((set, get) => ({
   },
 
   updateMetadataField: (filename, field, value) => {
-    const { fileMetadata } = get();
+    const { fileMetadata, metadataSchema } = get();
+    
+    // Find the field definition to ensure proper typing
+    const fieldDef = metadataSchema.find(f => f.name === field);
+    let processedValue = value;
+    
+    // Type conversion based on field definition
+    if (fieldDef) {
+      switch (fieldDef.type) {
+        case "integer":
+          if (typeof value === "string") {
+            const num = parseInt(value);
+            processedValue = isNaN(num) || value.trim() === "" ? null : num;
+          }
+          break;
+        case "float":
+        case "number":
+          if (typeof value === "string") {
+            const num = parseFloat(value);
+            processedValue = isNaN(num) || value.trim() === "" ? null : num;
+          }
+          break;
+        case "boolean":
+          if (typeof value === "string") {
+            processedValue = value === "true";
+          }
+          break;
+        case "array":
+          // Arrays should already be processed as arrays or JSON strings
+          if (typeof value === "string" && value.startsWith("[")) {
+            try {
+              processedValue = JSON.parse(value);
+            } catch {
+              processedValue = [];
+            }
+          }
+          break;
+        case "string":
+        case "datetime":
+        default:
+          // Keep as-is for strings and datetime
+          break;
+      }
+    }
+    
     set({
       fileMetadata: {
         ...fileMetadata,
         [filename]: {
           ...fileMetadata[filename],
-          [field]: value,
+          [field]: processedValue,
         },
       },
     });
@@ -146,5 +215,6 @@ export const useNewCollectionStore = create<NewCollectionState>((set, get) => ({
       isLoading: false,
       uploadComplete: false,
       error: null,
+      hasInvalidFiles: false,
     }),
 }));

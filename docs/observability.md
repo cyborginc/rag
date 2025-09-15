@@ -31,7 +31,7 @@ export OPENTELEMETRY_CONFIG_FILE=$(pwd)/deploy/config/otel-collector-config.yaml
 Run the following command to start the **OTel Collector** and **Zipkin**:
 
 ```sh
-docker-compose -f deploy/compose/observability.yaml up -d
+docker compose -f deploy/compose/observability.yaml up -d
 ```
 
 ---
@@ -125,7 +125,7 @@ Redeploy the Helm chart to apply these changes:
 
 ```sh
 helm uninstall rag -n rag
-helm install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc1.tgz \
+helm install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \
 --username '$oauthtoken' \
 --password "${NGC_API_KEY}" \
 --set imagePullSecret.password=$NGC_API_KEY \

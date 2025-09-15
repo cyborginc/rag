@@ -15,35 +15,46 @@
 
 import type { Citation } from "../../types/chat";
 import CitationItem from "../citations/CitationItem";
+import { 
+  Stack, 
+  StatusMessage, 
+  Block 
+} from "@kui/react";
 
 interface CitationsProps {
   citations?: Citation[];
 }
 
+const CitationsEmptyIcon = () => (
+  <svg 
+    style={{ width: '48px', height: '48px' }} 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="1.5" 
+    viewBox="0 0 24 24"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+
 export default function Citations({ citations = [] }: CitationsProps) {
   if (!citations.length) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-center p-8">
-        <div className="p-4 rounded-full bg-neutral-800/50 mb-4">
-          <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-        </div>
-        <h3 className="text-lg font-medium text-white mb-2">No Citations Available</h3>
-        <p className="text-sm text-gray-400 max-w-sm">
-          No sources were found for this response. Try enabling citations in settings or asking questions about your uploaded documents.
-        </p>
-      </div>
+      <StatusMessage
+        slotHeading="No Citations Available"
+        slotSubheading="No sources were found for this response. Try enabling citations in settings or asking questions about your uploaded documents."
+        slotMedia={<CitationsEmptyIcon />}
+      />
     );
   }
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="grid gap-4">
+    <Block padding="6">
+      <Stack gap="4">
         {citations.map((citation, index) => (
           <CitationItem key={index} citation={citation} index={index} />
         ))}
-      </div>
-    </div>
+      </Stack>
+    </Block>
   );
 }

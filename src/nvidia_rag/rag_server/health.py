@@ -15,10 +15,9 @@
 """This defines the health check for the services used by the rag-server.
 1. check_service_health(): Check the health of a service endpoint asynchronously.
 2. check_minio_health(): Check the health of the MinIO server.
-3. check_milvus_health(): Check the health of the Milvus database.
-4. check_all_services_health(): Check the health of all services used by the application.
-5. print_health_report(): Print the health report for the services used by the application.
-6. check_and_print_services_health(): Check the health of all services and print a report.
+3. check_all_services_health(): Check the health of all services used by the application.
+4. print_health_report(): Print the health report for the services used by the application.
+5. check_and_print_services_health(): Check the health of all services and print a report.
 """
 
 import asyncio
@@ -34,6 +33,7 @@ from pymilvus import connections, utility
 
 from nvidia_rag.utils.common import get_config
 from nvidia_rag.utils.minio_operator import MinioOperator
+from nvidia_rag.utils.vdb.vdb_base import VDBRag
 
 logger = logging.getLogger(__name__)
 
@@ -136,81 +136,6 @@ async def check_minio_health(
     return status
 
 
-async def check_milvus_health(url: str) -> dict[str, Any]:
-    """Check Milvus database health"""
-    status = {"service": "Milvus", "url": url, "status": "unknown", "error": None}
-
-    if not url:
-        status["status"] = "skipped"
-        status["error"] = "No URL provided"
-        return status
-
-    try:
-        start_time = time.time()
-        parsed_url = urlparse(url)
-        connection_alias = (
-            f"health_check_{parsed_url.hostname}_{parsed_url.port}_{int(time.time())}"
-        )
-
-        # Connect to Milvus
-        connections.connect(
-            connection_alias, host=parsed_url.hostname, port=parsed_url.port
-        )
-
-        # Test basic operation - list collections
-        collections = utility.list_collections(using=connection_alias)
-
-        # Disconnect
-        connections.disconnect(connection_alias)
-
-        status["status"] = "healthy"
-        status["latency_ms"] = round((time.time() - start_time) * 1000, 2)
-        status["collections"] = len(collections)
-    except Exception as e:
-        status["status"] = "error"
-        status["error"] = str(e)
-
-    return status
-
-
-async def check_elasticsearch_health(url: str) -> dict[str, Any]:
-    """Check Elasticsearch database health"""
-    status = {
-        "service": "Elasticsearch",
-        "url": url,
-        "status": "unknown",
-        "error": None,
-    }
-
-    if not url:
-        status["status"] = "skipped"
-        status["error"] = "No URL provided"
-        return status
-
-    try:
-        start_time = time.time()
-
-        es_client = Elasticsearch(hosts=[url])
-        cluster_health = es_client.cluster.health()
-        indices = es_client.cat.indices(format="json")
-
-        status["status"] = "healthy"
-        status["latency_ms"] = round((time.time() - start_time) * 1000, 2)
-        status["indices"] = len(indices)
-        status["cluster_status"] = cluster_health.get("status", "unknown")
-
-    except ImportError:
-        status["status"] = "error"
-        status["error"] = (
-            "Elasticsearch client not available (elasticsearch library not installed)"
-        )
-    except Exception as e:
-        status["status"] = "error"
-        status["error"] = str(e)
-
-    return status
-
-
 def is_nvidia_api_catalog_url(url: str) -> bool:
     """Check if the URL is from NVIDIA API Catalog"""
     if not url:
@@ -225,7 +150,7 @@ def is_nvidia_api_catalog_url(url: str) -> bool:
     )
 
 
-async def check_all_services_health() -> dict[str, list[dict[str, Any]]]:
+async def check_all_services_health(vdb_op: VDBRag) -> dict[str, list[dict[str, Any]]]:
     """
     Check health of all services used by the application
 
@@ -259,23 +184,19 @@ async def check_all_services_health() -> dict[str, list[dict[str, Any]]]:
         )
 
     # Vector DB health check
-    if config.vector_store.url:
-        if config.vector_store.name == "milvus":
-            tasks.append(("databases", check_milvus_health(config.vector_store.url)))
-        elif config.vector_store.name == "elasticsearch":
-            tasks.append(
-                ("databases", check_elasticsearch_health(config.vector_store.url))
-            )
-        else:
-            # Unknown vector store type
-            results["databases"].append(
-                {
-                    "service": f"Vector Store ({config.vector_store.name})",
-                    "url": config.vector_store.url,
-                    "status": "unknown",
-                    "error": f"Unsupported vector store type: {config.vector_store.name}",
-                }
-            )
+    try:
+        tasks.append(("databases", vdb_op.check_health()))
+    except Exception as e:
+        logger.error(f"Error checking vector store health: {e}")
+        # Unknown vector store type
+        results["databases"].append(
+            {
+                "service": "Vector Store",
+                "url": "Not configured",
+                "status": "unknown",
+                "error": f"Error checking vector store health: {e}",
+            }
+        )
 
     # LLM service health check
     if config.llm.server_url and not is_nvidia_api_catalog_url(config.llm.server_url):
@@ -511,17 +432,17 @@ def print_health_report(health_results: dict[str, list[dict[str, Any]]]) -> None
     logger.info("================================")
 
 
-async def check_and_print_services_health():
+async def check_and_print_services_health(vdb_op: VDBRag):
     """
     Check health of all services and print a report
     """
-    health_results = await check_all_services_health()
+    health_results = await check_all_services_health(vdb_op)
     print_health_report(health_results)
     return health_results
 
 
-def check_services_health():
+def check_services_health(vdb_op: VDBRag):
     """
     Synchronous wrapper for checking service health
     """
-    return asyncio.run(check_and_print_services_health())
+    return asyncio.run(check_and_print_services_health(vdb_op))

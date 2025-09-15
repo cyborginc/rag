@@ -4,7 +4,7 @@ import NvidiaUpload from '../NvidiaUpload';
 
 // Mock the upload file state hook
 const mockHook = {
-  uploadFiles: [],
+  uploadFiles: [] as any,
   addFiles: vi.fn(),
   removeFile: vi.fn()
 };
@@ -15,7 +15,11 @@ vi.mock('../../../hooks/useUploadFileState', () => ({
 
 // Mock child components
 vi.mock('../FileUploadZone', () => ({
-  FileUploadZone: ({ acceptedTypes, maxFileSize, onFilesSelected }: any) => (
+  FileUploadZone: ({ acceptedTypes, maxFileSize, onFilesSelected }: {
+    acceptedTypes: string[];
+    maxFileSize: number;
+    onFilesSelected: (files: File[]) => void;
+  }) => (
     <div data-testid="file-upload-zone">
       <span>Types: {acceptedTypes.join(',')}</span>
       <span>Size: {maxFileSize}</span>
@@ -27,10 +31,13 @@ vi.mock('../FileUploadZone', () => ({
 }));
 
 vi.mock('../FileList', () => ({
-  FileList: ({ uploadFiles, onRemoveFile }: any) => (
+  FileList: ({ uploadFiles, onRemoveFile }: {
+    uploadFiles: File[];
+    onRemoveFile: (index: number) => void;
+  }) => (
     <div data-testid="file-list">
       <span>Files: {uploadFiles.length}</span>
-      <button onClick={() => onRemoveFile('test-id')}>Remove File</button>
+      <button onClick={() => onRemoveFile(0)}>Remove File</button>
     </div>
   )
 }));
@@ -51,8 +58,8 @@ describe('NvidiaUpload', () => {
       const mockOnFilesChange = vi.fn();
       render(<NvidiaUpload onFilesChange={mockOnFilesChange} />);
       
-      // Check for FileList by looking for elements it would render
-      expect(document.querySelector('.space-y-4')).toBeInTheDocument(); // FileList container
+      // Check for FileList by looking for its test id
+      expect(screen.getByTestId('file-list')).toBeInTheDocument();
     });
   });
 
@@ -66,7 +73,7 @@ describe('NvidiaUpload', () => {
     it('passes default max file size to FileUploadZone', () => {
       render(<NvidiaUpload />);
       
-      expect(screen.getByText('Size: 50')).toBeInTheDocument();
+      expect(screen.getByText('Size: 400')).toBeInTheDocument();
     });
 
     it('passes empty upload files to FileList by default', () => {
@@ -89,10 +96,11 @@ describe('NvidiaUpload', () => {
       expect(screen.getByText('Size: 100')).toBeInTheDocument();
     });
 
-    it('applies custom className', () => {
-      const { container } = render(<NvidiaUpload className="custom-class" />);
+    it('renders with KUI Stack structure', () => {
+      const { container } = render(<NvidiaUpload />);
       
-      expect(container.firstChild).toHaveClass('custom-class');
+      // Verify it uses KUI Stack component
+      expect(container.firstChild).toHaveClass('nv-flex--direction-col');
     });
   });
 
@@ -110,7 +118,7 @@ describe('NvidiaUpload', () => {
       
       screen.getByText('Remove File').click();
       
-      expect(mockHook.removeFile).toHaveBeenCalledWith('test-id');
+      expect(mockHook.removeFile).toHaveBeenCalledWith(0);
     });
 
     it('passes uploadFiles from hook to FileList', () => {
@@ -118,7 +126,7 @@ describe('NvidiaUpload', () => {
         { id: '1', file: new File([''], 'test1.pdf'), status: 'uploaded', progress: 100 },
         { id: '2', file: new File([''], 'test2.doc'), status: 'uploaded', progress: 100 }
       ];
-      mockHook.uploadFiles = mockFiles as any;
+      mockHook.uploadFiles = mockFiles;
       
       render(<NvidiaUpload />);
       

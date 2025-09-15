@@ -18,7 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useDeleteCollection } from "../api/useCollectionsApi";
 import { useDeleteAllDocuments } from "../api/useCollectionDocuments";
 import { useCollectionsStore } from "../store/useCollectionsStore";
-import { useIngestionTasksStore } from "../store/useIngestionTasksStore";
+import { useNotificationStore } from "../store/useNotificationStore";
 import { useUploadDocuments } from "./useUploadDocuments";
 import { useNewCollectionStore } from "../store/useNewCollectionStore";
 import { useCollectionDrawerStore } from "../store/useCollectionDrawerStore";
@@ -43,7 +43,7 @@ export function useCollectionActions() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { selectedCollections, clearCollections } = useCollectionsStore();
-  const { addTask, updateTask } = useIngestionTasksStore();
+  const { addTaskNotification, updateTaskNotification } = useNotificationStore();
   const { selectedFiles, fileMetadata, reset } = useNewCollectionStore();
   const { activeCollection, closeDrawer, toggleUploader } = useCollectionDrawerStore();
   const deleteCollection = useDeleteCollection();
@@ -55,6 +55,11 @@ export function useCollectionActions() {
       return;
     }
 
+    deleteCollectionWithoutConfirm(collectionName);
+  };
+
+  // Delete collection without confirmation modal (for use with custom confirmation UI)
+  const deleteCollectionWithoutConfirm = (collectionName: string) => {
     deleteCollection.mutate(collectionName, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ["collections"] });
@@ -81,7 +86,7 @@ export function useCollectionActions() {
     const taskId = `delete-all-${Date.now()}`;
     
     // Add a pending task for the deletion
-    addTask({
+    addTaskNotification({
       id: taskId,
       collection_name: collectionName,
       documents: [],
@@ -96,18 +101,16 @@ export function useCollectionActions() {
         
         // Update task as completed
         setTimeout(() => {
-          updateTask(taskId, {
+          updateTaskNotification(taskId, {
             state: "FINISHED",
-            completedAt: Date.now(),
           });
           openNotificationPanel();
         }, 1000);
       },
       onError: () => {
         // Update task as failed
-        updateTask(taskId, {
+        updateTaskNotification(taskId, {
           state: "FAILED",
-          completedAt: Date.now(),
         });
       },
     });
@@ -122,7 +125,7 @@ export function useCollectionActions() {
     });
 
     // Helper function to process metadata values based on field type
-    const processMetadataValue = (key: string, value: any) => {
+    const processMetadataValue = (key: string, value: unknown) => {
       // Find the field definition in the collection's metadata schema
       const fieldDef = activeCollection?.metadata_schema?.find(f => f.name === key);
       
@@ -130,7 +133,7 @@ export function useCollectionActions() {
         try {
           // Parse JSON string back to array for array fields
           return JSON.parse(value);
-        } catch (e) {
+        } catch {
           console.warn(`Failed to parse array value for field ${key}:`, value);
           return [];
         }
@@ -186,8 +189,10 @@ export function useCollectionActions() {
     const cleanedMetadata = selectedFiles.map((file) => {
       const rawMetadata = fileMetadata[file.name] || {};
       // Remove filename field if it exists and clean empty values
-      const { filename, ...cleanedFields } = rawMetadata;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { filename: _filename, ...cleanedFields } = rawMetadata;
       const filtered = Object.fromEntries(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         Object.entries(cleanedFields).filter(([_key, value]) => {
           // Handle undefined/null values - exclude them
           if (value === undefined || value === null) return false;
@@ -256,6 +261,7 @@ export function useCollectionActions() {
 
   return {
     handleDeleteCollection,
+    deleteCollectionWithoutConfirm,
     handleDeleteAllDocuments,
     handleUploadDocuments,
     isUploading: uploadDocuments.isPending,

@@ -9,17 +9,48 @@
 
 1. [Overview](#overview)
 2. [Quick Start](#quick-start)
+   - [1. Enable Natural Language Filter Generation](#1-enable-natural-language-filter-generation)
+   - [2. Define Metadata Schema](#2-define-metadata-schema)
+   - [3. Add Metadata During Ingestion](#3-add-metadata-during-ingestion)
+   - [4. Use Natural Language Filtering](#4-use-natural-language-filtering)
 3. [📓 Interactive Notebook](#-interactive-notebook)
 4. [Important Notes](#important-notes)
+   - [🎯 Vector Database Support](#-vector-database-support)
+   - [🚨 Key Limitations](#-key-limitations)
 5. [Vector Database Support](#vector-database-support)
+   - [Key Differences](#key-differences)
 6. [Natural Language Filter Generation](#natural-language-filter-generation)
+   - [What It Does](#what-it-does)
+   - [How to Use It](#how-to-use-it)
+   - [How It Helps You](#how-it-helps-you)
+   - [Example Queries and Generated Filters](#example-queries-and-generated-filters)
+   - [Improving Existing Filters](#improving-existing-filters)
+   - [Error Handling](#error-handling)
 7. [Metadata Schema Definition](#metadata-schema-definition)
+   - [Supported Data Types](#supported-data-types)
+   - [Schema Validation Rules](#schema-validation-rules)
+   - [Example Schemas](#example-schemas)
 8. [Adding Metadata During Ingestion](#adding-metadata-during-ingestion)
+   - [Metadata Structure](#metadata-structure)
+   - [Validation During Ingestion](#validation-during-ingestion)
 9. [Filter Expression Syntax](#filter-expression-syntax)
+   - [Basic Syntax](#basic-syntax)
+   - [Supported Operators by Type](#supported-operators-by-type)
+   - [Filter Expression Examples](#filter-expression-examples)
+   - [Using Filters in API Calls](#using-filters-in-api-calls)
+   - [Elasticsearch Filter Example](#elasticsearch-filter-example)
 10. [Advanced Filtering Features](#advanced-filtering-features)
+    - [Array Functions](#array-functions)
 11. [Configuration and Setup](#configuration-and-setup)
+    - [Filter Expression Generator Configuration](#filter-expression-generator-configuration)
+    - [Metadata Configuration](#metadata-configuration)
+    - [Environment Variables](#environment-variables)
+    - [Partial Filtering Modes](#partial-filtering-modes)
 12. [Troubleshooting](#troubleshooting)
+    - [Common Issues](#common-issues)
 13. [API Reference](#api-reference)
+    - [API Endpoints](#api-endpoints)
+14. [Summary](#summary)
 
 ## Overview
 
@@ -41,9 +72,9 @@ The NVIDIA RAG system now features **advanced metadata filtering with natural la
 config = {
     "filter_expression_generator": {
         "enable_filter_generator": True,
-        "model_name": "nvidia/llama-3_3-nemotron-super-49b-v1_5",
+        "model_name": "nvidia/llama-3-3-nemotron-super-49b-v1-5",
         "temperature": 0.1,
-        "max_tokens": 500
+        "max_tokens": 1024
     }
 }
 ```
@@ -126,7 +157,7 @@ This notebook demonstrates:
 
 ### 🚨 **Key Limitations**
 - **IS NULL/IS NOT NULL operations**: Not supported
-- **Empty string/array comparisons**: Not supported  
+- **Empty string/array comparisons**: Not supported
 - **Direct array indexing**: Not supported (e.g., `content_metadata["tags"][0]`)
 - **NULL values**: Not supported in filter expressions
 - **Schema evolution**: Removing fields may break existing filters
@@ -147,6 +178,8 @@ This notebook demonstrates:
 
 - **🎯 Milvus**: Designed for simplicity with automated natural language filter generation, perfect for users who want straightforward metadata filtering
 - **🚀 Elasticsearch**: Provides full access to enterprise-grade search capabilities, ideal for advanced users who need complex querying, analytics, and fine-grained control
+
+**📝 Note**: The UI supports basic arithmetic filter operators to showcase functionality, while the RAG-Server API provides full support for all mentioned operators and advanced features.
 
 ## Natural Language Filter Generation
 
@@ -342,7 +375,7 @@ The system validates metadata during ingestion:
 
 Filter expressions use the format: `content_metadata["field_name"] operator value`
 
-**Milvus Filter Syntax Documentation:**  
+**Milvus Filter Syntax Documentation:**
 See the [Milvus Filtering Explained](https://milvus.io/docs/boolean.md#Filtering-Explained) guide for full details.
 
 **💡 Note:** This document contains extensive examples throughout - from quick start examples, natural language filter generation, to complex expressions and API usage examples.
@@ -370,6 +403,7 @@ See the [Milvus Filtering Explained](https://milvus.io/docs/boolean.md#Filtering
 #### Array Operations
 - **Equality**: `==`, `=`, `!=`
 - **Membership**: `in`, `IN`, `not in`, `NOT IN`
+- **Includes**: `includes`, `INCLUDES`, `does not include`, `DOES NOT INCLUDE`
 - **Functions**: `array_contains`, `array_contains_all`, `array_contains_any`, `array_length`
 
 #### Logical Operations
@@ -389,6 +423,8 @@ See the [Milvus Filtering Explained](https://milvus.io/docs/boolean.md#Filtering
 
 # Array filtering
 'array_contains(content_metadata["tags"], "engineering")'
+'content_metadata["tags"] includes ["tech"]'
+'content_metadata["tags"] does not include ["deprecated"]'
 
 # Complex expressions
 '(content_metadata["category"] == "technical") AND (content_metadata["priority"] > 5)'
@@ -457,12 +493,12 @@ filter_expr = [
 ```python
 # Configuration file (config.yaml)
 filter_expression_generator:
-  enable_filter_generator: true
-  model_name: "nvidia/llama-3_3-nemotron-super-49b-v1_5"
+  enable_filter_generator: true  # Set to true to enable filter generation (default is false)
+  model_name: "nvidia/llama-3-3-nemotron-super-49b-v1-5"
   server_url: ""  # Leave empty for default endpoint
   temperature: 0.1  # Low temperature for consistent results
   top_p: 0.9
-  max_tokens: 500
+  max_tokens: 1024
 ```
 
 ### Metadata Configuration
@@ -472,7 +508,7 @@ filter_expression_generator:
 metadata:
   max_array_length: 1000             # Maximum length for array metadata fields
   max_string_length: 65535           # Maximum length for string metadata fields
-  allow_partial_filtering: true      # Allow filter expressions to work with collections that support them
+  allow_partial_filtering: false     # Allow filter expressions to work with collections that support them
 ```
 
 ### Environment Variables
@@ -482,13 +518,11 @@ metadata:
 export ENABLE_FILTER_GENERATOR=true
 
 # LLM configuration
-export APP_FILTEREXPRESSIONGENERATOR_MODELNAME="nvidia/llama-3_3-nemotron-super-49b-v1_5"
+export APP_FILTEREXPRESSIONGENERATOR_MODELNAME="nvidia/llama-3-3-nemotron-super-49b-v1-5"
 export APP_FILTEREXPRESSIONGENERATOR_SERVERURL=""
 
-# Metadata configuration
-export METADATA_MAX_ARRAY_LENGTH=1000
-export METADATA_MAX_STRING_LENGTH=65535
-export METADATA_ALLOW_PARTIAL_FILTERING=true
+# Note: Metadata configuration is not currently exposed via environment variables
+# Default behavior is controlled by the configuration.py file at the code level
 ```
 
 ### Partial Filtering Modes

@@ -15,6 +15,11 @@
 
 # Import the necessary modules and classes for the package
 import logging
+import os
+
+# Configure logging at the package level to ensure all nvidia_rag modules inherit correct levels
+# This must happen before any other nvidia_rag module imports
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper(), force=True)
 
 logger = logging.getLogger(__name__)
 try:

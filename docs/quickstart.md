@@ -108,7 +108,58 @@ Use the following procedure to start all containers needed for this blueprint. T
    source deploy/compose/perf_profile.env
    ```
 
-4. Start all required NIMs.
+4. List available profiles for your system for nim llm container. More details about profiles can be found [here](https://docs.nvidia.com/nim/large-language-models/latest/profiles.html).
+
+   ```bash
+   USERID=$(id -u) docker compose -f deploy/compose/nims.yaml run nim-llm list-model-profiles
+   ```
+
+   Example output for H100-NVL when 1 GPU is allocated:
+
+   ```output
+   MODEL PROFILES
+   - Compatible with system and runnable:
+   - d491076c9c5fbbc0f5ec92916ee84050c3b51a1c93055a64de8d0f31a22ed209 (vllm-bf16-tp1-pp1-32c3b968468aefcfb3ea1db5a16e3dc9d64395f02ef68a06175e8bbdb0038601)
+   - e2f00b2cbfb168f907c8d6d4d40406f7261111fbab8b3417a485dcd19d10cc98 (vllm)
+   - e759b32c9a5c4d16aced45cd7797ec030feb7d9164a7fe74278a76c795baf8cb (tensorrt_llm-h100_nvl-fp8-tp1-pp1-throughput-2321:10de-6343e21ba5cccf783d18951c6627c207b81803c3c45f1e8b59eee062ed350143-1)
+   - 668b575f1701fa70a97cfeeae998b5d70b048a9b917682291bb82b67f308f80c (tensorrt_llm)
+   - 50e138f94d85b97117e484660d13b6b54234e60c20584b1de6ed55d109ca4f21 (sglang)
+   ```
+
+5. Set the required profile. It is preferrable to select `tensorrt_llm-*` profiles for best performance. By default, automatic selection of profile is enabled but due to a known issue, vllm based profiles are selected, so it is recommended to manually select a tensorrt_llm profile before starting the `nim-llm` service.
+
+   Example of most common profiles for different supported systems are given below:
+
+   1xH100 NVL based
+   ```bash
+   export NIM_MODEL_PROFILE=tensorrt_llm-h100_nvl-fp8-tp1-pp1-throughput-2321:10de-6343e21ba5cccf783d18951c6627c207b81803c3c45f1e8b59eee062ed350143-1
+   ```
+
+   1xH100 SXM based
+   ```bash
+   export NIM_MODEL_PROFILE=tensorrt_llm-h100-fp8-tp1-pp1-throughput-2330:10de-ed15592b3e4d174a719e8188493420073c39448d9b7ed742cfe614b96fecbdd9-1
+   ```
+
+   2xA100
+
+    The default configuration allocates one GPU (GPU ID 1) to `nim-llm-ms` which defaults to minimum GPUs needed for H100 or B200 or RTX6000 profile. If you are deploying the solution on A100, please allocate 2 available GPUs by exporting below env variable before launching or listing profiles:
+     ```bash
+     export LLM_MS_GPU_ID=1,2
+     ```
+   ```bash
+   export NIM_MODEL_PROFILE=tensorrt_llm-a100-bf16-tp2-pp1-throughput-20b2:10de-4c44baded168675f277ffcbd4f9bce56cac0239944062c44d81d359f9c718f06-2
+   ```
+   1xRTX6000
+   ```bash
+   export NIM_MODEL_PROFILE=tensorrt_llm-rtx6000_blackwell_sv-fp8-tp1-pp1-throughput-2bb5:10de-b5e4ef5f657564a90ff8b1fc8e8e6d59f24845f183209d563aa93d91fc6629ac-1
+   ```
+
+   1xB200
+   ```bash
+   export NIM_MODEL_PROFILE=tensorrt_llm-gb200-fp8-tp1-pp1-throughput-2941:10de-a642befc43aa112e87399e2fea6d3ef2994cadb5ccb2715c9bc7e89c35e92383-1
+   ```
+
+6. Start all required NIMs.
 
    Before running the command please ensure the GPU allocation is done appropriately in the deploy/compose/.env. You might need to override them
    for the hardware you are deploying this blueprint on. The default assumes you are deploying this on a 2XH100 environment.
@@ -119,12 +170,7 @@ Use the following procedure to start all containers needed for this blueprint. T
 
    - Wait till the `nemoretriever-ranking-ms`, `nemoretriever-embedding-ms` and `nim-llm-ms`  NIMs are in healthy state before proceeding further.
 
-   - The nemo LLM service may take upto 30 mins to start for the first time as the model is downloaded and cached. The models are downloaded and cached in the path specified by `MODEL_DIRECTORY`. Subsequent deployments will take 2-5 mins to startup based on the GPU profile.
-
-   - The default configuration allocates one GPU (GPU ID 1) to `nim-llm-ms` which defaults to minimum GPUs needed for H100 or B200 profile. If you are deploying the solution on A100, please allocate 2 available GPUs by exporting below env variable before launching:
-     ```bash
-     export LLM_MS_GPU_ID=1,2
-     ```
+   - The nemo LLM service may take upto 30 mins to start for the first time as the model is downloaded and cached. The models are downloaded and cached in the path specified by `MODEL_DIRECTORY`. Subsequent deployments will take 2-5 mins to startup based on the GPU profile. For other common deployment issues you can [checkout troubleshooting guide](./troubleshooting.md).
 
    - To start just the NIMs specific to rag or ingestion add the `--profile rag` or `--profile ingest` flag to the command.
 
@@ -149,7 +195,7 @@ Use the following procedure to start all containers needed for this blueprint. T
      ```
 
 
-5. Start the vector db containers from the repo root.
+7. Start the vector db containers from the repo root.
    ```bash
    docker compose -f deploy/compose/vectordb.yaml up -d
    ```
@@ -166,7 +212,7 @@ Use the following procedure to start all containers needed for this blueprint. T
    export APP_VECTORSTORE_ENABLEGPUINDEX=False
    ```
 
-6. Start the ingestion containers from the repo root. This pulls the prebuilt containers from NGC and deploys it on your system.
+8. Start the ingestion containers from the repo root. This pulls the prebuilt containers from NGC and deploys it on your system.
 
    ```bash
    docker compose -f deploy/compose/docker-compose-ingestor-server.yaml up -d
@@ -179,12 +225,15 @@ Use the following procedure to start all containers needed for this blueprint. T
    docker compose -f deploy/compose/docker-compose-ingestor-server.yaml up -d --build
    ```
 
+   [!TIP]
+   For advanced users who need direct filesystem access to extraction results, see [Ingestor Server Volume Mounting](mount-ingestor-volume.md) to configure volume mounting for custom processing pipelines.
+
    You can check the status of the ingestor-server and its dependencies by issuing this curl command
    ```bash
    curl -X 'GET' 'http://workstation_ip:8082/v1/health?check_dependencies=true' -H 'accept: application/json'
    ```
 
-7. Start the rag containers from the repo root. This pulls the prebuilt containers from NGC and deploys it on your system.
+9. Start the rag containers from the repo root. This pulls the prebuilt containers from NGC and deploys it on your system.
 
    ```bash
    docker compose -f deploy/compose/docker-compose-rag-server.yaml up -d
@@ -202,7 +251,7 @@ Use the following procedure to start all containers needed for this blueprint. T
    curl -X 'GET' 'http://workstation_ip:8081/v1/health?check_dependencies=true' -H 'accept: application/json'
    ```
 
-8. Confirm all the below mentioned containers are running.
+10. Confirm all the below mentioned containers are running.
 
    ```bash
    docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Status}}"
@@ -215,7 +264,7 @@ Use the following procedure to start all containers needed for this blueprint. T
    compose-nv-ingest-ms-runtime-1          Up 5 minutes (healthy)
    ingestor-server                         Up 5 minutes
    compose-redis-1                         Up 5 minutes
-   rag-playground                          Up 9 minutes
+   rag-frontend                            Up 9 minutes
    rag-server                              Up 9 minutes
    milvus-standalone                       Up 36 minutes
    milvus-minio                            Up 35 minutes (healthy)
@@ -229,9 +278,9 @@ Use the following procedure to start all containers needed for this blueprint. T
    nim-llm-ms                              Up 38 minutes (healthy)
    ```
 
-9.  Open a web browser and access `http://localhost:8090` to use the RAG Playground. You can use the upload tab to ingest files into the server or follow [the notebooks](../notebooks/) to understand the API usage.
+11.  Open a web browser and access `http://localhost:8090` to use the RAG Playground. You can use the upload tab to ingest files into the server or follow [the notebooks](../notebooks/) to understand the API usage.
 
-10. To stop all running services, after making some [customizations](#next-steps)
+12. To stop all running services, after making some [customizations](#next-steps)
     ```bash
     docker compose -f deploy/compose/docker-compose-ingestor-server.yaml down
     docker compose -f deploy/compose/nims.yaml down
@@ -263,15 +312,6 @@ Use the following procedure to start all containers needed for this blueprint. T
    YOLOX_TABLE_STRUCTURE_GRPC_ENDPOINT="workstation_ip:8001"
    ```
 
-3. Due to react limitations, any changes made to below environment variables will require developers to rebuilt the rag containers. This will be fixed in a future release.
-
-   ```output
-        VITE_API_CHAT_URL: ${VITE_API_CHAT_URL:-http://rag-server:8081/v1}
-        VITE_API_VDB_URL: ${VITE_API_VDB_URL:-http://ingestor-server:8082/v1}
-        VITE_MILVUS_URL: http://milvus:19530
-   ```
-
-
 ### Start using nvidia hosted models
 
 1. Verify that you meet the [prerequisites](#prerequisites).
@@ -295,7 +335,11 @@ Use the following procedure to start all containers needed for this blueprint. T
    ```
 
    **📝 Note:**
-   When using NVIDIA hosted endpoints, you may encounter rate limiting with larger file ingestions (>10 files).
+   - When using NVIDIA hosted endpoints, you may encounter rate limiting with larger file ingestions (>10 files).
+
+    [!IMPORTANT]
+    The LLM model name is different for cloud deployment!
+    Ensure to set APP_LLM_MODELNAME=nvidia/llama-3.3-nemotron-super-49b-v1.5 instead of export APP_LLM_MODELNAME=nvidia/llama-3-3-nemotron-super-49b-v1-5 when switching to cloud from on-prem! This is preset in .env file.
 
 3. Start the vector db containers from the repo root.
    ```bash
@@ -329,6 +373,9 @@ Use the following procedure to start all containers needed for this blueprint. T
    curl -X 'GET' 'http://workstation_ip:8081/v1/health?check_dependencies=true' -H 'accept: application/json'
    ```
 
+   In case you have a requirement of building Nvidia Ingest runtime container from source, you can do it by following instructions from [this link](https://github.com/NVIDIA/nv-ingest), using docker compose.
+
+
 5. Start the rag containers from the repo root. This pulls the prebuilt containers from NGC and deploys it on your system.
 
    ```bash
@@ -360,7 +407,7 @@ Use the following procedure to start all containers needed for this blueprint. T
    compose-nv-ingest-ms-runtime-1          Up 5 minutes (healthy)
    ingestor-server                         Up 5 minutes
    compose-redis-1                         Up 5 minutes
-   rag-playground                          Up 9 minutes
+   rag-frontend                                  Up 9 minutes
    rag-server                              Up 9 minutes
    milvus-standalone                       Up 36 minutes
    milvus-minio                            Up 35 minutes (healthy)
@@ -450,7 +497,7 @@ kubectl create namespace rag
 Run the following command to install the RAG server with the Ingestor Server and Frontend enabled:
 
 ```sh
-helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc1.tgz \
+helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \
 --username '$oauthtoken' \
 --password "${NGC_API_KEY}" \
 --set imagePullSecret.password=$NGC_API_KEY \
@@ -496,7 +543,7 @@ For B200 and A100 GPUs, it is recommended to use CPU indexing and search for bet
 
 1. Using helm set command:
 ```sh
-helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc1.tgz \
+helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \
 --username '$oauthtoken' \
 --password "${NGC_API_KEY}" \
 --set imagePullSecret.password=$NGC_API_KEY \
@@ -586,9 +633,74 @@ nim-llm:
       nvidia.com/gpu: 1
     requests:
       nvidia.com/gpu: 1
+  # Configure NIM Model Profile for optimal performance
+  env:
+    - name: NIM_MODEL_PROFILE
+      value: ""  # Empty for automatic selection, or specify tensorrt_llm profile
   model:
     ngcApiKey: ""
     modelName: "meta/llama-3.1-8b-instruct"
+```
+
+**List available profiles for your system:**
+
+You can list available profiles by running the NIM container directly:
+
+```bash
+USERID=$(id -u) docker run --rm --gpus all \
+  -v ~/.cache/model-cache:/opt/nim/.cache \
+  nvcr.io/nim/nvidia/llama-3.3-nemotron-super-49b-v1.5:1.12.0 \
+  list-model-profiles
+```
+
+Example output for H100-NVL when 1 GPU is allocated:
+
+```output
+MODEL PROFILES
+- Compatible with system and runnable:
+- d491076c9c5fbbc0f5ec92916ee84050c3b51a1c93055a64de8d0f31a22ed209 (vllm-bf16-tp1-pp1-32c3b968468aefcfb3ea1db5a16e3dc9d64395f02ef68a06175e8bbdb0038601)
+- e2f00b2cbfb168f907c8d6d4d40406f7261111fbab8b3417a485dcd19d10cc98 (vllm)
+- e759b32c9a5c4d16aced45cd7797ec030feb7d9164a7fe74278a76c795baf8cb (tensorrt_llm-h100_nvl-fp8-tp1-pp1-throughput-2321:10de-6343e21ba5cccf783d18951c6627c207b81803c3c45f1e8b59eee062ed350143-1)
+- 668b575f1701fa70a97cfeeae998b5d70b048a9b917682291bb82b67f308f80c (tensorrt_llm)
+- 50e138f94d85b97117e484660d13b6b54234e60c20584b1de6ed55d109ca4f21 (sglang)
+```
+
+#### NIM Model Profile Configuration
+
+Set the required profile. It is preferable to select `tensorrt_llm-*` profiles for best performance. By default, automatic selection of profile is enabled but due to a known issue, vllm based profiles are selected, so it is recommended to manually select a tensorrt_llm profile.
+
+**Example profiles for different hardware configurations:**
+
+```yaml
+# H100 NVL based
+nim-llm:
+  env:
+    - name: NIM_MODEL_PROFILE
+      value: "tensorrt_llm-h100_nvl-fp8-tp1-pp1-throughput-2321:10de-6343e21ba5cccf783d18951c6627c207b81803c3c45f1e8b59eee062ed350143-1"
+
+# H100 SXM based
+nim-llm:
+  env:
+    - name: NIM_MODEL_PROFILE
+      value: "tensorrt_llm-h100-fp8-tp1-pp1-throughput-2330:10de-ed15592b3e4d174a719e8188493420073c39448d9b7ed742cfe614b96fecbdd9-1"
+
+# 2xA100
+nim-llm:
+  env:
+    - name: NIM_MODEL_PROFILE
+      value: "tensorrt_llm-a100-bf16-tp2-pp1-throughput-20b2:10de-4c44baded168675f277ffcbd4f9bce56cac0239944062c44d81d359f9c718f06-2"
+
+# RTX6000
+nim-llm:
+  env:
+    - name: NIM_MODEL_PROFILE
+      value: "tensorrt_llm-rtx6000_blackwell_sv-fp8-tp1-pp1-throughput-2bb5:10de-b5e4ef5f657564a90ff8b1fc8e8e6d59f24845f183209d563aa93d91fc6629ac-1"
+
+# B200
+nim-llm:
+  env:
+    - name: NIM_MODEL_PROFILE
+      value: "tensorrt_llm-gb200-fp8-tp1-pp1-throughput-2941:10de-a642befc43aa112e87399e2fea6d3ef2994cadb5ccb2715c9bc7e89c35e92383-1"
 ```
 
 #### Verifying Deployment
@@ -663,7 +775,7 @@ rag-zipkin                          ClusterIP      <none>        9411/TCP       
 #### Patching the deployment
 For patching an existing deployment, modify `values.yaml` with required changes and run
 ```sh
-helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc1.tgz \
+helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \
 --username '$oauthtoken' \
 --password "${NGC_API_KEY}" \
 --set imagePullSecret.password=$NGC_API_KEY \
@@ -674,31 +786,111 @@ helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprin
 #### Enable NIM Operator with the chart
 
 - Prerequisites
-   - Please [install NIM Operator 2.0.1 and above](https://docs.nvidia.com/nim-operator/latest/install.html) first.
-   - Create [Image Pull Secrets](https://docs.nvidia.com/nim-operator/latest/image-pull-secrets.html)
+   - Please [Install NIM Operator 3.0](https://docs.nvidia.com/nim-operator/latest/install.html).
+   - Ensure you meet [the hardware requirements](./support-matrix.md).
 
-1. Create a NIM Cache with available storage class on the cluster.
+1. Create ImagePullSecrets with below commands
+
+   ```sh
+   kubectl create secret -n rag docker-registry ngc-secret \
+   --docker-server=nvcr.io \
+   --docker-username='$oauthtoken' \
+   --docker-password=$NGC_API_KEY
+
+   kubectl create secret -n rag generic ngc-api-secret \
+   --from-literal=NGC_API_KEY=$NGC_API_KEY
+   ```
+
+2. Create a NIM Cache with available storage class on the cluster.
 
   ```sh
   kubectl apply -f deploy/helm/nim-operator/rag-nimcache.yaml -n rag
   ```
 
-2. Now create a NIM Services
+3. Now create a NIM Services
 
-  ```sh
-  kubectl apply -f deploy/helm/nim-operator/rag-nimservice.yaml -n rag
-  ```
+   - **No GPU Sharing**
 
-4. Delete the existing secret as it's conflict with RAG installation
+      ```sh
+      kubectl apply -f deploy/helm/nim-operator/rag-nimservice.yaml -n rag
+      ```
+
+   - **GPU Sharing with DRA**
+
+      > [!TIP] With DRA Setup, All NIM Service can run on 3 GPUs with atleast 80GB should be enough, it could be A100 or H100 or B200
+
+      - Prerequisite: [NVIDIA DRA Driver](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/25.3.2/dra-intro-install.html)
+   
+      ```sh
+      kubectl apply -f deploy/helm/nim-operator/rag-nimservice-dra.yaml -n rag
+      ```
+
+   - **(Optional) List available profiles for your system for NIM LLM container**
+
+      More details about profiles can be found [here](https://docs.nvidia.com/nim/large-language-models/latest/profiles.html).
+
+      You can list available profiles by running the NIM container directly:
+
+      ```bash
+      USERID=$(id -u) docker run --rm --gpus all \
+      -v ~/.cache/model-cache:/opt/nim/.cache \
+      nvcr.io/nim/nvidia/llama-3.3-nemotron-super-49b-v1.5:1.12.0 \
+      list-model-profiles
+      ```
+
+   - **(Optional) Configure NIM Model Profile**
+
+      For optimal performance, configure the NIM model profile. See the [NIM Model Profile Configuration](#nim-model-profile-configuration) section in the "Changing NIM LLM Model" part for detailed instructions and hardware-specific examples.
+
+      Configure the `NIM_MODEL_PROFILE` in `deploy/helm/nim-operator/rag-nimservice.yaml`:
+
+      ```yaml
+      storage:
+      nimCache:
+         name: nemotron-llama3-49b-super
+         profile: ''
+      env:
+      - name: NIM_MODEL_PROFILE
+        value: "tensorrt_llm-h100_nvl-fp8-tp1-pp1-throughput-2321:10de-6343e21ba5cccf783d18951c6627c207b81803c3c45f1e8b59eee062ed350143-1"  # Example for H100 NVL
+         # H100 tp 1 profile non-NVL based
+         # - name: NIM_MODEL_PROFILE
+         #   value: "tensorrt_llm-h100-fp8-tp1-pp1-throughput-2330:10de-ed15592b3e4d174a719e8188493420073c39448d9b7ed742cfe614b96fecbdd9-1"
+         # NVL based H100 tp 1 profile
+         # - name: NIM_MODEL_PROFILE
+         #   value: "tensorrt_llm-h100_nvl-fp8-tp1-pp1-throughput-2321:10de-6343e21ba5cccf783d18951c6627c207b81803c3c45f1e8b59eee062ed350143-1"
+         # A100 tp 2 profile
+         # - name: NIM_MODEL_PROFILE
+         #   value: "tensorrt_llm-a100-bf16-tp2-pp1-throughput-20b2:10de-4c44baded168675f277ffcbd4f9bce56cac0239944062c44d81d359f9c718f06-2"
+      ```
+
+      After modifying the profile, reapply the NIM service:
+
+      ```sh
+      kubectl apply -f deploy/helm/nim-operator/rag-nimservice.yaml -n rag
+      ```
+
+4. Wait a few minutes and ensure that the NIMService status is `Ready` before proceeding to the next steps.
+
+   ```sh
+   kubectl get nimservice -n rag
+   NAME                                STATUS     AGE
+   nemoretriever-embedding-ms          Ready      20m
+   nemoretriever-reranking-ms          Ready      20m
+   nemoretriever-graphic-elements-v1   Ready      20m
+   nemoretriever-page-elements-v2      Ready      20m
+   nemoretriever-table-structure-v1    Ready      20m
+   nim-llm                             Ready      20m
+
+7. Delete the existing secret as it's conflict with RAG installation
 
   ```sh
   kubectl delete secret ngc-secret -n rag
   ```
 
-4. Use the following `values-nim-operator.yaml` to deploy the RAG with NIM Operator NIM Services
+8. Use the following `values-nim-operator.yaml` to deploy the RAG with NIM Operator NIM Services
 
   ```sh
-  helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc1.tgz \
+  helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \
   --username '$oauthtoken' \
   --password "${NGC_API_KEY}" \
   --set imagePullSecret.password=$NGC_API_KEY \
@@ -768,7 +960,7 @@ helm uninstall rag -n rag
 Run the following command to install the RAG Server:
 
 ```sh
-helm upgrade --install rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc1.tgz -n rag \
+helm upgrade --install rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz -n rag \
   --username '$oauthtoken' \
   --password "${NGC_API_KEY}" \
   --set imagePullSecret.password=$NGC_API_KEY \
@@ -836,7 +1028,7 @@ To use a custom Milvus endpoint, you need to update the `APP_VECTORSTORE_URL` en
    Redeploy the Helm chart to apply these changes:
 
    ```sh
-   helm upgrade rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc1.tgz -f nvidia-blueprint-rag/values.yaml -n rag
+   helm upgrade rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz -f nvidia-blueprint-rag/values.yaml -n rag
    ```
 
 #### (Optional) Customizing the RAG Server UI
@@ -861,14 +1053,14 @@ The default variables and values are the following:
     cd ../deploy/compose
     ```
 
-    Modify the `image` and `args` accordingly in `docker-compose-rag-server.yaml` for `rag-playground` service
+    Modify the `image` and `args` accordingly in `docker-compose-rag-server.yaml` for `rag-frontend` service
 
     Example:
 
     ```
     # Sample UI container which interacts with APIs exposed by rag-server container
-    rag-playground:
-      container_name: rag-playground
+    rag-frontend:
+      container_name: rag-frontend
       image: <image-registry-with-tag>
       build:
         # Set context to repo's root directory
@@ -897,7 +1089,7 @@ The default variables and values are the following:
    - Run the following command to install the RAG server with the Ingestor Server and New Frontend with updated `<new-image-repository>` and `<new-image-tag>`:
 
       ```sh
-      helm install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc1.tgz \
+      helm install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \
       --username '$oauthtoken' \
       --password "${NGC_API_KEY}" \
       --set imagePullSecret.password=$NGC_API_KEY \
@@ -977,6 +1169,7 @@ Follow the cells in the notebook to ingest the PDF files from the data/dataset f
 - [Enable PDF extraction with Nemoretriever Parse](nemoretriever-parse-extraction.md)
 - [Enable NeMo Retriever OCR for enhanced text extraction](docs/nemoretriever-ocr.md)
 - [Enable standalone NV-Ingest for direct document ingestion without ingestor server](nv-ingest-standalone.md)
+- [Mount ingestor server volume for direct filesystem access to extraction results](mount-ingestor-volume.md)
 - [Filter documents by confidence threshold](python-client.md#search-with-confidence-threshold-filtering) in search and generation
 - Explore [best practices for enhancing accuracy or latency](accuracy_perf.md)
 - Explore [migration guide](migration_guide.md) if you are migrating from rag v1.0.0 to this version.
@@ -987,8 +1180,6 @@ Follow the cells in the notebook to ingest the PDF files from the data/dataset f
 > **⚠️ Important B200 Limitation Notice:**
 >
 > B200 GPUs are **not supported** for the following advanced features:
-> - Self-Reflection to improve accuracy
-> - Query rewriting to Improve accuracy of Multi-Turn Conversations
 > - Image captioning support for ingested documents
 > - NeMo Guardrails for guardrails at input/output
 > - VLM based inferencing in RAG

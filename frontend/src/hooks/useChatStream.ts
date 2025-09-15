@@ -14,7 +14,7 @@
 // limitations under the License.
 
 import { useState, useRef } from "react";
-import type { ChatMessage } from "../types/chat";
+import type { ChatMessage, Citation } from "../types/chat";
 
 /**
  * Interface representing the state of a chat stream.
@@ -105,12 +105,15 @@ export const useChatStream = () => {
             [];
 
           if (Array.isArray(sources)) {
-            const scored: ChatMessage["citations"] = sources.map((src: any) => {
-              const score = src.score ?? src.confidence_score ?? src.similarity_score ?? undefined;
+            const scored: ChatMessage["citations"] = sources.map((src: Record<string, unknown>) => {
+              const score = typeof src.score === 'string' || typeof src.score === 'number' ? src.score :
+                           typeof src.confidence_score === 'string' || typeof src.confidence_score === 'number' ? src.confidence_score :
+                           typeof src.similarity_score === 'string' || typeof src.similarity_score === 'number' ? src.similarity_score :
+                           undefined;
               return {
-                text: src.content || src.text || "",
-                source: src.document_name || src.source || src.title || "Unknown",
-                document_type: src.document_type || "text",
+                text: String(src.content || src.text || ""),
+                source: String(src.document_name || src.source || src.title || "Unknown"),
+                document_type: (src.document_type as Citation["document_type"]) || "text",
                 score,
               };
             });
@@ -121,7 +124,7 @@ export const useChatStream = () => {
 
           updateMessage(assistantId, {
             content,
-            citations: latestCitations.length ? latestCitations : undefined,
+            citations: latestCitations && latestCitations.length ? latestCitations : undefined,
           });
 
           if (json.choices?.[0]?.finish_reason === "stop") {
@@ -130,8 +133,8 @@ export const useChatStream = () => {
           }
         }
       }
-    } catch (err: any) {
-      if (err?.name === "AbortError") return;
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
       setStreamState((prev) => ({
         ...prev,
         error: "Error processing stream",

@@ -29,8 +29,16 @@ describe('DocumentItem', () => {
     vi.clearAllMocks();
     // Provide mock for all tests
     vi.mocked(useCollectionDrawerStore).mockReturnValue({
+      isOpen: false,
+      activeCollection: null,
+      showUploader: false,
+      deleteError: null,
+      openDrawer: vi.fn(),
+      closeDrawer: vi.fn(),
+      toggleUploader: vi.fn(),
       setDeleteError: mockSetDeleteError,
-    } as any);
+      reset: vi.fn(),
+    });
   });
 
   describe('Basic Rendering', () => {
@@ -138,8 +146,6 @@ describe('DocumentItem', () => {
         new Response(JSON.stringify({ message: 'Document deleted' }), { status: 200 })
       );
 
-      vi.spyOn(window, 'confirm').mockReturnValue(true);
-
       render(
         <QueryClientProvider client={qc}>
           <DocumentItem {...defaultProps} />
@@ -149,7 +155,9 @@ describe('DocumentItem', () => {
       const deleteButton = screen.getByRole('button', { name: /delete test-document\.pdf/i });
       await user.click(deleteButton);
 
-      expect(window.confirm).toHaveBeenCalledWith('Delete document "test-document.pdf"?');
+      // Find and click the confirm button in the modal
+      const confirmButton = screen.getByText('Delete');
+      await user.click(confirmButton);
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledWith(
@@ -170,7 +178,6 @@ describe('DocumentItem', () => {
       const qc = createQueryClient();
 
       const fetchMock = vi.spyOn(global, 'fetch');
-      vi.spyOn(window, 'confirm').mockReturnValue(false);
 
       render(
         <QueryClientProvider client={qc}>
@@ -181,7 +188,10 @@ describe('DocumentItem', () => {
       const deleteButton = screen.getByRole('button', { name: /delete test-document\.pdf/i });
       await user.click(deleteButton);
 
-      expect(window.confirm).toHaveBeenCalledWith('Delete document "test-document.pdf"?');
+      // Find and click the cancel button in the modal
+      const cancelButton = screen.getByText('Cancel');
+      await user.click(cancelButton);
+
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
@@ -201,7 +211,6 @@ describe('DocumentItem', () => {
       await user.click(deleteButton);
 
       expect(fetchMock).not.toHaveBeenCalled();
-      expect(window.confirm).not.toHaveBeenCalled();
     });
   });
 }); 
