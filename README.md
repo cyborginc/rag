@@ -60,7 +60,7 @@ The following are the default components included in this blueprint:
     * [NeMo Retriever Parse NIM](https://build.nvidia.com/nvidia/nemoretriever-parse)
 
 * RAG Orchestrator server - Langchain based
-* [CyborgDB Vector Proxy](https://docs.cyborg.co) - accelerated with NVIDIA cuVS
+* [CyborgDB Vector Proxy](https://docs.cyborg.co) (accelerated with NVIDIA cuVS) with encrypted Redis backing store
 * Ingestion - [Nemo Retriever Extraction](https://github.com/NVIDIA/nv-ingest/tree/main) is leveraged for ingestion of files. Nemo Retriever Extraction is a scalable, performance-oriented document content and metadata extraction microservice. Including support for parsing PDFs, Word and PowerPoint documents, it uses specialized NVIDIA NIM microservices to find, contextualize, and extract text, tables, charts and images for use in downstream generative applications.
 * File Types: File types supported by Nemo Retriever Extraction are supported by this blueprint. This includes `.pdf`, `.pptx`, `.docx` having images. Image captioning support is turned off by default to improve latency, so questions about images in documents will yield poor accuracy. For the full list of supported file types, see [What is NeMo Retriever Extraction?](https://docs.nvidia.com/nemo/retriever/extraction/overview/)
 
