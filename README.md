@@ -1,3 +1,5 @@
+
+
 <h1><img align="center" src="https://github.com/user-attachments/assets/cbe0d62f-c856-4e0b-b3ee-6184b7c4d96f">NVIDIA RAG Blueprint</h1>
 
 Use this documentation to learn about the NVIDIA RAG Blueprint.
@@ -34,6 +36,7 @@ However, you can replace these models with your NVIDIA-hosted models available i
 - Sample user interface
 - OpenAI-compatible APIs
 - Decomposable and customizable
+- Pluggable vector database
 
 
 ### Software Components
@@ -42,7 +45,7 @@ The following are the default components included in this blueprint:
 
 * NVIDIA NIM Microservices
    * Response Generation (Inference)
-      * [NIM of nvidia/llama-3.3-nemotron-super-49b-v1](https://build.nvidia.com/nvidia/llama-3_3-nemotron-super-49b-v1)
+      * [NIM of nvidia/llama-3.3-nemotron-super-49b-v1](https://build.nvidia.com/nvidia/llama-3_3-nemotron-super-49b-v1_5)
     * Retriever Models
       * [NIM of nvidia/llama-3_2-nv-embedqa-1b-v2]( https://build.nvidia.com/nvidia/llama-3_2-nv-embedqa-1b-v2)
       * [NIM of nvidia/llama-3_2-nv-rerankqa-1b-v2](https://build.nvidia.com/nvidia/llama-3_2-nv-rerankqa-1b-v2)
@@ -52,12 +55,12 @@ The following are the default components included in this blueprint:
       * [PaddleOCR NIM](https://build.nvidia.com/baidu/paddleocr)
 
   * Optional NIMs
-
+    * [NeMo Retriever OCR NIM](https://build.nvidia.com/nvidia/nemoretriever-ocr)
     * [Llama 3.1 NemoGuard 8B Content Safety NIM](https://build.nvidia.com/nvidia/llama-3_1-nemoguard-8b-content-safety)
     * [Llama 3.1 NemoGuard 8B Topic Control NIM](https://build.nvidia.com/nvidia/llama-3_1-nemoguard-8b-topic-control)
-    * [Mixtral 8x22B Instruct 0.1](https://build.nvidia.com/mistralai/mixtral-8x22b-instruct)
     * [Llama-3.1 Nemotron-nano-vl-8b-v1 NIM](https://build.nvidia.com/nvidia/llama-3.1-nemotron-nano-vl-8b-v1)
     * [NeMo Retriever Parse NIM](https://build.nvidia.com/nvidia/nemoretriever-parse)
+    * [llama-3.2-nemoretriever-1b-vlm-embed-v1](https://build.nvidia.com/nvidia/llama-3_2-nemoretriever-1b-vlm-embed-v1)
 
 * RAG Orchestrator server - Langchain based
 * [CyborgDB Vector Proxy](https://docs.cyborg.co) (accelerated with NVIDIA cuVS) with encrypted Redis backing store
@@ -73,7 +76,7 @@ You use sample Jupyter notebooks with the JupyterLab service to interact with th
 The Blueprint contains sample data from the [NVIDIA Developer Blog](https://github.com/NVIDIA-AI-Blueprints/rag/blob/main/data/dataset.zip) and also some [sample multimodal data](./data/multimodal/).
 You can build on this blueprint by customizing the RAG application to your specific use case.
 
-We also provide a sample user interface named `rag-playground`.
+We also provide a sample user interface named `rag-frontend`.
 
 
 ### Technical Diagram
@@ -135,6 +138,7 @@ The following are some of the customizations that you can make to the blueprint:
 
 - [Change the Inference or Embedding Model](docs/change-model.md)
 - [Customize LLM Parameters at Runtime](docs/llm-params.md)
+- [Change the vector database](docs/change-vectordb.md)
 - [Customize Multi-Turn Conversations](docs/multiturn.md)
 - [Customize Prompts](docs/prompt-customization.md)
 - [Milvus Configuration](docs/milvus-configuration.md)
@@ -145,18 +149,25 @@ The following are some of the features that you can enable:
 
 - [Enable audio ingestion support](docs/audio_ingestion.md)
 - [Enable hybrid search](docs/hybrid_search.md)
+- [Enable Query decomposition support](docs/query_decomposition.md)
 - [Enable image captioning support for ingested documents](docs/image_captioning.md)
+- [Enable VLM embedding support](docs/vlm-embed.md)
 - [Enable multi-collection retrieval](docs/multi-collection-retrieval.md)
 - [Enable NeMo Guardrails for guardrails at input/output](docs/nemo-guardrails.md)
 - [Enable observability support](./docs/observability.md)
 - [Enable PDF extraction with Nemoretriever Parse](docs/nemoretriever-parse-extraction.md)
+- [Enable NeMo Retriever OCR for enhanced text extraction](docs/nemoretriever-ocr.md)
 - [Enable standalone NV-Ingest for direct document ingestion without ingestor server](docs/nv-ingest-standalone.md)
+- [Mount ingestor server volume for direct filesystem access to extraction results](docs/mount-ingestor-volume.md)
 - [Enable query rewriting to improve the accuracy of multi-turn conversations](docs/query_rewriter.md)
 - [Enable reasoning in Nemotron model](docs/enable-nemotron-thinking.md)
 - [Enable self-reflection to improve accuracy](docs/self-reflection.md)
 - [Enabling Summarization](docs/summarization.md)
 - [Enable text-only ingestion of files](docs/text_only_ingest.md)
 - [Enable VLM based inferencing in RAG](docs/vlm.md)
+- [Multimodal Input Guide](docs/multimodal_input_guide.md)
+- [Change the Vector Database Backend](docs/change-vectordb.md)
+
 
 
 To fine-tune RAG performance, see [Best practices for common settings](./docs/accuracy_perf.md).
@@ -166,8 +177,6 @@ To troubleshoot issues that arise when you work with the NVIDIA RAG Blueprint, s
 > **⚠️ Important B200 Limitation Notice:**
 >
 > B200 GPUs are **not supported** for the following advanced features:
-> - Self-Reflection to improve accuracy
-> - Query rewriting to Improve accuracy of Multi-Turn Conversations
 > - Image captioning support for ingested documents
 > - NeMo Guardrails for guardrails at input/output
 > - VLM based inferencing in RAG
@@ -195,4 +204,3 @@ Use of the models in this blueprint is governed by the [NVIDIA AI Foundation Mod
 This blueprint is governed by the [NVIDIA Agreements | Enterprise Software | NVIDIA Software License Agreement](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-software-license-agreement/) and the [NVIDIA Agreements | Enterprise Software | Product Specific Terms for AI Product](https://www.nvidia.com/en-us/agreements/enterprise-software/product-specific-terms-for-ai-products/). The models are governed by the [NVIDIA Agreements | Enterprise Software | NVIDIA Community Model License](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-community-models-license/) and the [NVIDIA RAG dataset](https://github.com/NVIDIA-AI-Blueprints/rag/tree/v2.0.0/data/multimodal) which is governed by the [NVIDIA Asset License Agreement](https://github.com/NVIDIA-AI-Blueprints/rag/blob/main/data/LICENSE.DATA).
 
 The following models that are built with Llama are governed by the [Llama 3.2 Community License Agreement](https://www.llama.com/llama3_2/license/): llama-3.3-nemotron-super-49b-v1, nvidia/llama-3.2-nv-embedqa-1b-v2, and nvidia/llama-3.2-nv-rerankqa-1b-v2.
-
