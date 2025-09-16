@@ -55,7 +55,7 @@ services:
     profiles: ["", "milvus"]
 
   minio:
-    container_name: milvus-minio
+    container_name: minio
     image: minio/minio:RELEASE.2025-07-23T15-54-02Z
     environment:
       MINIO_ACCESS_KEY: minioadmin
@@ -101,7 +101,7 @@ services:
     container_name: cyborgdb
     image: cyborginc/cyborgdb-service:latest
     ports:
-      - "8000:8000"
+      - "9200:8000"
     environment:
       - CYBORGDB_DB_TYPE=redis
       - CYBORGDB_CONNECTION_STRING=host:cyborgdb-redis,port:6379,db:0
