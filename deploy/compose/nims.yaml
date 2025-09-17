@@ -12,11 +12,12 @@ services:
     environment:
       NGC_API_KEY: ${NGC_API_KEY}
       # Automatic profile detection
-      NIM_MODEL_PROFILE: ${NIM_MODEL_PROFILE-""}
+      NIM_MODEL_PROFILE: ${NIM_MODEL_PROFILE:-}
       # H100 tp 1 profile non-NVL based
       # NIM_MODEL_PROFILE: ${NIM_MODEL_PROFILE-"tensorrt_llm-h100-fp8-tp1-pp1-throughput-2330:10de-ed15592b3e4d174a719e8188493420073c39448d9b7ed742cfe614b96fecbdd9-1"}
       # NVL based H100 tp 1 profile
       # NIM_MODEL_PROFILE: ${NIM_MODEL_PROFILE-"tensorrt_llm-h100_nvl-fp8-tp1-pp1-throughput-2321:10de-6343e21ba5cccf783d18951c6627c207b81803c3c45f1e8b59eee062ed350143-1"}
+    shm_size: 20gb
     ulimits:
       nofile:
         soft: 65536
