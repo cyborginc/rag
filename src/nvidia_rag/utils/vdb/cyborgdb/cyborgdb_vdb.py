@@ -48,6 +48,7 @@ from uuid import uuid4
 from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStore
 from langchain_core.runnables import RunnableAssign, RunnableLambda
+from langchain_core.embeddings import DeterministicFakeEmbedding
 
 from nvidia_rag.utils.common import get_config
 from nvidia_rag.utils.vdb.vdb_base import VDBRag
@@ -84,7 +85,7 @@ class CyborgDBVDB(VDBRag):
         embedding_model: str = None,
         csv_file_path: str = None,
     ):
-        self.embedding_model = embedding_model
+        self.embedding_model = embedding_model if embedding_model else DeterministicFakeEmbedding(1536)
         
         # CyborgDB specific parameters
         self.vdb_endpoint = cyborgdb_uri
@@ -144,28 +145,13 @@ class CyborgDBVDB(VDBRag):
         if get_only and not self.check_collection_exists(collection_name):
             return None
         
-        # Create embedding model if provided
-        embedding = None
-        if self.embedding_model:
-            # Use the embedding model name/URL provided
-            from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
-            embedding = NVIDIAEmbeddings(
-                model=self.embedding_model,
-                base_url=CONFIG.embeddings.server_url if CONFIG.embeddings.server_url else None
-            )
-        else:
-            # Use a dummy embedding that expects pre-computed embeddings
-            # This is used when embeddings are already provided in the records
-            from langchain_core.embeddings import DeterministicFakeEmbedding
-            embedding = DeterministicFakeEmbedding(size=dimension or 1536)
-        
         # Create/load vectorstore instance
         vectorstore = CyborgVectorStore(
             index_name=collection_name,
             index_key=self.index_key,
             api_key=self.api_key,
             base_url=self.vdb_endpoint,
-            embedding=embedding,
+            embedding=self.embedding_model,
             dimension=dimension,
         )
         
