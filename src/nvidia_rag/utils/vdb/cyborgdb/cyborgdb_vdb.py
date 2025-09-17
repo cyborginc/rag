@@ -645,6 +645,14 @@ class CyborgDBVDB(VDBRag):
                 logger.warning(f"Collection {collection_name} not found")
                 return False
             
+            print(f"Deleting documents with source values: {source_values}")
+
+            # Find document IDs matching the source values
+            all_ids = vectorstore.list_ids()
+            matches = [doc_id for doc_id in all_ids if (doc_id in source_values)]
+
+            print(f"{len(matches)}/{len(source_values)} documents matched for deletion")
+
             return vectorstore.delete(ids=source_values)
             
         except Exception as e:
