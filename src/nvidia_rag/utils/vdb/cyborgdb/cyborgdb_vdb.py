@@ -268,11 +268,19 @@ class CyborgDBVDB(VDBRag):
             id_value = None
             
             if idx == 0:
-                print(f"\n\nSample record item: {json.dumps(record, indent=2)[:500]}...\n\n")
+                # print records json object except for vector and content keys
+                debug_record = record.copy()
+                debug_record.pop("vector", None)
+                if "metadata" in debug_record:
+                    debug_record["metadata"].pop("content", None)
+                    debug_record["metadata"].pop("embedding", None)
+
+                logger.debug(f"\n\nSample record structure (without vector/content): {json.dumps(debug_record, indent=2)}\n\n")
+
 
             # First try to use source as ID
             if "source" in record and record["source"]:
-                id_value = str(record["source"].get("source_id"))
+                id_value = str(record["source"].get("source_id")) + "_" + str(uuid4())
                 logger.debug(f"Using source as ID: {id_value}")
             elif "metadata" in record and record["metadata"].get("source"):
                 id_value = str(record["metadata"]["source"])
@@ -292,6 +300,7 @@ class CyborgDBVDB(VDBRag):
                 id_value = str(uuid4())
                 logger.debug(f"Generated new UUID for record: {id_value}")
             
+            logger.info(f"Record {idx} assigned ID: {id_value}")
             item = {"id": id_value}
             
             # Handle vector field - look for embeddings in various locations
@@ -668,13 +677,16 @@ class CyborgDBVDB(VDBRag):
 
             # Find document IDs matching the source values
             all_ids = vectorstore.list_ids()
-            matches = [doc_id for doc_id in all_ids if (doc_id in source_values)]
+            matches = [
+                doc_id for doc_id in all_ids 
+                if any(doc_id.startswith(substring) for substring in source_values)
+            ]
 
-            print(f"{len(matches)}/{len(source_values)} documents matched for deletion")
+            print(f"{len(matches)} documents matched for deletion")
             
             # Since we use source as ID, we can delete directly
             # The source_values should match the IDs we used when inserting
-            result = vectorstore.delete(ids=source_values)
+            result = vectorstore.delete(ids=matches)
             
             if result:
                 logger.info(f"Successfully deleted documents from CyborgDB")
