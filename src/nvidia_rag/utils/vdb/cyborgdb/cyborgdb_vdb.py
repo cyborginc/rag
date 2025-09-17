@@ -591,12 +591,25 @@ class CyborgDBVDB(VDBRag):
                         filename = self._extract_filename(metadata)
                         
                         if filename and filename not in filepaths_added:
-                            # Build metadata dict
-                            # Should we be using metadata schema here?
+                            # Build metadata dict with proper serialization
                             metadata_dict = {}
                             for key, value in metadata.items():
                                 if key not in ['vector', 'embedding', '_content']:
-                                    metadata_dict[key] = value
+                                    # Ensure value is JSON-serializable
+                                    if isinstance(value, (dict, list)):
+                                        # For nested structures, convert to string representation
+                                        import json
+                                        try:
+                                            # Try to serialize to JSON string
+                                            metadata_dict[key] = json.dumps(value)
+                                        except:
+                                            # If serialization fails, convert to string
+                                            metadata_dict[key] = str(value)
+                                    elif isinstance(value, (str, int, float, bool, type(None))):
+                                        metadata_dict[key] = value
+                                    else:
+                                        # Convert other types to string
+                                        metadata_dict[key] = str(value)
                             
                             documents_list.append({
                                 "document_name": filename,
