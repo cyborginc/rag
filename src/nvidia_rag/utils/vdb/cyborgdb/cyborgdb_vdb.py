@@ -268,8 +268,9 @@ class CyborgDBVDB(VDBRag):
             id_value = None
             
             if idx == 0:
+                import copy
                 # print records json object except for vector and content keys
-                debug_record = record.copy()
+                debug_record = copy.deepcopy(record)
                 debug_record.pop("vector", None)
                 if "metadata" in debug_record:
                     debug_record["metadata"].pop("content", None)
