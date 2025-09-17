@@ -264,12 +264,28 @@ class CyborgDBVDB(VDBRag):
                 logger.error(f"Record {idx} is not a dict.")
                 raise TypeError(f"Expected dict, got {type(record).__name__}")
             
-            # Extract ID
-            if "id" in record and record["id"] is not None:
+            # Extract ID - prefer source-based ID for easier deletion
+            id_value = None
+            
+            # First try to use source as ID
+            if "source" in record and record["source"]:
+                id_value = str(record["source"])
+                logger.debug(f"Using source as ID: {id_value}")
+            elif "metadata" in record and record["metadata"].get("source"):
+                id_value = str(record["metadata"]["source"])
+                logger.debug(f"Using metadata.source as ID: {id_value}")
+            elif "metadata" in record and record["metadata"].get("source_metadata"):
+                id_value = str(record["metadata"]["source_metadata"])
+                logger.debug(f"Using metadata.source_metadata as ID: {id_value}")
+            # Fall back to provided ID fields
+            elif "id" in record and record["id"] is not None:
                 id_value = str(record["id"])
+                logger.debug(f"Using provided ID: {id_value}")
             elif "_id" in record and record["_id"] is not None:
                 id_value = str(record["_id"])
+                logger.debug(f"Using provided _id: {id_value}")
             else:
+                # Last resort: generate UUID
                 id_value = str(uuid4())
                 logger.debug(f"Generated new UUID for record: {id_value}")
             
@@ -635,8 +651,7 @@ class CyborgDBVDB(VDBRag):
     ) -> bool:
         """
         Delete documents from a collection by source values.
-        Note: CyborgDB doesn't support deletion by metadata query,
-        so we need to find document IDs first.
+        Since we use source as the document ID, we can delete directly.
         """
         try:
             vectorstore = self._get_or_create_vectorstore(collection_name, get_only=True)
@@ -645,15 +660,19 @@ class CyborgDBVDB(VDBRag):
                 logger.warning(f"Collection {collection_name} not found")
                 return False
             
-            print(f"Deleting documents with source values: {source_values}")
-
-            # Find document IDs matching the source values
-            all_ids = vectorstore.list_ids()
-            matches = [doc_id for doc_id in all_ids if (doc_id in source_values)]
-
-            print(f"{len(matches)}/{len(source_values)} documents matched for deletion")
-
-            return vectorstore.delete(ids=source_values)
+            logger.info(f"Deleting {len(source_values)} documents from collection {collection_name}")
+            logger.debug(f"Document IDs to delete: {source_values}")
+            
+            # Since we use source as ID, we can delete directly
+            # The source_values should match the IDs we used when inserting
+            result = vectorstore.delete(ids=source_values)
+            
+            if result:
+                logger.info(f"Successfully deleted documents from CyborgDB")
+            else:
+                logger.warning(f"Failed to delete some or all documents")
+                
+            return result
             
         except Exception as e:
             logger.error(f"Error deleting documents from CyborgDB: {e}")
