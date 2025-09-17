@@ -85,7 +85,7 @@ class CyborgDBVDB(VDBRag):
         embedding_model: str = None,
         csv_file_path: str = None,
     ):
-        self.embedding_model = embedding_model if embedding_model else DeterministicFakeEmbedding(1536)
+        self.embedding_model = embedding_model or DeterministicFakeEmbedding(size=1536)
         
         # CyborgDB specific parameters
         self.vdb_endpoint = cyborgdb_uri
