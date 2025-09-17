@@ -267,9 +267,12 @@ class CyborgDBVDB(VDBRag):
             # Extract ID - prefer source-based ID for easier deletion
             id_value = None
             
+            if idx == 0:
+                print(f"\n\nSample record item: {json.dumps(record, indent=2)[:500]}...\n\n")
+
             # First try to use source as ID
             if "source" in record and record["source"]:
-                id_value = str(record["source"])
+                id_value = str(record["source"].get("source_id"))
                 logger.debug(f"Using source as ID: {id_value}")
             elif "metadata" in record and record["metadata"].get("source"):
                 id_value = str(record["metadata"]["source"])
@@ -661,7 +664,13 @@ class CyborgDBVDB(VDBRag):
                 return False
             
             logger.info(f"Deleting {len(source_values)} documents from collection {collection_name}")
-            logger.debug(f"Document IDs to delete: {source_values}")
+            logger.info(f"Document IDs to delete: {source_values}")
+
+            # Find document IDs matching the source values
+            all_ids = vectorstore.list_ids()
+            matches = [doc_id for doc_id in all_ids if (doc_id in source_values)]
+
+            print(f"{len(matches)}/{len(source_values)} documents matched for deletion")
             
             # Since we use source as ID, we can delete directly
             # The source_values should match the IDs we used when inserting
