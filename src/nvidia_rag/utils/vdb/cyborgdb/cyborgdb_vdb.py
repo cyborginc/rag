@@ -56,7 +56,7 @@ from nvidia_rag.utils.vdb.vdb_base import VDBRag
 logger = logging.getLogger(__name__)
 
 try:
-    from cyborgdb import Client
+    from cyborgdb import Client, EncryptedIndex, IndexIVFFlat
     from cyborgdb.integrations.langchain import CyborgVectorStore
     CYBORGDB_AVAILABLE = True
 except ImportError:
@@ -118,6 +118,9 @@ class CyborgDBVDB(VDBRag):
         # Store vectorstore instances per collection
         self._vectorstores = {}
         
+        # Store direct index instances for upsert operations
+        self._indexes = {}
+        
         # Connection alias for compatibility
         self.connection_alias = f"cyborgdb_{str(uuid4())[:8]}"
 
@@ -135,6 +138,56 @@ class CyborgDBVDB(VDBRag):
         """Set the collection name."""
         self._collection_name = collection_name
 
+    def _get_or_create_index(self, collection_name: str, dimension: int = 1536) -> EncryptedIndex:
+        """
+        Get existing index or create a new one for direct upsert operations.
+        """
+        # Check cache first
+        if collection_name in self._indexes:
+            return self._indexes[collection_name]
+        
+        # Check if index exists
+        try:
+            existing_indexes = self.client.list_indexes()
+            if collection_name in existing_indexes:
+                # Load existing index
+                index = EncryptedIndex(
+                    index_name=collection_name,
+                    index_key=self.index_key,
+                    api=self.client.api,
+                    api_client=self.client.api_client
+                )
+                self._indexes[collection_name] = index
+                logger.info(f"Loaded existing index: {collection_name}")
+                return index
+        except Exception as e:
+            logger.warning(f"Error checking existing indexes: {e}")
+        
+        # Create new index
+        try:
+            # Create index configuration
+            index_config = IndexIVFFlat(
+                dimension=dimension,
+                n_lists=128,  # Default number of inverted lists
+                metric="euclidean"
+            )
+            
+            # Create index via client
+            index = self.client.create_index(
+                index_name=collection_name,
+                index_key=self.index_key,
+                index_config=index_config,
+                embedding_model=None  # We'll provide embeddings directly
+            )
+            
+            self._indexes[collection_name] = index
+            logger.info(f"Created new index: {collection_name}")
+            return index
+            
+        except Exception as e:
+            logger.error(f"Failed to create index: {e}")
+            raise
+    
     def _get_or_create_vectorstore(self, collection_name: str, dimension: Optional[int] = None, get_only: bool = False) -> CyborgVectorStore | None:
         """
         Get existing vectorstore or create a new one for the collection.
@@ -180,7 +233,7 @@ class CyborgDBVDB(VDBRag):
 
     def write_to_index(self, records: List[Dict[str, Any]], **kwargs):
         """
-        Write records to the CyborgDB index.
+        Write records to the CyborgDB index using direct upsert.
         Based on implementation from cyborg.py.
         
         Args:
@@ -190,72 +243,104 @@ class CyborgDBVDB(VDBRag):
         logger.info(f"Writing {len(records)} records to CyborgDB index")
         
         collection_name = kwargs.get("collection_name", self._collection_name)
-        vectorstore = self._get_or_create_vectorstore(collection_name)
         
-        if not vectorstore:
-            raise ValueError(f"Failed to get vectorstore for collection {collection_name}")
+        # Get or create the direct index for upsert
+        index = self._get_or_create_index(collection_name)
         
-        # Convert records to Document format for LangChain
-        documents = []
+        if not index:
+            raise ValueError(f"Failed to get index for collection {collection_name}")
+        
+        # Convert records to CyborgDB format for direct upsert
+        items = []
+        
         for idx, record in enumerate(records):
-            # Extract text content
-            text = record.get("text", "")
-            if not text and "metadata" in record:
-                text = record["metadata"].get("content", "")
-                if not text:
-                    text = record["metadata"].get("_content", "")
+            logger.debug(f"Processing record {idx + 1}/{len(records)}")
             
-            # Prepare metadata
+            if not isinstance(record, dict):
+                logger.error(f"Record {idx} is not a dict.")
+                raise TypeError(f"Expected dict, got {type(record).__name__}")
+            
+            # Extract ID
+            if "id" in record and record["id"] is not None:
+                id_value = str(record["id"])
+            elif "_id" in record and record["_id"] is not None:
+                id_value = str(record["_id"])
+            else:
+                id_value = str(uuid4())
+                logger.debug(f"Generated new UUID for record: {id_value}")
+            
+            item = {"id": id_value}
+            
+            # Handle vector field - look for embeddings in various locations
+            vector_found = False
+            if "vector" in record:
+                item["vector"] = record["vector"]
+                vector_found = True
+                logger.debug(f"Found vector field")
+            elif "embedding" in record:
+                item["vector"] = record["embedding"]
+                vector_found = True
+                logger.debug(f"Found embedding field")
+            elif "metadata" in record and "embedding" in record["metadata"]:
+                item["vector"] = record["metadata"]["embedding"]
+                vector_found = True
+                logger.debug(f"Found embedding in metadata")
+            
+            if not vector_found:
+                logger.warning(f"No vector/embedding found for record {id_value}")
+            
+            # Handle metadata
             metadata = {}
             
-            # Handle metadata field
+            # Copy metadata from record
             if "metadata" in record:
                 metadata.update(record["metadata"])
+                
+                # Rename 'content' -> '_content' and truncate if needed
+                if "content" in metadata:
+                    content = metadata.pop("content")
+                    max_length = 65535  # CyborgDB limit
+                    if content and len(content) > max_length:
+                        logger.warning(f"Truncating content from {len(content)} to {max_length} chars")
+                        content = content[:max_length] + "...[truncated]"
+                    metadata["_content"] = content
+                
+                # Handle source_metadata
+                if "source_metadata" in metadata:
+                    metadata["source"] = metadata.pop("source_metadata")
+                
+                # Remove embedding from metadata if it was there (already in vector field)
+                metadata.pop("embedding", None)
             
-            # Handle source field
+            # Add source field if present
             if "source" in record:
                 metadata["source"] = record["source"]
-            elif "source_metadata" in record:
-                metadata["source"] = record["source_metadata"]
             
-            # Handle content_metadata
+            # Add content_metadata if present
             if "content_metadata" in record:
                 metadata["content_metadata"] = record["content_metadata"]
-            
-            # Handle vector/embedding (will be used by vectorstore if provided)
-            if "vector" in record:
-                metadata["embedding"] = record["vector"]
-            elif "embedding" in record:
-                metadata["embedding"] = record["embedding"]
             
             # Apply preprocessing to metadata
             processed_metadata = self._preprocess_metadata(metadata)
             
-            # Create Document
-            doc = Document(
-                page_content=text,
-                metadata=processed_metadata
-            )
-            documents.append(doc)
+            if processed_metadata:
+                item["metadata"] = processed_metadata
+                logger.debug(f"Added {len(processed_metadata)} metadata fields")
+            
+            items.append(item)
         
-        # Batch insert documents
-        batch_size = kwargs.get("batch_size", 100)
-        total_docs = len(documents)
+        logger.info(f"Prepared {len(items)} items for upsertion")
         
-        logger.info(f"Inserting {total_docs} documents in batches of {batch_size}")
+        # Upsert items directly to index
+        try:
+            logger.info("Starting upsert operation...")
+            index.upsert(items)
+            logger.info(f"Successfully inserted {len(items)} records into index")
+        except Exception as e:
+            logger.error(f"Failed to upsert records: {e}", exc_info=True)
+            raise
         
-        for i in range(0, total_docs, batch_size):
-            batch = documents[i:i + batch_size]
-            try:
-                # Use the vectorstore to add documents
-                # If embeddings are in metadata, the vectorstore should use them
-                ids = vectorstore.add_documents(batch)
-                logger.debug(f"Inserted batch {i//batch_size + 1}, {len(ids)} documents")
-            except Exception as e:
-                logger.error(f"Failed to insert batch starting at index {i}: {e}")
-                raise
-        
-        logger.info(f"Successfully inserted {total_docs} documents into CyborgDB")
+        logger.info(f"Successfully wrote {len(records)} records to CyborgDB")
 
     def retrieval(self, queries: list, **kwargs) -> list[dict[str, Any]]:
         """
