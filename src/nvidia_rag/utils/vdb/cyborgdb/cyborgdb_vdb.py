@@ -55,7 +55,7 @@ from nvidia_rag.utils.vdb.vdb_base import VDBRag
 logger = logging.getLogger(__name__)
 
 try:
-    from cyborgdb import Client, generate_key
+    from cyborgdb import Client
     from cyborgdb.integrations.langchain import CyborgVectorStore
     CYBORGDB_AVAILABLE = True
 except ImportError:
