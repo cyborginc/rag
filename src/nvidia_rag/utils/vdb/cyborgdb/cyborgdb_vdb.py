@@ -632,13 +632,7 @@ class CyborgDBVDB(VDBRag):
                 logger.warning(f"Collection {collection_name} not found")
                 return False
             
-            # CyborgDB doesn't support deletion by metadata query
-            # We would need to track document IDs separately or iterate through all documents
-            logger.warning(
-                "CyborgDB doesn't support deletion by source values directly. "
-                "Document IDs need to be tracked separately for deletion."
-            )
-            return False
+            return vectorstore.delete(ids=source_values)
             
         except Exception as e:
             logger.error(f"Error deleting documents from CyborgDB: {e}")
