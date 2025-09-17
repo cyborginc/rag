@@ -144,13 +144,28 @@ class CyborgDBVDB(VDBRag):
         if get_only and not self.check_collection_exists(collection_name):
             return None
         
+        # Create embedding model if provided
+        embedding = None
+        if self.embedding_model:
+            # Use the embedding model name/URL provided
+            from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
+            embedding = NVIDIAEmbeddings(
+                model=self.embedding_model,
+                base_url=CONFIG.embeddings.server_url if CONFIG.embeddings.server_url else None
+            )
+        else:
+            # Use a dummy embedding that expects pre-computed embeddings
+            # This is used when embeddings are already provided in the records
+            from langchain_core.embeddings import DeterministicFakeEmbedding
+            embedding = DeterministicFakeEmbedding(size=dimension or 1536)
+        
         # Create/load vectorstore instance
         vectorstore = CyborgVectorStore(
             index_name=collection_name,
             index_key=self.index_key,
             api_key=self.api_key,
             base_url=self.vdb_endpoint,
-            embedding=self.embedding_model,
+            embedding=embedding,
             dimension=dimension,
         )
         
