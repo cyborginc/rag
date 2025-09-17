@@ -211,6 +211,9 @@ class CyborgDBVDB(VDBRag):
             dimension=dimension,
         )
         
+        # Add collection_name attribute for compatibility with the retrieval chain
+        vectorstore.collection_name = collection_name
+        
         # Cache it
         self._vectorstores[collection_name] = vectorstore
         return vectorstore
@@ -715,7 +718,7 @@ class CyborgDBVDB(VDBRag):
         )
         retriever_docs = retriever_chain.invoke(query, config={"run_name": "retriever"})
         docs = retriever_docs.get("context", [])
-        collection_name = retriever.vectorstore.collection_name
+        # collection_name is already provided as a parameter
 
         end_time = time.time()
         latency = end_time - start_time
