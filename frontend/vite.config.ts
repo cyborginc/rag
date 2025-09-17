@@ -57,6 +57,7 @@ export default defineConfig({
   preview: {
     port: 3000,
     host: true, // Allow external connections for preview mode too
+    allowedHosts: ['chat-cdb-7gl6il3g7.brevlab.com'],
     proxy: {
       '/api/generate': {
         target: CHAT_TARGET,
