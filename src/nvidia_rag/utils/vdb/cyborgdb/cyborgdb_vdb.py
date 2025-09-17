@@ -553,27 +553,47 @@ class CyborgDBVDB(VDBRag):
         
         for collection_name in collection_names:
             try:
-                # Get the vectorstore for this collection
-                vectorstore = self._get_or_create_vectorstore(collection_name)
-
-                if not vectorstore:
+                # Check if collection exists first
+                if not self.check_collection_exists(collection_name):
                     failed_collections.append({
                         "collection_name": collection_name,
                         "error_message": "Collection not found"
                     })
                     continue
 
-                if vectorstore.delete(delete_index=True):
+                # Use the client's delete_index method directly
+                # This should only delete the specific index, not all indexes
+                try:
+                    self.client.delete_index(index_name=collection_name)
                     deleted_collections.append(collection_name)
                     logger.info(f"Deleted CyborgDB collection: {collection_name}")
-                    # Remove from cache
+                    
+                    # Remove from caches
                     if collection_name in self._vectorstores:
                         del self._vectorstores[collection_name]
-                else:
-                    failed_collections.append({
-                        "collection_name": collection_name,
-                        "error_message": "Failed to delete index"
-                    })
+                    if collection_name in self._indexes:
+                        del self._indexes[collection_name]
+                        
+                except AttributeError:
+                    # If delete_index doesn't exist, fall back to vectorstore delete
+                    # but with more careful handling
+                    logger.warning(f"Client delete_index not available, using vectorstore delete for {collection_name}")
+                    vectorstore = self._get_or_create_vectorstore(collection_name, get_only=True)
+                    
+                    if vectorstore and vectorstore.delete(delete_index=True):
+                        deleted_collections.append(collection_name)
+                        logger.info(f"Deleted CyborgDB collection via vectorstore: {collection_name}")
+                        # Remove from caches
+                        if collection_name in self._vectorstores:
+                            del self._vectorstores[collection_name]
+                        if collection_name in self._indexes:
+                            del self._indexes[collection_name]
+                    else:
+                        failed_collections.append({
+                            "collection_name": collection_name,
+                            "error_message": "Failed to delete index via vectorstore"
+                        })
+                        
             except Exception as e:
                 failed_collections.append({
                     "collection_name": collection_name,
