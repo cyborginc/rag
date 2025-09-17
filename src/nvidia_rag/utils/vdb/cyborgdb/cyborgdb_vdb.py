@@ -273,20 +273,65 @@ class CyborgDBVDB(VDBRag):
         Run the process of ingestion of records to the CyborgDB index.
         
         Args:
-            records: List of records to process
+            records: List of records to process (can be nested lists/tuples)
         """
         logger.info("Running CyborgDB ingestion pipeline")
+        logger.debug(f"Input type: {type(records)}")
         
         # Step 1: Create index if it doesn't exist
         self.create_index()
         
-        # Step 2: Write records to index
+        # Step 2: Flatten and write records to index
         if records:
-            self.write_to_index(records)
+            # Flatten nested structure to ensure we have List[Dict]
+            flat_records = []
+            try:
+                flat_records = self._normalize_records(records)
+                logger.debug(f"Normalized {len(flat_records)} records from input")
+            except Exception as e:
+                logger.error(f"Failed to normalize records: {e}", exc_info=True)
+                raise
+            
+            if flat_records:
+                logger.info(f"Writing {len(flat_records)} records to index")
+                self.write_to_index(flat_records)
+            else:
+                logger.warning("No records to write after normalization")
         else:
             logger.warning("No records provided to process")
         
         logger.info("CyborgDB ingestion pipeline completed")
+    
+    def _normalize_records(self, records) -> List[Dict[str, Any]]:
+        """
+        Flattens arbitrarily nested lists/tuples of dicts into List[Dict].
+        Handles cases where records might be nested or wrapped.
+        
+        Args:
+            records: Input records (can be dict, list, tuple, or nested combinations)
+            
+        Returns:
+            List of dictionaries
+        """
+        flat: List[Dict[str, Any]] = []
+        stack = [records]
+        
+        while stack:
+            cur = stack.pop()
+            if isinstance(cur, dict):
+                flat.append(cur)
+            elif isinstance(cur, (list, tuple)):
+                # Push children in reverse order to maintain order
+                stack.extend(reversed(cur))
+            elif cur is None:
+                # Ignore None values
+                continue
+            else:
+                raise TypeError(
+                    f"normalize_records expected dict/list/tuple, got {type(cur).__name__}"
+                )
+        
+        return flat
 
 
     # ----------------------------------------------------------------------------------------------
