@@ -49,6 +49,7 @@ from langchain_core.documents import Document
 from langchain_core.vectorstores import VectorStore
 from langchain_core.runnables import RunnableAssign, RunnableLambda
 from langchain_core.embeddings import DeterministicFakeEmbedding
+from opentelemetry import context as otel_context
 
 from nvidia_rag.utils.common import get_config
 from nvidia_rag.utils.vdb.vdb_base import VDBRag
@@ -691,6 +692,7 @@ class CyborgDBVDB(VDBRag):
         vectorstore: CyborgVectorStore = None,
         top_k: int = 10,
         filter_expr: Union[str, List[Dict[str, Any]]] = "",
+        otel_ctx: otel_context = None,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve documents from a collection using langchain
