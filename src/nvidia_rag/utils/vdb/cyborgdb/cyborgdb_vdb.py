@@ -776,13 +776,29 @@ class CyborgDBVDB(VDBRag):
         )
         retriever_docs = retriever_chain.invoke(query, config={"run_name": "retriever"})
         docs = retriever_docs.get("context", [])
+        
+        # Filter out documents with empty content to avoid validation errors
+        filtered_docs = []
+        for doc in docs:
+            # Check if document has content
+            content = doc.page_content if hasattr(doc, 'page_content') else ""
+            if not content and doc.metadata:
+                # Try to get content from metadata
+                content = doc.metadata.get("_content", "") or doc.metadata.get("content", "")
+            
+            # Only include documents with non-empty content
+            if content and content.strip():
+                filtered_docs.append(doc)
+            else:
+                logger.warning(f"Filtered out document with empty content: {doc.metadata.get('source', 'unknown')}")
+        
         # collection_name is already provided as a parameter
 
         end_time = time.time()
         latency = end_time - start_time
-        logger.info(f" CyborgDB Retrieval latency: {latency:.4f} seconds")
+        logger.info(f" CyborgDB Retrieval latency: {latency:.4f} seconds, returned {len(filtered_docs)} docs (filtered {len(docs) - len(filtered_docs)} empty)")
 
-        return self._add_collection_name_to_retrieved_docs(docs, collection_name)
+        return self._add_collection_name_to_retrieved_docs(filtered_docs, collection_name)
 
     # ----------------------------------------------------------------------------------------------
     # Helper methods
