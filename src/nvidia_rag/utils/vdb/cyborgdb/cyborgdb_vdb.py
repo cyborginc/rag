@@ -282,13 +282,16 @@ class CyborgDBVDB(VDBRag):
             # First try to use source as ID
             if "source" in record and record["source"]:
                 id_value = str(record["source"].get("source_id")) + "_" + str(uuid4())
-                logger.debug(f"Using source as ID: {id_value}")
+                if idx % 50 == 0:
+                    logger.info(f"Using source as ID: {id_value}")
             elif "metadata" in record and record["metadata"].get("source"):
-                id_value = str(record["metadata"]["source"])
-                logger.debug(f"Using metadata.source as ID: {id_value}")
+                id_value = record["metadata"]["source"].get("source_id") + "_" + str(uuid4())
+                if idx % 50 == 0:
+                    logger.info(f"Using metadata.source as ID: {id_value}")
             elif "metadata" in record and record["metadata"].get("source_metadata"):
-                id_value = str(record["metadata"]["source_metadata"])
-                logger.debug(f"Using metadata.source_metadata as ID: {id_value}")
+                id_value = record["metadata"]["source_metadata"].get("source_id") + "_" + str(uuid4())
+                if idx % 50 == 0:
+                    logger.info(f"Using metadata.source_metadata as ID: {id_value}")
             # Fall back to provided ID fields
             elif "id" in record and record["id"] is not None:
                 id_value = str(record["id"])
@@ -301,7 +304,6 @@ class CyborgDBVDB(VDBRag):
                 id_value = str(uuid4())
                 logger.debug(f"Generated new UUID for record: {id_value}")
             
-            logger.info(f"Record {idx} assigned ID: {id_value}")
             item = {"id": id_value}
             
             # Handle vector field - look for embeddings in various locations
