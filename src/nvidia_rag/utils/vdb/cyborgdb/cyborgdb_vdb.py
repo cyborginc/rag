@@ -551,32 +551,70 @@ class CyborgDBVDB(VDBRag):
         deleted_collections = []
         failed_collections = []
         
+        logger.info("=" * 80)
+        logger.info(f"DELETE_COLLECTIONS called with: {collection_names}")
+        logger.info(f"Number of collections to delete: {len(collection_names)}")
+        logger.info(f"Current cached indexes: {list(self._indexes.keys())}")
+        logger.info(f"Current cached vectorstores: {list(self._vectorstores.keys())}")
+        
+        # List all indexes before deletion
+        try:
+            all_indexes_before = self.client.list_indexes()
+            logger.info(f"ALL indexes in CyborgDB BEFORE deletion: {all_indexes_before}")
+            logger.info(f"Total index count BEFORE: {len(all_indexes_before)}")
+        except Exception as e:
+            logger.error(f"Failed to list indexes before deletion: {e}")
+            all_indexes_before = []
+        
         for collection_name in collection_names:
+            logger.info("-" * 40)
+            logger.info(f"Processing collection: '{collection_name}'")
+            logger.info(f"Collection name type: {type(collection_name)}")
+            logger.info(f"Collection name repr: {repr(collection_name)}")
+            
             try:
                 # Check if collection exists first
-                if not self.check_collection_exists(collection_name):
+                exists = self.check_collection_exists(collection_name)
+                logger.info(f"Collection '{collection_name}' exists: {exists}")
+                
+                if not exists:
+                    logger.warning(f"Collection '{collection_name}' NOT FOUND, skipping deletion")
                     failed_collections.append({
                         "collection_name": collection_name,
                         "error_message": "Collection not found"
                     })
                     continue
 
+                logger.info(f"Collection '{collection_name}' EXISTS, proceeding with deletion")
+                
                 # Get the index instance directly and use its delete_index method
                 # This ensures we only delete the specific index
                 if collection_name in self._indexes:
                     # Use cached index if available
+                    logger.info(f"Using CACHED index for '{collection_name}'")
                     index = self._indexes[collection_name]
+                    logger.info(f"Cached index object: {index}")
+                    logger.info(f"Cached index name: {index.index_name if hasattr(index, 'index_name') else 'N/A'}")
                 else:
                     # Load the index
+                    logger.info(f"Loading NEW index instance for '{collection_name}'")
                     try:
+                        logger.info(f"Creating EncryptedIndex with:")
+                        logger.info(f"  - index_name: '{collection_name}'")
+                        logger.info(f"  - index_key: {repr(self.index_key[:16])}... (truncated)")
+                        logger.info(f"  - api object: {self.client.api}")
+                        
                         index = EncryptedIndex(
                             index_name=collection_name,
                             index_key=self.index_key,
                             api=self.client.api,
                             api_client=self.client.api_client
                         )
+                        logger.info(f"Successfully created index instance for '{collection_name}'")
+                        logger.info(f"New index object: {index}")
+                        logger.info(f"New index name: {index.index_name if hasattr(index, 'index_name') else 'N/A'}")
                     except Exception as e:
-                        logger.error(f"Failed to load index for deletion: {e}")
+                        logger.error(f"FAILED to load index for '{collection_name}': {e}", exc_info=True)
                         failed_collections.append({
                             "collection_name": collection_name,
                             "error_message": f"Failed to load index: {str(e)}"
@@ -585,29 +623,68 @@ class CyborgDBVDB(VDBRag):
                 
                 # Delete using the index's own delete method
                 try:
+                    logger.info(f">>> CALLING delete_index() on index '{collection_name}'")
+                    logger.info(f">>> Index object type: {type(index)}")
+                    logger.info(f">>> Index name property: {index.index_name if hasattr(index, 'index_name') else 'NO index_name PROPERTY'}")
+                    
+                    # List indexes right before deletion
+                    indexes_before_delete = self.client.list_indexes()
+                    logger.info(f"Indexes RIGHT BEFORE delete_index() call: {indexes_before_delete}")
+                    
                     index.delete_index()
+                    
+                    # List indexes right after deletion
+                    indexes_after_delete = self.client.list_indexes()
+                    logger.info(f"Indexes RIGHT AFTER delete_index() call: {indexes_after_delete}")
+                    logger.info(f"Indexes deleted by this call: {set(indexes_before_delete) - set(indexes_after_delete)}")
+                    
                     deleted_collections.append(collection_name)
-                    logger.info(f"Deleted CyborgDB collection: {collection_name}")
+                    logger.info(f"✓ Successfully deleted collection: '{collection_name}'")
                     
                     # Remove from caches
                     if collection_name in self._vectorstores:
                         del self._vectorstores[collection_name]
+                        logger.info(f"Removed '{collection_name}' from vectorstore cache")
                     if collection_name in self._indexes:
                         del self._indexes[collection_name]
+                        logger.info(f"Removed '{collection_name}' from index cache")
                         
                 except Exception as delete_error:
-                    logger.error(f"Failed to delete index {collection_name}: {delete_error}")
+                    logger.error(f"✗ FAILED to delete index '{collection_name}': {delete_error}", exc_info=True)
                     failed_collections.append({
                         "collection_name": collection_name,
                         "error_message": f"Delete operation failed: {str(delete_error)}"
                     })
                     
             except Exception as e:
+                logger.error(f"UNEXPECTED ERROR while processing collection '{collection_name}': {e}", exc_info=True)
                 failed_collections.append({
                     "collection_name": collection_name,
                     "error_message": str(e)
                 })
-                logger.error(f"Failed to delete collection {collection_name}: {str(e)}")
+        
+        # List all indexes after deletion
+        try:
+            all_indexes_after = self.client.list_indexes()
+            logger.info("-" * 40)
+            logger.info(f"ALL indexes in CyborgDB AFTER deletion: {all_indexes_after}")
+            logger.info(f"Total index count AFTER: {len(all_indexes_after)}")
+            logger.info(f"Indexes removed: {set(all_indexes_before) - set(all_indexes_after)}")
+            logger.info(f"Expected to remove: {set(collection_names) & set(all_indexes_before)}")
+            
+            unexpected_deletions = (set(all_indexes_before) - set(all_indexes_after)) - set(deleted_collections)
+            if unexpected_deletions:
+                logger.error(f"⚠️ UNEXPECTED DELETIONS: {unexpected_deletions}")
+                logger.error("These collections were deleted but shouldn't have been!")
+        except Exception as e:
+            logger.error(f"Failed to list indexes after deletion: {e}")
+        
+        logger.info("=" * 80)
+        logger.info(f"DELETION SUMMARY:")
+        logger.info(f"  Requested: {collection_names}")
+        logger.info(f"  Successfully deleted: {deleted_collections}")
+        logger.info(f"  Failed: {[f['collection_name'] for f in failed_collections]}")
+        logger.info("=" * 80)
         
         return {
             "message": "Collection deletion process completed.",
