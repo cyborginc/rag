@@ -381,10 +381,10 @@ class TestCyborgDBVDB(unittest.TestCase):
 
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.get_config')
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.Client')
-    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.CyborgVectorStore')
+    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.EncryptedIndex')
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.logger')
-    def test_delete_collections(self, mock_logger, mock_vectorstore, mock_client, mock_get_config):
-        """Test delete_collections method."""
+    def test_delete_collections(self, mock_logger, mock_encrypted_index, mock_client, mock_get_config):
+        """Test delete_collections method with logging."""
         # Setup mocks
         mock_config = Mock()
         mock_config.embeddings.dimensions = 768
@@ -392,10 +392,18 @@ class TestCyborgDBVDB(unittest.TestCase):
         
         mock_client_instance = Mock()
         mock_client.return_value = mock_client_instance
+        mock_client_instance.list_indexes.return_value = ["collection1", "collection2"]
         
-        mock_vs_instance = Mock()
-        mock_vectorstore.return_value = mock_vs_instance
-        mock_vs_instance.delete.return_value = True
+        # Mock EncryptedIndex instances
+        mock_index1 = Mock()
+        mock_index1.index_name = "collection1"
+        mock_index1.delete_index.return_value = True
+        
+        mock_index2 = Mock()
+        mock_index2.index_name = "collection2"
+        mock_index2.delete_index.return_value = True
+        
+        mock_encrypted_index.side_effect = [mock_index1, mock_index2]
         
         # Create instance and test
         cyborgdb_vdb = CyborgDBVDB(
@@ -417,9 +425,15 @@ class TestCyborgDBVDB(unittest.TestCase):
         }
         
         self.assertEqual(result, expected_result)
-        # Verify delete was called with delete_index=True
-        self.assertEqual(mock_vs_instance.delete.call_count, 2)
-        mock_vs_instance.delete.assert_called_with(delete_index=True)
+        
+        # Verify logging was called
+        mock_logger.info.assert_any_call("=" * 80)
+        mock_logger.info.assert_any_call(f"DELETE_COLLECTIONS called with: {collection_names}")
+        mock_logger.info.assert_any_call(f"Number of collections to delete: {len(collection_names)}")
+        
+        # Verify delete_index was called on each index
+        mock_index1.delete_index.assert_called_once()
+        mock_index2.delete_index.assert_called_once()
 
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.get_config')
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.Client')
@@ -518,6 +532,110 @@ class TestCyborgDBVDB(unittest.TestCase):
         
         self.assertFalse(result)
         mock_logger.warning.assert_called_once()
+
+    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.get_config')
+    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.Client')
+    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.EncryptedIndex')
+    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.logger')
+    def test_delete_collections_with_non_existent(self, mock_logger, mock_encrypted_index, mock_client, mock_get_config):
+        """Test delete_collections with non-existent collections."""
+        # Setup mocks
+        mock_config = Mock()
+        mock_config.embeddings.dimensions = 768
+        mock_get_config.return_value = mock_config
+        
+        mock_client_instance = Mock()
+        mock_client.return_value = mock_client_instance
+        # Only collection1 exists
+        mock_client_instance.list_indexes.return_value = ["collection1"]
+        
+        # Mock EncryptedIndex for existing collection
+        mock_index1 = Mock()
+        mock_index1.index_name = "collection1"
+        mock_index1.delete_index.return_value = True
+        
+        mock_encrypted_index.return_value = mock_index1
+        
+        # Create instance and test
+        cyborgdb_vdb = CyborgDBVDB(
+            collection_name=self.collection_name,
+            cyborgdb_uri=self.cyborgdb_uri,
+            api_key=self.api_key,
+            index_key=self.index_key
+        )
+        collection_names = ["collection1", "non_existent"]
+        
+        result = cyborgdb_vdb.delete_collections(collection_names)
+        
+        # Should only delete collection1
+        self.assertEqual(result["successful"], ["collection1"])
+        self.assertEqual(len(result["failed"]), 1)
+        self.assertEqual(result["failed"][0]["collection_name"], "non_existent")
+        self.assertEqual(result["failed"][0]["error_message"], "Collection not found")
+        self.assertEqual(result["total_success"], 1)
+        self.assertEqual(result["total_failed"], 1)
+        
+        # Verify logging for non-existent collection
+        mock_logger.warning.assert_any_call("Collection 'non_existent' NOT FOUND, skipping deletion")
+        
+        # Verify delete_index was only called once
+        mock_index1.delete_index.assert_called_once()
+
+    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.get_config')
+    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.Client')
+    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.EncryptedIndex')
+    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.logger')
+    def test_delete_collections_with_cached_indexes(self, mock_logger, mock_encrypted_index, mock_client, mock_get_config):
+        """Test delete_collections with cached indexes."""
+        # Setup mocks
+        mock_config = Mock()
+        mock_config.embeddings.dimensions = 768
+        mock_get_config.return_value = mock_config
+        
+        mock_client_instance = Mock()
+        mock_client.return_value = mock_client_instance
+        mock_client_instance.list_indexes.return_value = ["cached_collection"]
+        
+        # Create instance
+        cyborgdb_vdb = CyborgDBVDB(
+            collection_name=self.collection_name,
+            cyborgdb_uri=self.cyborgdb_uri,
+            api_key=self.api_key,
+            index_key=self.index_key
+        )
+        
+        # Pre-populate cache with an index
+        cached_index = Mock()
+        cached_index.index_name = "cached_collection"
+        cached_index.delete_index.return_value = True
+        cyborgdb_vdb._indexes["cached_collection"] = cached_index
+        
+        # Also cache a vectorstore
+        cached_vectorstore = Mock()
+        cyborgdb_vdb._vectorstores["cached_collection"] = cached_vectorstore
+        
+        result = cyborgdb_vdb.delete_collections(["cached_collection"])
+        
+        # Verify successful deletion
+        self.assertEqual(result["successful"], ["cached_collection"])
+        self.assertEqual(result["failed"], [])
+        self.assertEqual(result["total_success"], 1)
+        self.assertEqual(result["total_failed"], 0)
+        
+        # Verify cache was cleared
+        self.assertNotIn("cached_collection", cyborgdb_vdb._indexes)
+        self.assertNotIn("cached_collection", cyborgdb_vdb._vectorstores)
+        
+        # Verify logging for cached index
+        mock_logger.info.assert_any_call("Using CACHED index for 'cached_collection'")
+        mock_logger.info.assert_any_call("Removed 'cached_collection' from vectorstore cache")
+        mock_logger.info.assert_any_call("Removed 'cached_collection' from index cache")
+        
+        # Verify delete was called on cached index
+        cached_index.delete_index.assert_called_once()
+        
+        # EncryptedIndex constructor should not be called for cached index
+        mock_encrypted_index.assert_not_called()
 
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.get_config')
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.Client')
@@ -653,201 +771,16 @@ class TestCyborgDBVDB(unittest.TestCase):
         for doc in result:
             self.assertEqual(doc.metadata["collection_name"], "test_collection")
         
-        mock_logger.info.assert_called_with(" CyborgDB Retrieval latency: 2.5000 seconds")
+        # Update assertion to match new logging format with document count
+        calls = [str(call) for call in mock_logger.info.call_args_list]
+        found_latency_log = False
+        for call in calls:
+            if "CyborgDB Retrieval latency" in call and "2.5000 seconds" in call:
+                found_latency_log = True
+                break
+        self.assertTrue(found_latency_log, f"Expected latency log not found. Calls: {calls}")
         mock_vs_instance.as_retriever.assert_called_once_with(search_kwargs={"k": 5})
 
-    @patch('nvidia_rag.utils.vdb.elasticsearch.elastic_vdb.CONFIG')
-    @patch('nvidia_rag.utils.vdb.elasticsearch.elastic_vdb.get_config')
-    @patch('nvidia_rag.utils.vdb.elasticsearch.elastic_vdb.Elasticsearch')
-    @patch('nvidia_rag.utils.vdb.elasticsearch.elastic_vdb.VectorStore')
-    @patch('nvidia_rag.utils.vdb.elasticsearch.elastic_vdb.ElasticsearchStore')
-    @patch('nvidia_rag.utils.vdb.elasticsearch.elastic_vdb.DenseVectorStrategy')
-    def test_get_langchain_vectorstore(self, mock_dense_strategy, mock_es_store_class, mock_vector_store, mock_elasticsearch, mock_get_config, mock_config):
-        """Test get_langchain_vectorstore method."""
-        # Setup mocks
-        mock_config_obj = Mock()
-        mock_config_obj.embeddings.dimensions = 768
-        mock_config_obj.vector_store.search_type = "hybrid"
-        mock_get_config.return_value = mock_config_obj
-        
-        # Mock the global CONFIG object used in get_langchain_vectorstore
-        mock_config.vector_store.search_type = "hybrid"
-        
-        mock_es_connection = Mock()
-        mock_elasticsearch.return_value = mock_es_connection
-        
-        mock_vectorstore = Mock()
-        mock_es_store_class.return_value = mock_vectorstore
-        
-        mock_strategy = Mock()
-        mock_dense_strategy.return_value = mock_strategy
-        
-        # Create instance and test
-        elastic_vdb = ElasticVDB(self.index_name, self.es_url, embedding_model="test_model")
-        
-        # Reset mock to only track calls from the method being tested
-        mock_dense_strategy.reset_mock()
-        
-        result = elastic_vdb.get_langchain_vectorstore("test_collection")
-        
-        self.assertEqual(result, mock_vectorstore)
-        
-        mock_es_store_class.assert_called_once_with(
-            index_name="test_collection",
-            es_url=self.es_url,
-            embedding="test_model",
-            strategy=mock_strategy
-        )
-        
-        # Now it should be called once with hybrid=True
-        mock_dense_strategy.assert_called_once_with(hybrid=True)
-
-    def test_add_collection_name_to_retreived_docs(self):
-        """Test _add_collection_name_to_retreived_docs static method."""
-        # Create test documents
-        docs = [
-            Document(page_content="doc1", metadata={"source": "file1.pdf"}),
-            Document(page_content="doc2", metadata={"source": "file2.pdf"})
-        ]
-        
-        # Test the static method
-        result = ElasticVDB._add_collection_name_to_retreived_docs(docs, "test_collection")
-        
-        # Verify collection_name is added to metadata
-        for doc in result:
-            self.assertEqual(doc.metadata["collection_name"], "test_collection")
-        
-        # Verify original metadata is preserved
-        self.assertEqual(result[0].metadata["source"], "file1.pdf")
-        self.assertEqual(result[1].metadata["source"], "file2.pdf")
-
-
-class TestEsQueries(unittest.TestCase):
-    """Test cases for es_queries module functions."""
-
-    def test_get_unique_sources_query(self):
-        """Test get_unique_sources_query function returns correct aggregation query."""
-        result = es_queries.get_unique_sources_query()
-        
-        # Verify the basic structure
-        self.assertIn("size", result)
-        self.assertEqual(result["size"], 0)
-        self.assertIn("aggs", result)
-        
-        # Verify aggregation structure
-        unique_sources = result["aggs"]["unique_sources"]
-        self.assertIn("composite", unique_sources)
-        self.assertIn("aggs", unique_sources)
-        
-        # Verify composite aggregation
-        composite = unique_sources["composite"]
-        self.assertEqual(composite["size"], 1000)
-        self.assertIn("sources", composite)
-        
-        # Verify source field configuration
-        sources = composite["sources"][0]
-        self.assertIn("source_name", sources)
-        terms = sources["source_name"]["terms"]
-        self.assertEqual(terms["field"], "metadata.source.source_name.keyword")
-        
-        # Verify top_hits aggregation
-        top_hit = unique_sources["aggs"]["top_hit"]
-        self.assertIn("top_hits", top_hit)
-        self.assertEqual(top_hit["top_hits"]["size"], 1)
-
-    def test_get_delete_metadata_schema_query(self):
-        """Test get_delete_metadata_schema_query function with collection name."""
-        collection_name = "test_collection"
-        result = es_queries.get_delete_metadata_schema_query(collection_name)
-        
-        # Verify query structure
-        self.assertIn("query", result)
-        self.assertIn("term", result["query"])
-        
-        # Verify term query
-        term_query = result["query"]["term"]
-        self.assertIn("collection_name.keyword", term_query)
-        self.assertEqual(term_query["collection_name.keyword"], collection_name)
-
-    def test_get_metadata_schema_query(self):
-        """Test get_metadata_schema_query function with collection name."""
-        collection_name = "test_collection"
-        result = es_queries.get_metadata_schema_query(collection_name)
-        
-        # Verify query structure
-        self.assertIn("query", result)
-        self.assertIn("term", result["query"])
-        
-        # Verify term query
-        term_query = result["query"]["term"]
-        self.assertIn("collection_name", term_query)
-        self.assertEqual(term_query["collection_name"], collection_name)
-
-    def test_get_delete_docs_query(self):
-        """Test get_delete_docs_query function with source value."""
-        source_value = "test_document.pdf"
-        result = es_queries.get_delete_docs_query(source_value)
-        
-        # Verify query structure
-        self.assertIn("query", result)
-        self.assertIn("term", result["query"])
-        
-        # Verify term query
-        term_query = result["query"]["term"]
-        self.assertIn("metadata.source.source_name.keyword", term_query)
-        self.assertEqual(term_query["metadata.source.source_name.keyword"], source_value)
-
-    def test_create_metadata_collection_mapping(self):
-        """Test create_metadata_collection_mapping function returns correct mapping."""
-        result = es_queries.create_metadata_collection_mapping()
-        
-        # Verify top-level structure
-        self.assertIn("mappings", result)
-        self.assertIn("properties", result["mappings"])
-        
-        # Verify properties structure
-        properties = result["mappings"]["properties"]
-        self.assertIn("collection_name", properties)
-        self.assertIn("metadata_schema", properties)
-        
-        # Verify collection_name field
-        collection_name_field = properties["collection_name"]
-        self.assertEqual(collection_name_field["type"], "keyword")
-        
-        # Verify metadata_schema field
-        metadata_schema_field = properties["metadata_schema"]
-        self.assertEqual(metadata_schema_field["type"], "object")
-        self.assertTrue(metadata_schema_field["enabled"])
-
-    def test_get_delete_metadata_schema_query_empty_collection(self):
-        """Test get_delete_metadata_schema_query with empty collection name."""
-        collection_name = ""
-        result = es_queries.get_delete_metadata_schema_query(collection_name)
-        
-        # Should still return valid structure with empty string
-        self.assertIn("query", result)
-        term_query = result["query"]["term"]
-        self.assertEqual(term_query["collection_name.keyword"], "")
-
-    def test_get_metadata_schema_query_special_characters(self):
-        """Test get_metadata_schema_query with special characters in collection name."""
-        collection_name = "test-collection_with.special@chars"
-        result = es_queries.get_metadata_schema_query(collection_name)
-        
-        # Should handle special characters properly
-        self.assertIn("query", result)
-        term_query = result["query"]["term"]
-        self.assertEqual(term_query["collection_name"], collection_name)
-
-    def test_get_delete_docs_query_with_spaces(self):
-        """Test get_delete_docs_query with source value containing spaces."""
-        source_value = "document with spaces.pdf"
-        result = es_queries.get_delete_docs_query(source_value)
-        
-        # Should handle spaces in source value
-        self.assertIn("query", result)
-        term_query = result["query"]["term"]
-        self.assertEqual(term_query["metadata.source.source_name.keyword"], source_value)
 
 
 if __name__ == '__main__':
