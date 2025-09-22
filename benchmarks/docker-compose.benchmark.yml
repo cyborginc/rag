@@ -1,0 +1,116 @@
+version: '3.8'
+
+services:
+  # CyborgDB service for benchmarking
+  cyborgdb:
+    image: cyborgdb/cyborgdb:latest
+    container_name: benchmark-cyborgdb
+    ports:
+      - "8000:8000"
+    environment:
+      - CYBORGDB_API_KEY=${CYBORGDB_API_KEY:-test_key}
+      - CYBORGDB_INDEX_KEY=${CYBORGDB_INDEX_KEY:-test_index_key}
+      - CYBORGDB_GPU_ENABLED=${CYBORGDB_GPU_ENABLED:-true}
+    volumes:
+      - cyborgdb_data:/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - benchmark_network
+
+  # Milvus service for benchmarking
+  milvus:
+    image: milvusdb/milvus:latest
+    container_name: benchmark-milvus
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    environment:
+      - ETCD_ENDPOINTS=etcd:2379
+      - MINIO_ADDRESS=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+    volumes:
+      - milvus_data:/var/lib/milvus
+    depends_on:
+      - etcd
+      - minio
+    networks:
+      - benchmark_network
+
+  # Etcd for Milvus
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: benchmark-etcd
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - etcd_data:/etcd
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls=http://0.0.0.0:2379 --data-dir=/etcd
+    networks:
+      - benchmark_network
+
+  # MinIO for Milvus
+  minio:
+    image: minio/minio:latest
+    container_name: benchmark-minio
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - minio_data:/minio_data
+    command: minio server /minio_data --console-address ":9090"
+    ports:
+      - "9000:9000"
+      - "9090:9090"
+    networks:
+      - benchmark_network
+
+  # Benchmark runner service
+  benchmark-runner:
+    build:
+      context: ..
+      dockerfile: benchmarks/Dockerfile.benchmark
+    container_name: benchmark-runner
+    environment:
+      - CYBORGDB_URI=http://cyborgdb:8000
+      - CYBORGDB_API_KEY=${CYBORGDB_API_KEY:-test_key}
+      - CYBORGDB_INDEX_KEY=${CYBORGDB_INDEX_KEY:-test_index_key}
+      - MILVUS_URI=http://milvus:19530
+      - RAG_SERVER_URL=${RAG_SERVER_URL:-http://rag-server:8081}
+      - PYTHONPATH=/app/src
+    volumes:
+      - ../src:/app/src
+      - ../benchmarks:/app/benchmarks
+      - ./benchmark_results:/app/benchmark_results
+    depends_on:
+      - cyborgdb
+      - milvus
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - benchmark_network
+    command: /app/benchmarks/run_benchmark.sh full 10000 100
+
+volumes:
+  cyborgdb_data:
+  milvus_data:
+  etcd_data:
+  minio_data:
+
+networks:
+  benchmark_network:
+    driver: bridge
