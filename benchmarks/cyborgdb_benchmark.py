@@ -415,6 +415,136 @@ class CyborgDBBenchmark(VectorDBBenchmark):
         return results
 
 
+class ElasticsearchBenchmark(VectorDBBenchmark):
+    """Elasticsearch-specific benchmark implementation"""
+    
+    def setup(self):
+        """Initialize Elasticsearch connection"""
+        from nvidia_rag.utils.vdb.elasticsearch.elastic_vdb import ElasticVDB
+        
+        self.vdb_client = ElasticVDB(
+            index_name=self.config.collection_name,
+            es_url=os.getenv("ELASTICSEARCH_URL", "http://elasticsearch:9200"),
+            embedding_model=None
+        )
+        
+        # Create index if needed
+        if not self.vdb_client.check_collection_exists(self.config.collection_name):
+            self.vdb_client.create_collection(
+                self.config.collection_name,
+                dimension=self.config.embedding_dim
+            )
+    
+    def teardown(self):
+        """Cleanup Elasticsearch connection"""
+        pass
+    
+    def measure_index_build_time(self, embeddings: np.ndarray, metadata: List[Dict]) -> float:
+        """Measure time to build Elasticsearch index"""
+        records = []
+        for i, (emb, meta) in enumerate(zip(embeddings, metadata)):
+            records.append({
+                "id": f"vec_{i}",
+                "vector": emb.tolist(),
+                "metadata": meta
+            })
+        
+        start_time = time.time()
+        
+        # Write in batches
+        batch_size = 1000
+        for i in range(0, len(records), batch_size):
+            batch = records[i:i+batch_size]
+            self.vdb_client.write_to_index(batch, collection_name=self.config.collection_name)
+        
+        build_time = time.time() - start_time
+        return build_time
+    
+    def measure_upsert_performance(self, embeddings: np.ndarray, metadata: List[Dict]) -> Dict:
+        """Measure Elasticsearch upsert performance"""
+        records = []
+        for i, (emb, meta) in enumerate(zip(embeddings, metadata)):
+            records.append({
+                "id": f"upsert_{i}",
+                "vector": emb.tolist(),
+                "metadata": meta
+            })
+        
+        # Warmup
+        for _ in range(self.config.warmup_runs):
+            self.vdb_client.write_to_index(records[:100], collection_name=self.config.collection_name)
+        
+        # Actual measurement
+        latencies = []
+        for _ in range(self.config.test_runs):
+            start = time.time()
+            self.vdb_client.write_to_index(records[:1000], collection_name=self.config.collection_name)
+            latencies.append(time.time() - start)
+        
+        embeddings_per_second = 1000 / np.mean(latencies)
+        
+        return {
+            "mean_latency_ms": np.mean(latencies) * 1000,
+            "p50_latency_ms": np.percentile(latencies, 50) * 1000,
+            "p95_latency_ms": np.percentile(latencies, 95) * 1000,
+            "p99_latency_ms": np.percentile(latencies, 99) * 1000,
+            "embeddings_per_second": embeddings_per_second
+        }
+    
+    def measure_query_latency(self, queries: np.ndarray, top_k: int) -> Dict:
+        """Measure Elasticsearch query latency"""
+        vectorstore = self.vdb_client.get_langchain_vectorstore(self.config.collection_name)
+        
+        # Warmup
+        for _ in range(self.config.warmup_runs):
+            vectorstore.similarity_search_by_vector(queries[0].tolist(), k=top_k)
+        
+        # Actual measurement
+        latencies = []
+        for query in queries:
+            start = time.time()
+            vectorstore.similarity_search_by_vector(query.tolist(), k=top_k)
+            latencies.append(time.time() - start)
+        
+        return {
+            "mean_latency_ms": np.mean(latencies) * 1000,
+            "p50_latency_ms": np.percentile(latencies, 50) * 1000,
+            "p95_latency_ms": np.percentile(latencies, 95) * 1000,
+            "p99_latency_ms": np.percentile(latencies, 99) * 1000,
+            "min_latency_ms": np.min(latencies) * 1000,
+            "max_latency_ms": np.max(latencies) * 1000
+        }
+    
+    def measure_qps_vs_recall(self, queries: np.ndarray, ground_truth: np.ndarray) -> Dict:
+        """Measure Elasticsearch QPS vs Recall"""
+        vectorstore = self.vdb_client.get_langchain_vectorstore(self.config.collection_name)
+        
+        # Test different batch sizes for QPS
+        results = {}
+        for batch_size in [1, 10, 50, 100]:
+            start = time.time()
+            retrieved = []
+            
+            for i in range(0, len(queries), batch_size):
+                batch = queries[i:i+batch_size]
+                for query in batch:
+                    docs = vectorstore.similarity_search_by_vector(query.tolist(), k=10)
+                    # Extract IDs from results
+                    doc_ids = [int(doc.metadata.get("doc_id", "doc_0").split("_")[1]) for doc in docs]
+                    retrieved.append(doc_ids)
+            
+            elapsed = time.time() - start
+            qps = len(queries) / elapsed
+            
+            # Calculate recall
+            recall = self.calculate_recall(np.array(retrieved), ground_truth)
+            
+            results[f"qps_batch_{batch_size}"] = qps
+            results[f"recall_batch_{batch_size}"] = recall
+        
+        return results
+
+
 class MilvusBenchmark(VectorDBBenchmark):
     """Milvus-specific benchmark implementation"""
     
@@ -750,40 +880,42 @@ class BenchmarkReporter:
         self.generate_comparison_report(output_path)
     
     def generate_comparison_report(self, output_path: Path):
-        """Generate comparison report between CyborgDB and Milvus"""
+        """Generate comparison report between all VDB types"""
         comparison = []
+        
+        # Get unique VDB types
+        vdb_types = self.df['vdb_type'].unique()
         
         # Compare metrics between VDB types
         for metric_type in self.df['metric_type'].unique():
             for metric_name in self.df[self.df['metric_type'] == metric_type]['metric_name'].unique():
-                cyborgdb_df = self.df[
-                    (self.df['vdb_type'] == 'cyborgdb') &
-                    (self.df['metric_type'] == metric_type) &
-                    (self.df['metric_name'] == metric_name)
-                ]
+                row = {
+                    "metric_type": metric_type,
+                    "metric_name": metric_name
+                }
                 
-                milvus_df = self.df[
-                    (self.df['vdb_type'] == 'milvus') &
-                    (self.df['metric_type'] == metric_type) &
-                    (self.df['metric_name'] == metric_name)
-                ]
-                
-                if not cyborgdb_df.empty and not milvus_df.empty:
-                    cyborgdb_val = cyborgdb_df['value'].mean()
-                    milvus_val = milvus_df['value'].mean()
+                # Get values for each VDB type
+                for vdb_type in vdb_types:
+                    vdb_df = self.df[
+                        (self.df['vdb_type'] == vdb_type) &
+                        (self.df['metric_type'] == metric_type) &
+                        (self.df['metric_name'] == metric_name)
+                    ]
                     
-                    if milvus_val != 0:
-                        improvement = ((cyborgdb_val - milvus_val) / milvus_val) * 100
+                    if not vdb_df.empty:
+                        row[vdb_type] = vdb_df['value'].mean()
                     else:
-                        improvement = 0
+                        row[vdb_type] = None
+                
+                # Calculate improvements if we have cyborgdb and other VDBs
+                if 'cyborgdb' in row and row['cyborgdb'] is not None:
+                    if 'milvus' in row and row['milvus'] is not None and row['milvus'] != 0:
+                        row['cyborgdb_vs_milvus'] = ((row['cyborgdb'] - row['milvus']) / row['milvus']) * 100
                     
-                    comparison.append({
-                        "metric_type": metric_type,
-                        "metric_name": metric_name,
-                        "cyborgdb": cyborgdb_val,
-                        "milvus": milvus_val,
-                        "improvement_percent": improvement
-                    })
+                    if 'elasticsearch' in row and row['elasticsearch'] is not None and row['elasticsearch'] != 0:
+                        row['cyborgdb_vs_elasticsearch'] = ((row['cyborgdb'] - row['elasticsearch']) / row['elasticsearch']) * 100
+                
+                comparison.append(row)
         
         comparison_df = pd.DataFrame(comparison)
         comparison_df.to_csv(output_path / "comparison.csv", index=False)
@@ -794,19 +926,38 @@ class BenchmarkReporter:
     def generate_markdown_report(self, comparison_df: pd.DataFrame, output_path: Path):
         """Generate markdown report for blog post"""
         with open(output_path / "benchmark_report.md", "w") as f:
-            f.write("# CyborgDB Blueprint Performance Benchmark Results\n\n")
+            f.write("# Vector Database Performance Benchmark Results\n\n")
             f.write(f"Generated: {datetime.now().isoformat()}\n\n")
             
             f.write("## Executive Summary\n\n")
             
-            # Key metrics
-            f.write("### Key Performance Improvements (CyborgDB vs Original Blueprint)\n\n")
-            f.write("| Metric | CyborgDB | Original (Milvus) | Improvement |\n")
-            f.write("|--------|----------|-------------------|-------------|\n")
+            # Key metrics - CyborgDB vs Milvus
+            if 'cyborgdb' in comparison_df.columns and 'milvus' in comparison_df.columns:
+                f.write("### CyborgDB vs Milvus Performance\n\n")
+                f.write("| Metric | CyborgDB | Milvus | Improvement |\n")
+                f.write("|--------|----------|--------|-------------|\n")
+                
+                milvus_comparison = comparison_df[comparison_df['milvus'].notna() & comparison_df['cyborgdb'].notna()].head(10)
+                for _, row in milvus_comparison.iterrows():
+                    if 'cyborgdb_vs_milvus' in row:
+                        improvement_str = f"+{row['cyborgdb_vs_milvus']:.1f}%" if row['cyborgdb_vs_milvus'] > 0 else f"{row['cyborgdb_vs_milvus']:.1f}%"
+                    else:
+                        improvement_str = "N/A"
+                    f.write(f"| {row['metric_name']} | {row['cyborgdb']:.2f} | {row['milvus']:.2f} | {improvement_str} |\n")
             
-            for _, row in comparison_df.head(10).iterrows():
-                improvement_str = f"+{row['improvement_percent']:.1f}%" if row['improvement_percent'] > 0 else f"{row['improvement_percent']:.1f}%"
-                f.write(f"| {row['metric_name']} | {row['cyborgdb']:.2f} | {row['milvus']:.2f} | {improvement_str} |\n")
+            # Key metrics - CyborgDB vs Elasticsearch
+            if 'cyborgdb' in comparison_df.columns and 'elasticsearch' in comparison_df.columns:
+                f.write("\n### CyborgDB vs Elasticsearch Performance\n\n")
+                f.write("| Metric | CyborgDB | Elasticsearch | Improvement |\n")
+                f.write("|--------|----------|---------------|-------------|\n")
+                
+                es_comparison = comparison_df[comparison_df['elasticsearch'].notna() & comparison_df['cyborgdb'].notna()].head(10)
+                for _, row in es_comparison.iterrows():
+                    if 'cyborgdb_vs_elasticsearch' in row:
+                        improvement_str = f"+{row['cyborgdb_vs_elasticsearch']:.1f}%" if row['cyborgdb_vs_elasticsearch'] > 0 else f"{row['cyborgdb_vs_elasticsearch']:.1f}%"
+                    else:
+                        improvement_str = "N/A"
+                    f.write(f"| {row['metric_name']} | {row['cyborgdb']:.2f} | {row['elasticsearch']:.2f} | {improvement_str} |\n")
             
             f.write("\n## Detailed Results\n\n")
             
@@ -815,14 +966,30 @@ class BenchmarkReporter:
                 f.write(f"### {metric_type.replace('_', ' ').title()}\n\n")
                 type_df = comparison_df[comparison_df['metric_type'] == metric_type]
                 
-                f.write("| Metric | CyborgDB | Milvus | Improvement |\n")
-                f.write("|--------|----------|--------|-------------|\n")
+                # Determine which columns exist
+                vdb_cols = [col for col in ['cyborgdb', 'milvus', 'elasticsearch'] if col in type_df.columns]
                 
-                for _, row in type_df.iterrows():
-                    improvement_str = f"+{row['improvement_percent']:.1f}%" if row['improvement_percent'] > 0 else f"{row['improvement_percent']:.1f}%"
-                    f.write(f"| {row['metric_name']} | {row['cyborgdb']:.2f} | {row['milvus']:.2f} | {improvement_str} |\n")
-                
-                f.write("\n")
+                if len(vdb_cols) > 0:
+                    # Create header
+                    header = "| Metric |"
+                    separator = "|--------|"
+                    for vdb in vdb_cols:
+                        header += f" {vdb.title()} |"
+                        separator += "----------|"
+                    f.write(header + "\n")
+                    f.write(separator + "\n")
+                    
+                    # Write data rows
+                    for _, row in type_df.iterrows():
+                        row_str = f"| {row['metric_name']} |"
+                        for vdb in vdb_cols:
+                            if vdb in row and row[vdb] is not None:
+                                row_str += f" {row[vdb]:.2f} |"
+                            else:
+                                row_str += " N/A |"
+                        f.write(row_str + "\n")
+                    
+                    f.write("\n")
             
             # GPU vs CPU comparison
             f.write("## GPU vs CPU Performance (CyborgDB)\n\n")
@@ -846,7 +1013,7 @@ class BenchmarkReporter:
 def main():
     """Main benchmark execution"""
     parser = argparse.ArgumentParser(description="CyborgDB Blueprint Performance Benchmark")
-    parser.add_argument("--vdb-type", choices=["cyborgdb", "milvus", "both"], default="both",
+    parser.add_argument("--vdb-type", choices=["cyborgdb", "milvus", "elasticsearch", "all"], default="all",
                        help="Vector database to benchmark")
     parser.add_argument("--device", choices=["gpu", "cpu", "both"], default="both",
                        help="Device to use for benchmarking")
@@ -864,7 +1031,10 @@ def main():
     all_results = []
     
     # Determine configurations to test
-    vdb_types = ["cyborgdb", "milvus"] if args.vdb_type == "both" else [args.vdb_type]
+    if args.vdb_type == "all":
+        vdb_types = ["cyborgdb", "milvus", "elasticsearch"]
+    else:
+        vdb_types = [args.vdb_type]
     devices = ["gpu", "cpu"] if args.device == "both" else [args.device]
     
     # Run vector DB benchmarks
@@ -882,8 +1052,12 @@ def main():
             # Select appropriate benchmark class
             if vdb_type == "cyborgdb":
                 benchmark = CyborgDBBenchmark(config)
-            else:
+            elif vdb_type == "milvus":
                 benchmark = MilvusBenchmark(config)
+            elif vdb_type == "elasticsearch":
+                benchmark = ElasticsearchBenchmark(config)
+            else:
+                raise ValueError(f"Unknown VDB type: {vdb_type}")
             
             try:
                 results = benchmark.run_benchmark_suite()
