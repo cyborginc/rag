@@ -244,7 +244,7 @@ class CyborgDBVDB(VDBRag):
             records: List of records to insert
             **kwargs: Additional parameters
         """
-        logger.info(f"Writing {len(records)} records to CyborgDB index")
+        logger.debug(f"Writing {len(records)} records to CyborgDB")
         
         collection_name = kwargs.get("collection_name", self._collection_name)
         
@@ -258,51 +258,29 @@ class CyborgDBVDB(VDBRag):
         items = []
         
         for idx, record in enumerate(records):
-            logger.debug(f"Processing record {idx + 1}/{len(records)}")
-            
             if not isinstance(record, dict):
                 logger.error(f"Record {idx} is not a dict.")
                 raise TypeError(f"Expected dict, got {type(record).__name__}")
             
             # Extract ID - prefer source-based ID for easier deletion
             id_value = None
-            
-            if idx == 0:
-                import copy
-                # print records json object except for vector and content keys
-                debug_record = copy.deepcopy(record)
-                debug_record.pop("vector", None)
-                if "metadata" in debug_record:
-                    debug_record["metadata"].pop("content", None)
-                    debug_record["metadata"].pop("embedding", None)
-
-                logger.debug(f"\n\nSample record structure (without vector/content): {json.dumps(debug_record, indent=2)}\n\n")
 
 
             # First try to use source as ID
             if "source" in record and record["source"]:
                 id_value = str(record["source"].get("source_id")) + "_" + str(uuid4())
-                if idx % 50 == 0:
-                    logger.info(f"Using source as ID: {id_value}")
             elif "metadata" in record and record["metadata"].get("source"):
                 id_value = record["metadata"]["source"].get("source_id") + "_" + str(uuid4())
-                if idx % 50 == 0:
-                    logger.info(f"Using metadata.source as ID: {id_value}")
             elif "metadata" in record and record["metadata"].get("source_metadata"):
                 id_value = record["metadata"]["source_metadata"].get("source_id") + "_" + str(uuid4())
-                if idx % 50 == 0:
-                    logger.info(f"Using metadata.source_metadata as ID: {id_value}")
             # Fall back to provided ID fields
             elif "id" in record and record["id"] is not None:
                 id_value = str(record["id"])
-                logger.debug(f"Using provided ID: {id_value}")
             elif "_id" in record and record["_id"] is not None:
                 id_value = str(record["_id"])
-                logger.debug(f"Using provided _id: {id_value}")
             else:
                 # Last resort: generate UUID
                 id_value = str(uuid4())
-                logger.debug(f"Generated new UUID for record: {id_value}")
             
             item = {"id": id_value}
             
@@ -311,15 +289,12 @@ class CyborgDBVDB(VDBRag):
             if "vector" in record:
                 item["vector"] = record["vector"]
                 vector_found = True
-                logger.debug(f"Found vector field")
             elif "embedding" in record:
                 item["vector"] = record["embedding"]
                 vector_found = True
-                logger.debug(f"Found embedding field")
             elif "metadata" in record and "embedding" in record["metadata"]:
                 item["vector"] = record["metadata"]["embedding"]
                 vector_found = True
-                logger.debug(f"Found embedding in metadata")
             
             if not vector_found:
                 logger.warning(f"No vector/embedding found for record {id_value}")
@@ -360,17 +335,12 @@ class CyborgDBVDB(VDBRag):
             
             if processed_metadata:
                 item["metadata"] = processed_metadata
-                logger.debug(f"Added {len(processed_metadata)} metadata fields")
             
             items.append(item)
         
-        logger.info(f"Prepared {len(items)} items for upsertion")
-        
         # Upsert items directly to index
         try:
-            logger.info("Starting upsert operation...")
             index.upsert(items)
-            logger.info(f"Successfully inserted {len(items)} records into index")
         except Exception as e:
             logger.error(f"Failed to upsert records: {e}", exc_info=True)
             raise
@@ -398,8 +368,7 @@ class CyborgDBVDB(VDBRag):
         Args:
             records: List of records to process (can be nested lists/tuples)
         """
-        logger.info("Running CyborgDB ingestion pipeline")
-        logger.debug(f"Input type: {type(records)}")
+        logger.debug("Running CyborgDB ingestion pipeline")
         
         # Step 1: Create index if it doesn't exist
         self.create_index()
@@ -410,20 +379,18 @@ class CyborgDBVDB(VDBRag):
             flat_records = []
             try:
                 flat_records = self._normalize_records(records)
-                logger.debug(f"Normalized {len(flat_records)} records from input")
             except Exception as e:
                 logger.error(f"Failed to normalize records: {e}", exc_info=True)
                 raise
             
             if flat_records:
-                logger.info(f"Writing {len(flat_records)} records to index")
                 self.write_to_index(flat_records)
             else:
                 logger.warning("No records to write after normalization")
         else:
             logger.warning("No records provided to process")
         
-        logger.info("CyborgDB ingestion pipeline completed")
+        logger.debug("CyborgDB ingestion completed")
     
     def _normalize_records(self, records) -> List[Dict[str, Any]]:
         """
@@ -551,58 +518,39 @@ class CyborgDBVDB(VDBRag):
         deleted_collections = []
         failed_collections = []
         
-        logger.info("=" * 80)
-        logger.info(f"DELETE_COLLECTIONS called with: {collection_names}")
-        logger.info(f"Number of collections to delete: {len(collection_names)}")
-        logger.info(f"Current cached indexes: {list(self._indexes.keys())}")
-        logger.info(f"Current cached vectorstores: {list(self._vectorstores.keys())}")
+        logger.debug(f"Deleting collections: {collection_names}")
         
         # List all indexes before deletion
         try:
             all_indexes_before = self.client.list_indexes()
-            logger.info(f"ALL indexes in CyborgDB BEFORE deletion: {all_indexes_before}")
-            logger.info(f"Total index count BEFORE: {len(all_indexes_before)}")
         except Exception as e:
             logger.error(f"Failed to list indexes before deletion: {e}")
             all_indexes_before = []
         
         for collection_name in collection_names:
-            logger.info("-" * 40)
-            logger.info(f"Processing collection: '{collection_name}'")
-            logger.info(f"Collection name type: {type(collection_name)}")
-            logger.info(f"Collection name repr: {repr(collection_name)}")
+            logger.debug(f"Processing collection: '{collection_name}'")
             
             try:
                 # Check if collection exists first
                 exists = self.check_collection_exists(collection_name)
-                logger.info(f"Collection '{collection_name}' exists: {exists}")
                 
                 if not exists:
-                    logger.warning(f"Collection '{collection_name}' NOT FOUND, skipping deletion")
+                    logger.debug(f"Collection '{collection_name}' not found, skipping deletion")
                     failed_collections.append({
                         "collection_name": collection_name,
                         "error_message": "Collection not found"
                     })
                     continue
 
-                logger.info(f"Collection '{collection_name}' EXISTS, proceeding with deletion")
                 
                 # Get the index instance directly and use its delete_index method
                 # This ensures we only delete the specific index
                 if collection_name in self._indexes:
                     # Use cached index if available
-                    logger.info(f"Using CACHED index for '{collection_name}'")
                     index = self._indexes[collection_name]
-                    logger.info(f"Cached index object: {index}")
-                    logger.info(f"Cached index name: {index.index_name if hasattr(index, 'index_name') else 'N/A'}")
                 else:
                     # Load the index
-                    logger.info(f"Loading NEW index instance for '{collection_name}'")
                     try:
-                        logger.info(f"Creating EncryptedIndex with:")
-                        logger.info(f"  - index_name: '{collection_name}'")
-                        logger.info(f"  - index_key: {repr(self.index_key[:16])}... (truncated)")
-                        logger.info(f"  - api object: {self.client.api}")
                         
                         index = EncryptedIndex(
                             index_name=collection_name,
@@ -610,9 +558,6 @@ class CyborgDBVDB(VDBRag):
                             api=self.client.api,
                             api_client=self.client.api_client
                         )
-                        logger.info(f"Successfully created index instance for '{collection_name}'")
-                        logger.info(f"New index object: {index}")
-                        logger.info(f"New index name: {index.index_name if hasattr(index, 'index_name') else 'N/A'}")
                     except Exception as e:
                         logger.error(f"FAILED to load index for '{collection_name}': {e}", exc_info=True)
                         failed_collections.append({
@@ -623,68 +568,42 @@ class CyborgDBVDB(VDBRag):
                 
                 # Delete using the index's own delete method
                 try:
-                    logger.info(f">>> CALLING delete_index() on index '{collection_name}'")
-                    logger.info(f">>> Index object type: {type(index)}")
-                    logger.info(f">>> Index name property: {index.index_name if hasattr(index, 'index_name') else 'NO index_name PROPERTY'}")
-                    
-                    # List indexes right before deletion
-                    indexes_before_delete = self.client.list_indexes()
-                    logger.info(f"Indexes RIGHT BEFORE delete_index() call: {indexes_before_delete}")
-                    
                     index.delete_index()
                     
-                    # List indexes right after deletion
-                    indexes_after_delete = self.client.list_indexes()
-                    logger.info(f"Indexes RIGHT AFTER delete_index() call: {indexes_after_delete}")
-                    logger.info(f"Indexes deleted by this call: {set(indexes_before_delete) - set(indexes_after_delete)}")
-                    
                     deleted_collections.append(collection_name)
-                    logger.info(f"✓ Successfully deleted collection: '{collection_name}'")
+                    logger.debug(f"Successfully deleted collection: '{collection_name}'")
                     
                     # Remove from caches
                     if collection_name in self._vectorstores:
                         del self._vectorstores[collection_name]
-                        logger.info(f"Removed '{collection_name}' from vectorstore cache")
                     if collection_name in self._indexes:
                         del self._indexes[collection_name]
-                        logger.info(f"Removed '{collection_name}' from index cache")
                         
                 except Exception as delete_error:
-                    logger.error(f"✗ FAILED to delete index '{collection_name}': {delete_error}", exc_info=True)
+                    logger.error(f"Failed to delete index '{collection_name}': {delete_error}")
                     failed_collections.append({
                         "collection_name": collection_name,
                         "error_message": f"Delete operation failed: {str(delete_error)}"
                     })
                     
             except Exception as e:
-                logger.error(f"UNEXPECTED ERROR while processing collection '{collection_name}': {e}", exc_info=True)
+                logger.error(f"Error processing collection '{collection_name}': {e}")
                 failed_collections.append({
                     "collection_name": collection_name,
                     "error_message": str(e)
                 })
         
-        # List all indexes after deletion
+        # Verify deletions
         try:
             all_indexes_after = self.client.list_indexes()
-            logger.info("-" * 40)
-            logger.info(f"ALL indexes in CyborgDB AFTER deletion: {all_indexes_after}")
-            logger.info(f"Total index count AFTER: {len(all_indexes_after)}")
-            logger.info(f"Indexes removed: {set(all_indexes_before) - set(all_indexes_after)}")
-            logger.info(f"Expected to remove: {set(collection_names) & set(all_indexes_before)}")
-            
             unexpected_deletions = (set(all_indexes_before) - set(all_indexes_after)) - set(deleted_collections)
             if unexpected_deletions:
-                logger.error(f"⚠️ UNEXPECTED DELETIONS: {unexpected_deletions}")
-                logger.error("These collections were deleted but shouldn't have been!")
+                logger.error(f"Unexpected deletions: {unexpected_deletions}")
         except Exception as e:
-            logger.error(f"Failed to list indexes after deletion: {e}")
+            logger.error(f"Failed to verify deletions: {e}")
         
-        logger.info("=" * 80)
-        logger.info(f"DELETION SUMMARY:")
-        logger.info(f"  Requested: {collection_names}")
-        logger.info(f"  Successfully deleted: {deleted_collections}")
-        logger.info(f"  Failed: {[f['collection_name'] for f in failed_collections]}")
-        logger.info("=" * 80)
+        if deleted_collections or failed_collections:
+            logger.info(f"Deletion complete: {len(deleted_collections)} succeeded, {len(failed_collections)} failed")
         
         return {
             "message": "Collection deletion process completed.",
@@ -734,7 +653,6 @@ class CyborgDBVDB(VDBRag):
                                     # Ensure value is JSON-serializable
                                     if isinstance(value, (dict, list)):
                                         # For nested structures, convert to string representation
-                                        import json
                                         try:
                                             # Try to serialize to JSON string
                                             metadata_dict[key] = json.dumps(value)
