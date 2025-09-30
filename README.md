@@ -7,6 +7,9 @@ The target audience for this blueprint is
 developers who want a quick start to set up a RAG solution with a path-to-production with the NVIDIA NIM.
 For the prerequisites for this blueprint, see [Minimum System Requirements](/docs/support-matrix.md).
 
+## Disclaimer
+
+The "Build a Secure Enterprise RAG" Blueprint is shared as reference and is provided "as is". The security in the production environment is the responsibility of the end users deploying it. When deploying in a production environment, please have security experts review any potential risks and threats; define the trust boundaries, implement logging and monitoring capabilities, secure the communication channels, integrate AuthN & AuthZ with appropriate access controls, keep the deployment up to date, ensure the containers/source code are secure and free of known vulnerabilities.
 
 ## Overview
 
