@@ -1,21 +1,21 @@
-# NVIDIA RAG Blueprint - API Interaction and Deployment Notebooks
+# Build a Confidential Enterprise RAG - API Interaction and Deployment Notebooks
 
 ## Overview
-This repository contains Jupyter notebooks demonstrating the usage of NVIDIA RAG Blueprint APIs and advanced development features.
+This repository contains Jupyter notebooks demonstrating the usage of Confidential Enterprise RAG APIs and advanced development features.
 
 ### Notebooks:
 
 #### **Core API Usage Notebooks**
-1. **`ingestion_api_usage.ipynb`**: Demonstrates how to interact with the NVIDIA RAG ingestion service, showcasing how to upload and process documents for retrieval-augmented generation (RAG).
+1. **`ingestion_api_usage.ipynb`**: Demonstrates how to interact with the Confidential Enterprise RAG ingestion service, showcasing how to upload and process documents for retrieval-augmented generation (RAG).
 
-2. **`retriever_api_usage.ipynb`**: Illustrates the use of the NVIDIA RAG retriever service, highlighting different querying techniques and retrieval strategies.
+2. **`retriever_api_usage.ipynb`**: Illustrates the use of the Confidential Enterprise RAG retriever service, highlighting different querying techniques and retrieval strategies.
 
-3. **`rag_library_usage.ipynb`**: Demonstrates native usage of the NVIDIA RAG Python client, including environment setup, document ingestion, collection management, and querying. This notebook provides end-to-end API usage examples for interacting directly with the RAG system from Python, covering both ingestion and retrieval workflows.
+3. **`rag_library_usage.ipynb`**: Demonstrates native usage of the Confidential Enterprise RAG Python client, including environment setup, document ingestion, collection management, and querying. This notebook provides end-to-end API usage examples for interacting directly with the RAG system from Python, covering both ingestion and retrieval workflows.
 
 #### **Advanced Features Notebooks**
 4. **`nb_metadata.ipynb`**: **Comprehensive metadata functionality demonstration** - This notebook showcases advanced metadata features including metadata ingestion, filtering, and extraction. It provides step-by-step examples of how to use metadata for enhanced document retrieval and Q&A capabilities. Perfect for users wanting to implement sophisticated metadata-based filtering in their RAG applications.
 
-5. **`building_rag_vdb_operator.ipynb`**: **Advanced Developer Guide** - Learn how to create and integrate custom vector database (VDB) operators with the NVIDIA RAG blueprint. This notebook demonstrates building a complete OpenSearch VDB operator from scratch, understanding the VDBRag base class architecture, and implementing custom vector database integrations. Essential for developers wanting to extend NVIDIA RAG with their own vector database implementations.
+5. **`building_rag_vdb_operator.ipynb`**: **Advanced Developer Guide** - Learn how to create and integrate custom vector database (VDB) operators with the Confidential Enterprise RAG. This notebook demonstrates building a complete OpenSearch VDB operator from scratch, understanding the VDBRag base class architecture, and implementing custom vector database integrations. Essential for developers wanting to extend the Confidential Enterprise RAG with their own vector database implementations.
 
 #### **Deployment Notebooks**
 6. **`launchable.ipynb`**: A deployment-ready notebook intended for execution within the brev.dev environment.

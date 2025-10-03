@@ -34,9 +34,9 @@ docker compose -f deploy/compose/docker-compose-rag-server.yaml up -d
 
 Alternatively, you can deploy RAG with query decomposition using Helm for Kubernetes environments.
 
-### Update RAG Blueprint Deployment with Query Decomposition
+### Update Confidential Enterprise RAG Deployment with Query Decomposition
 
-Use the Helm upgrade command below to enable query decomposition in RAG Blueprint by setting `ENABLE_QUERY_DECOMPOSITION` and `MAX_RECURSION_DEPTH`:
+Use the Helm upgrade command below to enable query decomposition in Confidential Enterprise RAG by setting `ENABLE_QUERY_DECOMPOSITION` and `MAX_RECURSION_DEPTH`:
 
 ```bash
 helm upgrade rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \

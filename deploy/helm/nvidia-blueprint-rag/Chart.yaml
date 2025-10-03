@@ -41,7 +41,7 @@ dependencies:
   name: kube-prometheus-stack
   repository: https://prometheus-community.github.io/helm-charts
   version: 76.3.0
-description: An end to end Helm chart for the NVIDIA RAG Blueprint
+description: An end to end Helm chart for the Confidential Enterprise RAG
 name: nvidia-blueprint-rag
 type: application
 version: v2.3.0-rc2

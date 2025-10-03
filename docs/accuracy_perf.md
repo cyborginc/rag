@@ -3,7 +3,7 @@
   SPDX-License-Identifier: Apache-2.0
 -->
 
-# Best practices for common NVIDIA RAG Blueprint settings
+# Best practices for common Confidential Enterprise RAG settings
 
 These parameters allow fine-tuning RAG performance based on specific accuracy vs. latency trade-offs. Choose the configurations based on use case needs! The default values are kept considering a balance between accuracy and performance. The default values and the environment variables controlling these settings are mentioned in (brackets)
 

@@ -5,7 +5,7 @@
 
 # Multi-Collection Retrieval
 
-This document describes how to use the NVIDIA RAG system to retrieve and generate responses from multiple vector collections simultaneously.
+This document describes how to use Confidential Enterprise RAG to retrieve and generate responses from multiple vector collections simultaneously.
 
 ## Overview
 

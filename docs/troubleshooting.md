@@ -3,14 +3,14 @@
   SPDX-License-Identifier: Apache-2.0
 -->
 
-# Troubleshoot NVIDIA RAG Blueprint
+# Troubleshoot Confidential Enterprise RAG
 
-The following issues might arise when you work with the NVIDIA RAG Blueprint.
+The following issues might arise when you work with Confidential Enterprise RAG.
 
 
 ## Known issues
 
-- The Blueprint responses can have significant latency when using [NVIDIA API Catalog cloud hosted models](quickstart.md#deploy-with-docker-compose).
+- Confidential Enterprise RAG responses can have significant latency when using [NVIDIA API Catalog cloud hosted models](quickstart.md#deploy-with-docker-compose).
 - The accuracy of the pipeline is optimized for certain file types like `.pdf`, `.txt`, `.docx`. The accuracy may be poor for other file types supported by NvIngest, since image captioning is disabled by default.
 - The NeMo LLM microservice may take upto 5-6 mins to start for every deployment.
 - In case of failure while uploading files, error messages may not be shown in the user interface of rag-frontend. Developers are encouraged to check the `ingestor-server` logs for details.

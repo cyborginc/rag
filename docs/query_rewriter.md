@@ -6,7 +6,7 @@
 # Enable query rewriting support
 Query rewriting enables higher accuracy for multiturn queries by making an additional LLM call to decontextualize the incoming question, before sending it to the retrieval pipeline.
 
-Once you have followed [steps in quick start guide](./quickstart.md#deploy-with-docker-compose) to launch the blueprint, to enable query rewriting support, developers have two options:
+Once you have followed [steps in quick start guide](./quickstart.md#deploy-with-docker-compose) to launch Confidential Enterprise RAG, to enable query rewriting support, developers have two options:
 
 - [Enable query rewriting support](#enable-query-rewriting-support)
   - [Using on-prem model (Recommended)](#using-on-prem-model-recommended)

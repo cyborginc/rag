@@ -1,6 +1,6 @@
-# RAG Blueprint Helm Deployment with MIG Support
+# Confidential Enterprise RAG Helm Deployment with MIG Support
 
-Use this documentation to deploy the RAG Blueprint Helm chart with NVIDIA MIG (Multi-Instance GPU) slices for fine-grained GPU allocation.
+Use this documentation to deploy Confidential Enterprise RAG Helm chart with NVIDIA MIG (Multi-Instance GPU) slices for fine-grained GPU allocation.
 
 To ensure that your GPUs are compatible with MIG, 
 refer to the [MIG Supported Hardware List](https://docs.nvidia.com/datacenter/tesla/mig-user-guide/#mig-supported-gpus).
@@ -106,9 +106,9 @@ You should see output similar to the following.
 
 ---
 
-## Step 3: Install RAG Blueprint Helm Chart with MIG Values
+## Step 3: Install Confidential Enterprise RAG Helm Chart with MIG Values
 
-Run the following code to install the RAG Blueprint Helm Chart.
+Run the following code to install the Confidential Enterprise RAG Helm Chart.
 
 ```bash
 helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \

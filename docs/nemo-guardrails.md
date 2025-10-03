@@ -3,9 +3,9 @@
   SPDX-License-Identifier: Apache-2.0
 -->
 
-# NeMo Guardrails Setup for RAG Blueprint
+# NeMo Guardrails Setup for Confidential Enterprise RAG
 
-This guide provides step-by-step instructions to enable **NeMo Guardrails** for the RAG Blueprint, allowing you to control and safeguard LLM interactions.
+This guide provides step-by-step instructions to enable **NeMo Guardrails** for Confidential Enterprise RAG, allowing you to control and safeguard LLM interactions.
 
 ## Overview
 
@@ -81,7 +81,7 @@ export NIM_ENDPOINT_URL=https://integrate.api.nvidia.com/v1
 
 ### Step 2: Create Model Cache Directory
 
-Create a directory for caching models (ensure to create a seperate one than the one used by other models of this blueprint):
+Create a directory for caching models (ensure to create a seperate one than the one used by other models of Confidential Enterprise RAG):
 
 ```bash
 mkdir -p ~/.cache/nemoguard-model-cache
@@ -207,9 +207,9 @@ kubectl get svc -n <namespace>
 
 Locate the `nemo-guardrails` service and copy its URL.
 
-### Step 3: Update RAG Blueprint Deployment with NeMo Guardrails
+### Step 3: Update Confidential Enterprise RAG Deployment with NeMo Guardrails
 
-Use the Helm upgrade command below to enable NeMo Guardrails in RAG Blueprint by setting `ENABLE_GUARDRAILS` and the `NEMO_GUARDRAILS_URL`:
+Use the Helm upgrade command below to enable NeMo Guardrails in Confidential Enterprise RAG by setting `ENABLE_GUARDRAILS` and the `NEMO_GUARDRAILS_URL`:
 
 ```bash
 helm upgrade rag -n rag https://helm.ngc.nvidia.com/nvstaging/blueprint/charts/nvidia-blueprint-rag-v2.3.0-rc2.tgz \

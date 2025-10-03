@@ -3,9 +3,9 @@
   SPDX-License-Identifier: Apache-2.0
 -->
 
-# Get Started With NVIDIA RAG Blueprint
+# Get Started With Confidential Enterprise RAG
 
-Use the following documentation to get started with the NVIDIA RAG Blueprint.
+Use the following documentation to get started with Confidential Enterprise RAG.
 
 - [Obtain an API Key](#obtain-an-api-key)
 - [Interact using native python APIs](#interact-using-native-python-apis)
@@ -37,7 +37,7 @@ export NGC_API_KEY="<your-ngc-api-key>"
 
 ## Interact using native python APIs
 
-You can interact with and deploy the NVIDIA RAG Blueprint directly from Python using the provided Jupyter notebook. This approach is ideal for users who prefer a programmatic interface for setup, ingestion, and querying, or for those who want to automate workflows and integrate with other Python tools.
+You can interact with and deploy Confidential Enterprise RAG directly from Python using the provided Jupyter notebook. This approach is ideal for users who prefer a programmatic interface for setup, ingestion, and querying, or for those who want to automate workflows and integrate with other Python tools.
 
 - **Notebook:** [rag_library_usage.ipynb](../notebooks/rag_library_usage.ipynb)
 
@@ -65,7 +65,7 @@ For both retrieval and ingestion services, by default all the models are deploye
 
    b. After you get the Docker Compose plugin installed, run `docker compose version` to confirm.
 
-3. To pull images required by the blueprint from NGC, you must first authenticate Docker with nvcr.io. Use the NGC API Key you created in [Obtain an API Key](#obtain-an-api-key).
+3. To pull images required by Confidential Enterprise RAG from NGC, you must first authenticate Docker with nvcr.io. Use the NGC API Key you created in [Obtain an API Key](#obtain-an-api-key).
 
    ```bash
    export NGC_API_KEY="nvapi-..."
@@ -79,7 +79,7 @@ For both retrieval and ingestion services, by default all the models are deploye
 
 ### Start using on-prem models
 
-Use the following procedure to start all containers needed for this blueprint. This launches the ingestion services followed by the rag services and all of its dependent NIMs on-prem.
+Use the following procedure to start all containers needed for Confidential Enterprise RAG. This launches the ingestion services followed by the rag services and all of its dependent NIMs on-prem.
 
 1. Fulfill the [prerequisites](#prerequisites). Ensure you meet [the hardware requirements](./support-matrix.md).
 
@@ -162,7 +162,7 @@ Use the following procedure to start all containers needed for this blueprint. T
 6. Start all required NIMs.
 
    Before running the command please ensure the GPU allocation is done appropriately in the deploy/compose/.env. You might need to override them
-   for the hardware you are deploying this blueprint on. The default assumes you are deploying this on a 2XH100 environment.
+   for the hardware you are deploying Confidential Enterprise RAG on. The default assumes you are deploying this on a 2XH100 environment.
 
    ```bash
    USERID=$(id -u) docker compose -f deploy/compose/nims.yaml up -d
@@ -1105,7 +1105,7 @@ For troubleshooting issues with Helm deployment, checkout the troubleshooting se
 ## Data Ingestion
 
 [!IMPORTANT]
-Before you can use this procedure, you must deploy the blueprint by using [Deploy With Docker Compose](#deploy-with-docker-compose) or [Deploy With Helm Chart](#deploy-with-helm-chart).
+Before you can use this procedure, you must deploy Confidential Enterprise RAG by using [Deploy With Docker Compose](#deploy-with-docker-compose) or [Deploy With Helm Chart](#deploy-with-helm-chart).
 
 
 1. Download and install Git LFS by following the [installation instructions](https://git-lfs.com/).
@@ -1155,7 +1155,7 @@ Follow the cells in the notebook to ingest the PDF files from the data/dataset f
 - [Enable NeMo Guardrails for Content Safety](nemo-guardrails.md)
 - [Enable Query decomposition support](docs/query_decomposition.md)
 - [Query Across Multiple Collections](multi-collection-retrieval.md)
-- [Troubleshoot NVIDIA RAG Blueprint](troubleshooting.md)
+- [Troubleshoot Confidential Enterprise RAG](troubleshooting.md)
 - [Understand latency breakdowns and debug errors using observability services](observability.md)
 - [Enable Self-Reflection to improve accuracy](self-reflection.md)
 - [Enable Query rewriting to Improve accuracy of Multi-Turn Conversations](query_rewriter.md)

@@ -1,21 +1,21 @@
 
 
-<h1><img align="center" src="https://github.com/user-attachments/assets/cbe0d62f-c856-4e0b-b3ee-6184b7c4d96f">NVIDIA RAG Blueprint</h1>
+<h1><img align="center" src="https://github.com/user-attachments/assets/cbe0d62f-c856-4e0b-b3ee-6184b7c4d96f">Build a Confidential Enterprise RAG</h1>
 
-Use this documentation to learn about the NVIDIA RAG Blueprint.
+Use this documentation to learn about building a Confidential Enterprise RAG.
 The target audience for this blueprint is
 developers who want a quick start to set up a RAG solution with a path-to-production with the NVIDIA NIM.
 For the prerequisites for this blueprint, see [Minimum System Requirements](/docs/support-matrix.md).
 
 ## Disclaimer
 
-The "Build a Secure Enterprise RAG" Blueprint is shared as reference and is provided "as is". The security in the production environment is the responsibility of the end users deploying it. When deploying in a production environment, please have security experts review any potential risks and threats; define the trust boundaries, implement logging and monitoring capabilities, secure the communication channels, integrate AuthN & AuthZ with appropriate access controls, keep the deployment up to date, ensure the containers/source code are secure and free of known vulnerabilities.
+The "Build a Confidential Enterprise RAG" Blueprint is shared as reference and is provided "as is". The security in the production environment is the responsibility of the end users deploying it. When deploying in a production environment, please have security experts review any potential risks and threats; define the trust boundaries, implement logging and monitoring capabilities, secure the communication channels, integrate AuthN & AuthZ with appropriate access controls, keep the deployment up to date, ensure the containers/source code are secure and free of known vulnerabilities.
 
 ## Overview
 
-The NVIDIA RAG blueprint serves as a reference solution for a foundational Retrieval Augmented Generation (RAG) pipeline.
+This blueprint serves as a reference solution for a foundational Retrieval Augmented Generation (RAG) pipeline.
 One of the key use cases in Generative AI is enabling users to ask questions and receive answers based on their enterprise data corpus.
-This blueprint demonstrates how to set up a RAG solution that uses NVIDIA NIM and GPU-accelerated components.
+This blueprint demonstrates how to set up a confidential RAG solution that uses NVIDIA NIM and GPU-accelerated components.
 By default, this blueprint leverages locally-deployed NVIDIA NIM microservices to meet specific data governance and latency requirements.
 However, you can replace these models with your NVIDIA-hosted models available in the [NVIDIA API Catalog](https://build.nvidia.com).
 

@@ -3,9 +3,9 @@
   SPDX-License-Identifier: Apache-2.0
 -->
 
-# Minimum System Requirements for NVIDIA RAG Blueprint
+# Minimum System Requirements for Confidential Enterprise RAG
 
-The following are the system requirements for the NVIDIA RAG Blueprint.
+The following are the system requirements for Confidential Enterprise RAG.
 
 ## OS Requirements
 Ubuntu 22.04 OS
@@ -20,11 +20,11 @@ Ubuntu 22.04 OS
 - CUDA version - 12.6 or later
 
 ## Hardware Requirements
-By default, this blueprint deploys the referenced NIM microservices locally. For this, you will require a minimum of:
+By default, Confidential Enterprise RAG deploys the referenced NIM microservices locally. For this, you will require a minimum of:
  - 2xH100
  - 2xB200
  - 3xA100
-The blueprint can be also modified to use NIM microservices hosted by NVIDIA in [NVIDIA API Catalog](https://build.nvidia.com/explore/discover).
+Confidential Enterprise RAG can be also modified to use NIM microservices hosted by NVIDIA in [NVIDIA API Catalog](https://build.nvidia.com/explore/discover).
 
 Following are the hardware requirements for each component.
 The reference code in the solution (glue code) is referred to as as the "pipeline".

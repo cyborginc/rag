@@ -5,10 +5,10 @@
 
 # Configure Elasticsearch as Your Vector Database
 
-The RAG blueprint supports multiple vector database backends including [Milvus](https://milvus.io/docs) and [Elasticsearch](https://www.elastic.co/elasticsearch/vector-database). 
+Confidential Enterprise RAG supports multiple vector database backends including [Milvus](https://milvus.io/docs) and [Elasticsearch](https://www.elastic.co/elasticsearch/vector-database). 
 Elasticsearch provides robust search capabilities and can be used as an alternative to Milvus for storing and retrieving document embeddings.
 
-After you have followed the [quick start guide](./quickstart.md#deploy-with-docker-compose) to launch the blueprint, 
+After you have followed the [quick start guide](./quickstart.md#deploy-with-docker-compose) to launch Confidential Enterprise RAG, 
 use this documentation to configure Elasticsearch as your vector database.
 
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-CyborgDB is an encrypted vector database proxy that provides end-to-end encryption for vector embeddings while maintaining high-performance similarity search capabilities. This guide explains how to set up and use CyborgDB with the NVIDIA RAG Blueprint, and highlights its unique features compared to traditional vector databases.
+CyborgDB is an encrypted vector database proxy that provides end-to-end encryption for vector embeddings while maintaining high-performance similarity search capabilities. This guide explains how to set up and use CyborgDB with the Confidential Enterprise RAG, and highlights its unique features compared to traditional vector databases.
 
 ## Table of Contents
 
@@ -296,7 +296,7 @@ print(f"Available indexes: {indexes}")
 - [CyborgDB Documentation](https://docs.cyborg.co)
 - [NVIDIA cuVS Library](https://github.com/rapidsai/cuvs)
 - [Redis Best Practices](https://redis.io/docs/manual/patterns/)
-- [NVIDIA RAG Blueprint Docs](../README.md)
+- [Confidential Enterprise RAG Docs](../README.md)
 
 ## Support
 
@@ -304,7 +304,7 @@ For issues specific to CyborgDB integration:
 1. Check the [troubleshooting section](#troubleshooting)
 2. Review container logs: `docker logs cyborgdb`
 3. Consult the [CyborgDB documentation](https://docs.cyborg.co)
-4. Open an issue in the NVIDIA RAG Blueprint repository
+4. Open an issue in the Confidential Enterprise RAG repository
 
 ---
 

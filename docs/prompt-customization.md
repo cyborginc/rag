@@ -5,7 +5,7 @@
 
 # Customize Prompts
 
-This blueprint uses a [prompt.yaml](../src/nvidia_rag/rag_server/prompt.yaml) file that defines prompts for different contexts.
+Confidential Enterprise RAG uses a [prompt.yaml](../src/nvidia_rag/rag_server/prompt.yaml) file that defines prompts for different contexts.
 These prompts guide the RAG model in generating appropriate responses.
 You can customize these prompts to fit your specific needs and achieve desired responses from the models.
 

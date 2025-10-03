@@ -5,7 +5,7 @@
 
 # Enable Self-Reflection
 
-The RAG Blueprint supports self-reflection capabilities to improve response quality through two key mechanisms:
+Confidential Enterprise RAG supports self-reflection capabilities to improve response quality through two key mechanisms:
 
 1. Context Relevance Check: Evaluates and potentially improves retrieved document relevance
 2. Response Groundedness Check: Ensures generated responses are well-grounded in the retrieved context
@@ -34,7 +34,7 @@ The reflection feature supports multiple deployment options:
 
 ### Prerequisites
 
-1. Ensure you have completed the [general prerequisites](quickstart.md#prerequisites) for the RAG Blueprint.
+1. Ensure you have completed the [general prerequisites](quickstart.md#prerequisites) for Confidential Enterprise RAG.
 
 2. Verify you have sufficient GPU resources:
    - **Required**: 8x A100 80GB or H100 80GB GPUs for optimal latency-optimized deployment
@@ -77,7 +77,7 @@ If you don't have sufficient GPU resources for on-premises deployment, you can u
 
 ### Prerequisites
 
-1. Ensure you have completed the [general prerequisites](quickstart.md#prerequisites) for the RAG Blueprint.
+1. Ensure you have completed the [general prerequisites](quickstart.md#prerequisites) for Confidential Enterprise RAG.
 
 2. [Obtain an NVIDIA API key](quickstart.md#obtain-an-api-key) for accessing the hosted models.
 
@@ -123,7 +123,7 @@ When using NVIDIA AI Playground models, you must obtain an API key. See [Obtain 
 
 ## Reflection Support via Helm Deployment
 
-You can enable self-reflection through Helm when you deploy the RAG Blueprint.
+You can enable self-reflection through Helm when you deploy Confidential Enterprise RAG.
 
 ### Prerequisites
 

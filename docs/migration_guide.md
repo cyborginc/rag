@@ -67,7 +67,7 @@ In **RAG v2.0.0**, the architecture has evolved to utilize **two separate server
 1. **RAG Server** - Manages retrieval and generation APIs.
 2. **Ingestion Server** - Manages ingestion APIs.
 
-Also the pipeline by default using on-prem models as default. Earlier it used to use NVIDIA cloud hosted models as default. The minimum hardware requirements for deploying the blueprint in its default settings is specified [here](../README.md#minimum-system-requirements).
+Also the pipeline by default using on-prem models as default. Earlier it used to use NVIDIA cloud hosted models as default. The minimum hardware requirements for deploying Confidential Enterprise RAG in its default settings is specified [here](../README.md#minimum-system-requirements).
 This guide outlines the key changes and steps required for migration.
 
 ---

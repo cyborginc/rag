@@ -6,7 +6,7 @@
 # Enable audio ingestion support
 Enabling audio ingestion support allows the system to process and transcribe audio files (.mp3 and .wav) during document ingestion. This enables better search and retrieval capabilities for audio content in your documents.
 
-Once you have followed [steps in quick start guide](./quickstart.md#deploy-with-docker-compose) to launch the blueprint, to enable audio ingestion support, follow these steps:
+Once you have followed [steps in quick start guide](./quickstart.md#deploy-with-docker-compose) to launch Confidential Enterprise RAG, to enable audio ingestion support, follow these steps:
 
 ## Using on-prem audio transcription model
 

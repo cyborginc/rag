@@ -5,7 +5,7 @@
 
 # Enable image captioning support
 Enabling image captioning will yield higher accuracy for querstions relevant to images in the ingested documents at the cost of higher ingestion latency.
-Once you have followed [steps in quick start guide](./quickstart.md#deploy-with-docker-compose) to launch the blueprint, to enable image captioning support, developers have two options:
+Once you have followed [steps in quick start guide](./quickstart.md#deploy-with-docker-compose) to launch Confidential Enterprise RAG, to enable image captioning support, developers have two options:
 - [Enable image captioning support](#enable-image-captioning-support)
   - [Using on-prem VLM model (Recommended)](#using-on-prem-vlm-model-recommended)
   - [Using cloud hosted VLM model](#using-cloud-hosted-vlm-model)
