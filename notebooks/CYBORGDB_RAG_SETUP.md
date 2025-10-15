@@ -42,18 +42,18 @@ CyborgDB is an encrypted vector database proxy that provides end-to-end encrypti
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        Client Application                    │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  1. Generate embeddings from documents               │   │
-│  │  2. Encrypt vectors with 32-byte index key          │   │
-│  │  3. Send encrypted vectors to CyborgDB              │   │
-│  └─────────────────────────────────────────────────────┘   │
+│                        Client Application                   │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  1. Generate embeddings from documents              │    │
+│  │  2. Encrypt vectors with 32-byte index key          │    │
+│  │  3. Send encrypted vectors to CyborgDB              │    │
+│  └─────────────────────────────────────────────────────┘    │
 └──────────────────────────┬──────────────────────────────────┘
                           │ Encrypted vectors
                           │ + metadata
                           ▼
          ┌────────────────────────────────────┐
-         │      CyborgDB Proxy Service         │
+         │      CyborgDB Proxy Service        │
          │  ┌──────────────────────────────┐  │
          │  │ • Never sees plaintext vectors│  │
          │  │ • Performs encrypted search   │  │
