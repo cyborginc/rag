@@ -34,7 +34,7 @@ services:
               capabilities: ["gpu"]
               # count: ${INFERENCE_GPU_COUNT:-all}
               device_ids: ['${VECTORSTORE_GPU_DEVICE_ID:-0}']
-    profiles: ["", "milvus"]
+    profiles: ["milvus"]
 
   etcd:
     container_name: milvus-etcd
@@ -52,7 +52,7 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
-    profiles: ["", "milvus"]
+    profiles: ["milvus"]
 
   minio:
     container_name: minio
@@ -117,7 +117,7 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
-    profiles: ["cyborgdb"]
+    profiles: ["", "cyborgdb"]
 
   cyborgdb-redis:
     container_name: cyborgdb-redis
@@ -134,7 +134,7 @@ services:
       timeout: 3s
       retries: 5
       start_period: 5s
-    profiles: ["cyborgdb"]
+    profiles: ["", "cyborgdb"]
 
 networks:
   default:
