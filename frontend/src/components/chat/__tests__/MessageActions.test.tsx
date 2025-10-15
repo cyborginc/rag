@@ -5,6 +5,7 @@ import { MessageActions } from '../MessageActions';
 // Mock the API and hooks
 const mockUseSendMessage = vi.fn();
 const mockUseMessageSubmit = vi.fn();
+const mockUseStreamingStore = vi.fn();
 
 vi.mock('../../../api/useSendMessage', () => ({
   useSendMessage: () => mockUseSendMessage()
@@ -12,6 +13,10 @@ vi.mock('../../../api/useSendMessage', () => ({
 
 vi.mock('../../../hooks/useMessageSubmit', () => ({
   useMessageSubmit: () => mockUseMessageSubmit()
+}));
+
+vi.mock('../../../store/useStreamingStore', () => ({
+  useStreamingStore: () => mockUseStreamingStore()
 }));
 
 describe('MessageActions', () => {
@@ -22,21 +27,25 @@ describe('MessageActions', () => {
     vi.clearAllMocks();
     
     mockUseSendMessage.mockReturnValue({
-      isStreaming: false,
       stopStream: mockStopStream
     });
     
     mockUseMessageSubmit.mockReturnValue({
       handleSubmit: mockHandleSubmit,
-      canSubmit: true
+      canSubmit: true,
+      isHealthLoading: false,
+      shouldDisableHealthFeatures: false
+    });
+
+    mockUseStreamingStore.mockReturnValue({
+      isStreaming: false
     });
   });
 
   describe('Send Button State', () => {
     it('renders send button when not streaming', () => {
-      mockUseSendMessage.mockReturnValue({
-        isStreaming: false,
-        stopStream: mockStopStream
+      mockUseStreamingStore.mockReturnValue({
+        isStreaming: false
       });
 
       render(<MessageActions />);
@@ -97,9 +106,8 @@ describe('MessageActions', () => {
 
   describe('Stop Button State', () => {
     it('renders stop button when streaming', () => {
-      mockUseSendMessage.mockReturnValue({
-        isStreaming: true,
-        stopStream: mockStopStream
+      mockUseStreamingStore.mockReturnValue({
+        isStreaming: true
       });
 
       render(<MessageActions />);
@@ -109,9 +117,8 @@ describe('MessageActions', () => {
     });
 
     it('calls stopStream when stop button is clicked', () => {
-      mockUseSendMessage.mockReturnValue({
-        isStreaming: true,
-        stopStream: mockStopStream
+      mockUseStreamingStore.mockReturnValue({
+        isStreaming: true
       });
 
       render(<MessageActions />);
@@ -123,9 +130,8 @@ describe('MessageActions', () => {
     });
 
     it('renders stop button with correct styling', () => {
-      mockUseSendMessage.mockReturnValue({
-        isStreaming: true,
-        stopStream: mockStopStream
+      mockUseStreamingStore.mockReturnValue({
+        isStreaming: true
       });
 
       render(<MessageActions />);
@@ -156,9 +162,8 @@ describe('MessageActions', () => {
     });
 
     it('renders stop icon correctly', () => {
-      mockUseSendMessage.mockReturnValue({
-        isStreaming: true,
-        stopStream: mockStopStream
+      mockUseStreamingStore.mockReturnValue({
+        isStreaming: true
       });
       
       render(<MessageActions />);
@@ -176,9 +181,8 @@ describe('MessageActions', () => {
       expect(screen.getByTitle('Send message')).toBeInTheDocument();
       expect(screen.queryByText('Stop')).not.toBeInTheDocument();
       
-      mockUseSendMessage.mockReturnValue({
-        isStreaming: true,
-        stopStream: mockStopStream
+      mockUseStreamingStore.mockReturnValue({
+        isStreaming: true
       });
       
       rerender(<MessageActions />);
@@ -188,9 +192,8 @@ describe('MessageActions', () => {
     });
 
     it('switches from stop to send when streaming ends', () => {
-      mockUseSendMessage.mockReturnValue({
-        isStreaming: true,
-        stopStream: mockStopStream
+      mockUseStreamingStore.mockReturnValue({
+        isStreaming: true
       });
 
       const { rerender } = render(<MessageActions />);
@@ -198,9 +201,8 @@ describe('MessageActions', () => {
       expect(screen.getByText('Stop')).toBeInTheDocument();
       expect(screen.queryByTitle('Send message')).not.toBeInTheDocument();
       
-      mockUseSendMessage.mockReturnValue({
-        isStreaming: false,
-        stopStream: mockStopStream
+      mockUseStreamingStore.mockReturnValue({
+        isStreaming: false
       });
       
       rerender(<MessageActions />);

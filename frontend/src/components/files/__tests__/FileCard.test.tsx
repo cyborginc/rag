@@ -39,7 +39,7 @@ describe('FileCard', () => {
 
     it('displays remove button', () => {
       render(<FileCard file={mockFile} index={0} />);
-      expect(screen.getByText('Remove')).toBeInTheDocument();
+      expect(screen.getByText('REMOVE')).toBeInTheDocument();
     });
   });
 
@@ -47,6 +47,10 @@ describe('FileCard', () => {
     it('calls removeFile when remove button clicked', () => {
       render(<FileCard file={mockFile} index={2} />);
       
+      // Click REMOVE button to open modal
+      fireEvent.click(screen.getByText('REMOVE'));
+      
+      // Click confirm button in modal
       fireEvent.click(screen.getByText('Remove'));
       
       expect(mockStore.removeFile).toHaveBeenCalledWith(2);
@@ -56,6 +60,10 @@ describe('FileCard', () => {
       const anotherFile = new File(['content'], 'another.doc');
       render(<FileCard file={anotherFile} index={5} />);
       
+      // Click REMOVE button to open modal
+      fireEvent.click(screen.getByText('REMOVE'));
+      
+      // Click confirm button in modal
       fireEvent.click(screen.getByText('Remove'));
       
       expect(mockStore.removeFile).toHaveBeenCalledWith(5);

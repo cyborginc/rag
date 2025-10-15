@@ -62,7 +62,7 @@ export default function Header() {
         <Flex align="center" gap="density-md">
           <AppBarLogo onClick={handleLogoClick} />
           <Text kind="title/sm" onClick={handleLogoClick}>
-            Confidential Enterprise RAG
+            RAG Blueprint
           </Text>
         </Flex>
       }

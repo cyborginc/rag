@@ -15,7 +15,7 @@
 
 import { useCallback } from "react";
 import { useChatStore } from "../../store/useChatStore";
-import { useSendMessage } from "../../api/useSendMessage";
+import { useStreamingStore } from "../../store/useStreamingStore";
 import { useTextareaResize } from "../../hooks/useTextareaResize";
 import { useMessageSubmit } from "../../hooks/useMessageSubmit";
 import { TextArea } from "@kui/react";
@@ -28,17 +28,17 @@ export const MessageTextarea = ({
   placeholder = "Ask a question about your documents..." 
 }: MessageTextareaProps) => {
   const { input, setInput } = useChatStore();
-  const { isStreaming } = useSendMessage();
+  const { isStreaming } = useStreamingStore();
   const { handleInput, getTextareaStyle } = useTextareaResize();
-  const { handleSubmit } = useMessageSubmit();
+  const { handleSubmit, canSubmit } = useMessageSubmit();
 
   // Type-safe keyboard event handler for TextArea
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && canSubmit) {
       e.preventDefault();
       handleSubmit();
     }
-  }, [handleSubmit]);
+  }, [handleSubmit, canSubmit]);
 
   // Type-safe change event handler for TextArea
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {

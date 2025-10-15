@@ -283,7 +283,7 @@ class LLMConfig(ConfigWizard):
     )
     model_name: str = configfield(
         "model_name",
-        default="nvidia/llama-3-3-nemotron-super-49b-v1-5",
+        default="nvidia/llama-3.3-nemotron-super-49b-v1.5",
         help_txt="The name of the hosted model.",
     )
     model_engine: str = configfield(
@@ -318,7 +318,7 @@ class QueryRewriterConfig(ConfigWizard):
 
     model_name: str = configfield(
         "model_name",
-        default="nvidia/llama-3-3-nemotron-super-49b-v1-5",
+        default="nvidia/llama-3.3-nemotron-super-49b-v1.5",
         help_txt="The llm name of the query rewriter model",
     )
     server_url: str = configfield(
@@ -342,7 +342,7 @@ class FilterExpressionGeneratorConfig(ConfigWizard):
     model_name: str = configfield(
         "model_name",
         env_name="APP_FILTEREXPRESSIONGENERATOR_MODELNAME",
-        default="nvidia/llama-3-3-nemotron-super-49b-v1-5",
+        default="nvidia/llama-3.3-nemotron-super-49b-v1.5",
         help_txt="The llm name of the filter expression generator model",
     )
     server_url: str = configfield(
@@ -503,8 +503,24 @@ class TracingConfig(ConfigWizard):
         default=False,
         help_txt="Enable Open Telemetry Tracing",
     )
-    otlp_http_endpoint: str = configfield("otlp_http_endpoint", default="", help_txt="")
-    otlp_grpc_endpoint: str = configfield("otlp_grpc_endpoint", default="", help_txt="")
+    otlp_http_endpoint: str = configfield(
+        "otlp_http_endpoint",
+        env_name="APP_TRACING_OTLPHTTPENDPOINT",
+        default="",
+        help_txt="HTTP endpoint for OpenTelemetry trace export",
+    )
+    otlp_grpc_endpoint: str = configfield(
+        "otlp_grpc_endpoint",
+        env_name="APP_TRACING_OTLPGRPCENDPOINT",
+        default="",
+        help_txt="gRPC endpoint for OpenTelemetry trace export",
+    )
+    prometheus_multiproc_dir: str = configfield(
+        "prometheus_multiproc_dir",
+        env_name="PROMETHEUS_MULTIPROC_DIR",
+        default="/tmp/prom_data",
+        help_txt="Directory to store Prometheus multi-process metrics",
+    )
 
 
 @configclass
@@ -585,7 +601,7 @@ class SummarizerConfig(ConfigWizard):
     model_name: str = configfield(
         "model_name",
         env_name="SUMMARY_LLM",
-        default="nvidia/llama-3-3-nemotron-super-49b-v1-5",
+        default="nvidia/llama-3.3-nemotron-super-49b-v1.5",
         help_txt="The name of the summarizer model",
     )
     server_url: str = configfield(

@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
+import { Button } from "@kui/react";
 import type { UIMetadataField } from "../../types/collections";
 
 interface MetadataFieldProps {
@@ -172,13 +173,17 @@ export const MetadataField = ({
                     >
                       {item ? 'True' : 'False'}
                     </button>
-                    <button
-                      type="button"
+                    <Button
                       onClick={() => handleArrayRemove(index)}
-                      className="text-red-400 hover:text-red-300 text-xs px-2 py-1"
+                      kind="tertiary"
+                      color="neutral"
+                      size="small"
+                      title="Remove item"
                     >
-                      Remove
-                    </button>
+                      <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="#ffffff" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -210,13 +215,17 @@ export const MetadataField = ({
               placeholder={`Enter ${field.array_type || "text"} value`}
               className="flex-1 rounded-md px-3 py-2 bg-neutral-700 border border-neutral-600 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[var(--nv-green)]/50 focus:border-[var(--nv-green)] transition-colors"
             />
-            <button
-              type="button"
+            <Button
               onClick={handleArrayAdd}
-              className="px-3 py-1 bg-[var(--nv-green)] text-black rounded-md hover:bg-[var(--nv-green)]/80 text-xs font-medium"
+              kind="tertiary"
+              color="neutral"
+              size="small"
+              title="Add item"
             >
-              Add
-            </button>
+              <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="#ffffff" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+            </Button>
           </div>
           
           {arrayValue && arrayValue.length > 0 && (
@@ -224,13 +233,17 @@ export const MetadataField = ({
               {arrayValue.map((item: unknown, index: number) => (
                 <div key={index} className="flex items-center gap-2 p-2 bg-neutral-800 rounded-md">
                   <span className="flex-1 text-xs text-white">{String(item)}</span>
-                  <button
-                    type="button"
+                  <Button
                     onClick={() => handleArrayRemove(index)}
-                    className="text-red-400 hover:text-red-300 text-xs"
+                    kind="tertiary"
+                    color="neutral"
+                    size="small"
+                    title="Remove item"
                   >
-                    Remove
-                  </button>
+                    <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="#ffffff" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </Button>
                 </div>
               ))}
             </div>

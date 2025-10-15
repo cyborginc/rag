@@ -245,7 +245,7 @@ describe('MetadataField', () => {
       
       expect(screen.getByText('tags (array<string>)')).toBeInTheDocument();
       expect(screen.getByPlaceholderText('Enter string value')).toBeInTheDocument();
-      expect(screen.getByText('Add')).toBeInTheDocument();
+      expect(screen.getByTitle('Add item')).toBeInTheDocument();
     });
 
     it('displays existing array items', () => {

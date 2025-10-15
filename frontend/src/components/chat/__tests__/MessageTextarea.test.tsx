@@ -4,7 +4,7 @@ import { MessageTextarea } from '../MessageTextarea';
 
 // Mock all the dependencies
 const mockUseChatStore = vi.fn();
-const mockUseSendMessage = vi.fn();
+const mockUseStreamingStore = vi.fn();
 const mockUseTextareaResize = vi.fn();
 const mockUseMessageSubmit = vi.fn();
 
@@ -12,8 +12,8 @@ vi.mock('../../../store/useChatStore', () => ({
   useChatStore: () => mockUseChatStore()
 }));
 
-vi.mock('../../../api/useSendMessage', () => ({
-  useSendMessage: () => mockUseSendMessage()
+vi.mock('../../../store/useStreamingStore', () => ({
+  useStreamingStore: () => mockUseStreamingStore()
 }));
 
 vi.mock('../../../hooks/useTextareaResize', () => ({
@@ -38,7 +38,7 @@ describe('MessageTextarea', () => {
       setInput: mockSetInput
     });
     
-    mockUseSendMessage.mockReturnValue({
+    mockUseStreamingStore.mockReturnValue({
       isStreaming: false
     });
     
@@ -48,7 +48,8 @@ describe('MessageTextarea', () => {
     });
     
     mockUseMessageSubmit.mockReturnValue({
-      handleSubmit: mockHandleSubmit
+      handleSubmit: mockHandleSubmit,
+      canSubmit: true
     });
     
     mockGetTextareaStyle.mockReturnValue({});
@@ -194,7 +195,7 @@ describe('MessageTextarea', () => {
 
   describe('Streaming State', () => {
     it('disables textarea when streaming', () => {
-      mockUseSendMessage.mockReturnValue({
+      mockUseStreamingStore.mockReturnValue({
         isStreaming: true
       });
 
@@ -205,7 +206,7 @@ describe('MessageTextarea', () => {
     });
 
     it('enables textarea when not streaming', () => {
-      mockUseSendMessage.mockReturnValue({
+      mockUseStreamingStore.mockReturnValue({
         isStreaming: false
       });
 
@@ -221,7 +222,7 @@ describe('MessageTextarea', () => {
       render(<MessageTextarea />);
       
       expect(mockUseChatStore).toHaveBeenCalled();
-      expect(mockUseSendMessage).toHaveBeenCalled();
+      expect(mockUseStreamingStore).toHaveBeenCalled();
       expect(mockUseTextareaResize).toHaveBeenCalled();
       expect(mockUseMessageSubmit).toHaveBeenCalled();
     });

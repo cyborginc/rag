@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import React from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useHealthStatus } from "../api/useHealthApi";
@@ -123,7 +124,10 @@ export const useSettingsStore = create<SettingsState>()(
         getItem: (name) => {
           const str = localStorage.getItem(name);
           if (!str) return null;
-          return JSON.parse(str);
+          
+          const data = JSON.parse(str);
+          // Only restore if useLocalStorage was true when saved
+          return data.state?.useLocalStorage === true ? data : null;
         },
         setItem: (name, value) => {
           // Only save if useLocalStorage is explicitly enabled
@@ -152,6 +156,84 @@ export function useAppHealthStatus() {
 
   // Returns health status data for application monitoring
   return { health, isLoading, error };
+}
+
+/**
+ * Hook to automatically initialize settings from health endpoint data.
+ * Populates model names and endpoints from backend configuration.
+ */
+export function useHealthInitialization() {
+  const { data: health, isLoading } = useHealthStatus();
+  const { set: setSettings, model, embeddingModel, rerankerModel, vlmModel } = useSettingsStore();
+
+  React.useEffect(() => {
+    if (!health?.nim || isLoading) return;
+
+    const updates: Partial<SettingsState> = {};
+
+    // Find and populate model information from NIM services using precise matching
+    // Define exact service name patterns to avoid false positives
+    const isLLMService = (serviceName: string) => {
+      const name = serviceName.toLowerCase();
+      return name === 'llm' || 
+             name === 'summary llm' || 
+             name === 'reflection llm' ||
+             /\bllm\b/.test(name); // Word boundary match for compound names
+    };
+
+    const isEmbeddingService = (serviceName: string) => {
+      const name = serviceName.toLowerCase();
+      // Check for embedding/embeddings as complete words (separated by spaces, hyphens, or underscores)
+      const words = name.split(/[\s\-_]+/);
+      return words.includes('embedding') || words.includes('embeddings');
+    };
+
+    const isRerankerService = (serviceName: string) => {
+      const name = serviceName.toLowerCase();
+      // Check for reranking terms as complete words (separated by spaces, hyphens, or underscores)
+      const words = name.split(/[\s\-_]+/);
+      return words.includes('ranking') || 
+             words.includes('reranker') ||
+             words.includes('reranking') ||
+             words.includes('rerank');
+    };
+
+    const isVLMService = (serviceName: string) => {
+      const name = serviceName.toLowerCase();
+      return name === 'caption model' ||
+             name === 'vlm' ||
+             /\b(vlm|vision|visual)\b/.test(name); // Word boundary match for vision-related services (handles hyphens/underscores)
+    };
+
+    const llmService = health.nim.find(service => isLLMService(service.service));
+    const embeddingService = health.nim.find(service => isEmbeddingService(service.service));
+    const rerankerService = health.nim.find(service => isRerankerService(service.service));
+    const vlmService = health.nim.find(service => isVLMService(service.service));
+
+    // Only update if current values are undefined (don't override user settings)
+    if (llmService?.model && model === undefined) {
+      updates.model = llmService.model;
+      updates.llmEndpoint = llmService.url;
+    }
+    if (embeddingService?.model && embeddingModel === undefined) {
+      updates.embeddingModel = embeddingService.model;
+      updates.embeddingEndpoint = embeddingService.url;
+    }
+    if (rerankerService?.model && rerankerModel === undefined) {
+      updates.rerankerModel = rerankerService.model;
+      updates.rerankerEndpoint = rerankerService.url;
+    }
+    if (vlmService?.model && vlmModel === undefined) {
+      updates.vlmModel = vlmService.model;
+      updates.vlmEndpoint = vlmService.url;
+    }
+
+    // Apply updates if any
+    if (Object.keys(updates).length > 0) {
+      console.log('🔧 Initializing settings from health endpoint:', updates);
+      setSettings(updates);
+    }
+  }, [health, isLoading, model, embeddingModel, rerankerModel, vlmModel, setSettings]);
 }
 
 /**

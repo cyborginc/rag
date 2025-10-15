@@ -570,6 +570,7 @@ class MilvusVDB(Milvus, VDBRag):
         """
         Get the vectorstore for a collection.
         """
+        start_time = time.time()
         logger.debug("Trying to connect to milvus collection: %s", collection_name)
         if not collection_name:
             collection_name = os.getenv("COLLECTION_NAME", "vector_db")
@@ -616,6 +617,10 @@ class MilvusVDB(Milvus, VDBRag):
             raise ValueError(
                 f"{CONFIG.vector_store.search_type} search type is not supported. Please select from ['hybrid', 'dense']"
             )
+        end_time = time.time()
+        logger.info(
+            f" Time to get langchain milvus vectorstore: {end_time - start_time:.4f} seconds"
+        )
         return vectorstore
 
     @staticmethod

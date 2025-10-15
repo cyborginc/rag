@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 from langchain_core.messages import AIMessageChunk
-from langchain_core.outputs import LLMResult, Generation
+from langchain_core.outputs import Generation, LLMResult
 
 
 class SpanMock:
@@ -62,7 +62,10 @@ def test_on_chat_model_start_sets_input_words_and_prompts(handler):
 
     run_id = uuid4()
     messages = [
-        [SimpleNamespace(type="human", content="hello world"), SimpleNamespace(type="system", content="sys msg")]
+        [
+            SimpleNamespace(type="human", content="hello world"),
+            SimpleNamespace(type="system", content="sys msg"),
+        ]
     ]
 
     handler.on_chat_model_start(
@@ -152,4 +155,4 @@ def test_on_chain_end_updates_llm_tokens(handler):
     handler.on_chain_end(outputs={}, run_id=run_chain_id, inputs=output_chunk)
 
     # Expect update_llm_tokens called with input words from chat (3) and output words (2)
-    assert handler.metrics.token_calls[-1] == (3, 2) 
+    assert handler.metrics.token_calls[-1] == (3, 2)

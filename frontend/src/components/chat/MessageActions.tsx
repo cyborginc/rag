@@ -14,6 +14,7 @@
 // limitations under the License.
 
 import { useSendMessage } from "../../api/useSendMessage";
+import { useStreamingStore } from "../../store/useStreamingStore";
 import { useMessageSubmit } from "../../hooks/useMessageSubmit";
 import { Button, Block, Flex, Spinner } from "@kui/react";
 
@@ -84,7 +85,7 @@ const SendButton = () => {
 };
 
 export const MessageActions = () => {
-  const { isStreaming } = useSendMessage();
+  const { isStreaming } = useStreamingStore();
 
   return (
     <Block style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }}>

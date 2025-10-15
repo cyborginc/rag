@@ -26,7 +26,11 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_nvidia_ai_endpoints import ChatNVIDIA, NVIDIAEmbeddings, NVIDIARerank
 from opentelemetry import context as otel_context
 
-from nvidia_rag.rag_server.response_generator import generate_answer
+from nvidia_rag.rag_server.response_generator import (
+    ErrorCodeMapping,
+    RAGResponse,
+    generate_answer,
+)
 from nvidia_rag.utils.common import filter_documents_by_confidence, get_config
 from nvidia_rag.utils.llm import get_llm, get_prompts
 from nvidia_rag.utils.vdb.vdb_base import VDBRag
@@ -37,7 +41,7 @@ logger = logging.getLogger(__name__)
 # Configuration
 config = get_config()
 RECURSION_DEPTH = config.query_decomposition.recursion_depth
-# While merging the context, documents should be limited to this number to avoid llm 
+# While merging the context, documents should be limited to this number to avoid llm
 # TODO: configure this from config
 MAX_DOCUMENTS_FOR_GENERATION = 20
 
@@ -104,10 +108,20 @@ def normalize_relevance_scores(
     return documents
 
 
-def merge_contexts(query: str, contexts: list[Document] = [], sub_query_contexts: dict[str, Any] = {}, max_documents: int = MAX_DOCUMENTS_FOR_GENERATION, reranker: NVIDIARerank | None = None, filter_docs: bool = True) -> list[Document]:
+def merge_contexts(
+    query: str,
+    contexts: list[Document] = None,
+    sub_query_contexts: dict[str, Any] = None,
+    max_documents: int = MAX_DOCUMENTS_FOR_GENERATION,
+    reranker: NVIDIARerank | None = None,
+    filter_docs: bool = True,
+) -> list[Document]:
     """
     Merge multiple contexts into a single context.
     """
+    contexts = [] if contexts is None else contexts
+    sub_query_contexts = {} if sub_query_contexts is None else sub_query_contexts
+
     all_contexts = []
     all_contexts.extend(contexts)
     for sub_query in sub_query_contexts:
@@ -116,19 +130,15 @@ def merge_contexts(query: str, contexts: list[Document] = [], sub_query_contexts
     # Remove duplicates based on page_content
     seen_contents = set()
     unique_contexts = []
-    
     for doc in all_contexts:
         if doc.page_content not in seen_contents:
             seen_contents.add(doc.page_content)
             unique_contexts.append(doc)
-    
     all_contexts = unique_contexts
 
     if filter_docs and reranker:
         reranker.top_n = max_documents
-        all_contexts = reranker.compress_documents(
-            query=query, documents=all_contexts
-        )
+        all_contexts = reranker.compress_documents(query=query, documents=all_contexts)
         all_contexts = normalize_relevance_scores(all_contexts, filter_docs=False)
 
     return all_contexts
@@ -383,7 +393,6 @@ def process_subqueries(
     """
     if history is None:
         history = []
-    
     final_contexts = {}
 
     for i, question in enumerate(questions):
@@ -395,7 +404,13 @@ def process_subqueries(
 
         # Retrieve and rank documents
         retrieved_docs = retrieve_and_rank_documents(
-            rewritten_query, original_query, vdb_op, ranker, collection_name, top_k, ranker_top_k
+            rewritten_query,
+            original_query,
+            vdb_op,
+            ranker,
+            collection_name,
+            top_k,
+            ranker_top_k,
         )
 
         final_contexts[question] = {
@@ -458,19 +473,22 @@ def generate_final_response(
 
     logger.info("Generating final comprehensive response")
 
-    return generate_answer(
-        final_response_chain.stream(
-            {
-                "conversation_history": format_conversation_history(history),
-                "context": f"{contexts}",
-                "question": original_query,
-            },
-            config={"run_name": "final-response-generation"},
+    return RAGResponse(
+        generate_answer(
+            final_response_chain.stream(
+                {
+                    "conversation_history": format_conversation_history(history),
+                    "context": f"{contexts}",
+                    "question": original_query,
+                },
+                config={"run_name": "final-response-generation"},
+            ),
+            contexts=contexts,
+            model=llm.model,
+            collection_name=collection_name,
+            enable_citations=enable_citations,
         ),
-        contexts=contexts,
-        model=llm.model,
-        collection_name=collection_name,
-        enable_citations=enable_citations,
+        status_code=ErrorCodeMapping.SUCCESS,
     )
 
 
@@ -562,7 +580,7 @@ def iterative_query_decomposition(
         logger.info(f"Recursion depth: {depth + 1}/{recursion_depth}")
 
         # Process current set of questions
-        _ , iteration_contexts = process_subqueries(
+        _, iteration_contexts = process_subqueries(
             questions,
             query,
             llm,
@@ -594,7 +612,14 @@ def iterative_query_decomposition(
         query, query, vdb_op, ranker, collection_name, top_k, ranker_top_k
     )
 
-    contexts = merge_contexts(query, retrieved_docs, final_contexts, max_documents=MAX_DOCUMENTS_FOR_GENERATION, reranker=ranker, filter_docs=True)
+    contexts = merge_contexts(
+        query,
+        retrieved_docs,
+        final_contexts,
+        max_documents=MAX_DOCUMENTS_FOR_GENERATION,
+        reranker=ranker,
+        filter_docs=True,
+    )
     # Generate final comprehensive response
     logger.info("Generating final response with all collected contexts")
     return generate_final_response(

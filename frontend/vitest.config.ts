@@ -11,7 +11,8 @@ export default mergeConfig(
       include: [
         'src/pages/**/*.{test,spec}.{ts,tsx}',
         'src/components/**/*.{test,spec}.{ts,tsx}',
-        'src/hooks/**/*.{test,spec}.{ts,tsx}'
+        'src/hooks/**/*.{test,spec}.{ts,tsx}',
+        'src/store/**/*.{test,spec}.{ts,tsx}'
       ],
       // Handle CSS imports from KUI components
       css: {
@@ -29,7 +30,8 @@ export default mergeConfig(
         include: [
           'src/pages/**/*.{ts,tsx}',
           'src/components/**/*.{ts,tsx}',
-          'src/hooks/**/*.{ts,tsx}'
+          'src/hooks/**/*.{ts,tsx}',
+          'src/store/**/*.{ts,tsx}'
         ],
         exclude: [
           'node_modules/',

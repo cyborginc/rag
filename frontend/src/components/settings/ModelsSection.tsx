@@ -46,6 +46,13 @@ export const ModelsSection = () => {
               {isHealthLoading && <Spinner size="small" aria-label="Loading model configuration" />}
             </Flex>
           }
+          slotHelp={
+            isHealthLoading 
+              ? "Loading model from system configuration..." 
+              : shouldDisableHealthFeatures
+                ? "System configuration unavailable"
+                : "Leave empty to use default model"
+          }
         >
           {(args) => (
             <TextInput
@@ -57,7 +64,9 @@ export const ModelsSection = () => {
                   ? "Loading from system configuration..." 
                   : shouldDisableHealthFeatures
                     ? "System configuration unavailable"
-                    : `Enter ${label.toLowerCase()}...`
+                    : value 
+                      ? `Current: ${value}` 
+                      : "Leave empty for default"
               }
               disabled={shouldDisableHealthFeatures}
             />

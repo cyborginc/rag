@@ -14,59 +14,83 @@ interface CollectionsGridProps {
   searchQuery: string;
 }
 
+const Wrapper = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <Flex 
+      justify="center" 
+      align="center" 
+      style={{ 
+        width: '100%', 
+        height: '100%',
+        backgroundColor: 'var(--background-color-surface-navigation)',
+        borderRight: '1px solid var(--border-color-base)'
+      }}
+    >
+      {children}
+    </Flex>
+  );
+};
+
 export const CollectionsGrid = ({ searchQuery }: CollectionsGridProps) => {
   const { data, isLoading, error } = useCollections();
   const { selectedCollections, toggleCollection } = useCollectionsStore();
 
   // Frontend filtering and sorting of collections for consistent order
   const filteredCollections = (data || [])
-    .filter((collection: Collection) =>
-      collection.collection_name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    .filter((collection: Collection) => {
+      // Hide system collections from the list
+      if (collection.collection_name === "metadata_schema" || collection.collection_name === "meta") {
+        return false;
+      }
+      // Apply search filter
+      return collection.collection_name.toLowerCase().includes(searchQuery.toLowerCase());
+    })
     .sort((a: Collection, b: Collection) => 
       a.collection_name.toLowerCase().localeCompare(b.collection_name.toLowerCase())
     );
 
   if (isLoading) {
     return (
-      <Flex justify="center" align="center" style={{ width: '100%', height: '100%' }}>
+      <Wrapper>
         <Spinner description="Loading collections..." />
-      </Flex>
+      </Wrapper>
     );
   }
 
   if (error) {
     return (
-      <Flex justify="center" align="center" style={{ width: '100%', height: '100%' }}>
+      <Wrapper>
         <StatusMessage
           slotHeading="Failed to load collections"
           slotMedia={<CollectionsEmptyIcon />}
         />
-      </Flex>
+      </Wrapper>
     );
   }
 
-  if (!data?.length) {
-    return (
-      <Flex justify="center" align="center" style={{ width: '100%', height: '100%' }}>
-        <StatusMessage
-          slotHeading="No collections"
-          slotSubheading="Create your first collection and add files to customize your model response."
-          slotMedia={<CollectionsEmptyIcon />}
-        />
-      </Flex>
-    );
-  }
-
+  // Check for search-specific empty state first
   if (!filteredCollections.length && searchQuery) {
     return (
-      <Flex justify="center" align="center" style={{ width: '100%', height: '100%' }}>
+      <Wrapper>
         <StatusMessage
           slotHeading="No matches found"
           slotSubheading={`No collections match "${searchQuery}"`}
           slotMedia={<CollectionsEmptyIcon />}
         />
-      </Flex>
+      </Wrapper>
+    );
+  }
+
+  // Show general empty state if no collections exist or only system collections exist
+  if (!data?.length || !filteredCollections.length) {
+    return (
+      <Wrapper>
+        <StatusMessage
+          slotHeading="No collections"
+          slotSubheading="Create your first collection and add files to customize your model response."
+          slotMedia={<CollectionsEmptyIcon />}
+        />
+      </Wrapper>
     );
   }
 

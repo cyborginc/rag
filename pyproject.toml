@@ -1,7 +1,7 @@
 [project]
 name = "nvidia_rag"
 version = "2.3.0.dev"
-description = "A reference solution for building a Confidential Enterprise Retrieval Augmented Generation (RAG) pipeline."
+description = "This blueprint serves as a reference solution for a foundational Retrieval Augmented Generation (RAG) pipeline."
 readme = "README.md"
 license = "Apache-2.0"
 license-files = [
@@ -35,8 +35,8 @@ dependencies = [
     "langchain-elasticsearch==0.3.2",
     "lark>=1.2.2",
     "python-dateutil>=2.9.0.post0",
-    "nv-ingest-api==25.9.0rc3",
-    "nv-ingest-client==25.9.0rc3",
+    "nv-ingest-api==25.9.0",
+    "nv-ingest-client==25.9.0",
     "tritonclient==2.57.0",
     "cyborgdb[langchain]==0.12.0",
 ]
@@ -52,6 +52,8 @@ rag = [
     "opentelemetry-instrumentation-milvus==0.36.0",
     "opentelemetry-processor-baggage==0.50b0",
     "opentelemetry-sdk==1.29.0",
+    "opentelemetry-sdk-extension-prometheus-multiprocess==1.0.0",
+    "prometheus-client==0.20.0",
     "azure-core>=1.35.0",
     "azure-storage-blob>=12.26.0",
     "pyarrow>=21.0.0",

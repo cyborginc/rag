@@ -21,7 +21,7 @@ import NvidiaUpload from "../files/NvidiaUpload";
 import { Button, Stack, Flex, Text, Spinner } from "@kui/react";
 
 const CloseIcon = () => (
-  <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+  <svg style={{ width: '16px', height: '16px', color: 'var(--text-color-inverse)' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
   </svg>
 );
@@ -41,7 +41,8 @@ export const UploaderSection = () => {
   }, []);
 
   const handleFilesChange = useCallback((files: File[]) => {
-    useNewCollectionStore.getState().addFiles(files);
+    console.log('🟠 UploaderSection: received', files.length, 'files, calling setFiles');
+    useNewCollectionStore.getState().setFiles(files);
   }, []);
 
   return (
@@ -63,12 +64,8 @@ export const UploaderSection = () => {
           onClick={handleCloseUploader}
           disabled={isUploading}
           kind="tertiary"
-          color="neutral"
           size="small"
-          style={{ 
-            color: 'var(--text-color-secondary-inverse)',
-            transition: 'all 0.2s'
-          }}
+          data-testid="uploader-close-button"
         >
           <CloseIcon />
         </Button>

@@ -40,6 +40,9 @@ function AppContent() {
   // Get application health status data (Note: may be redundant since useHealthMonitoring also fetches health data)
   useAppHealthStatus();
   
+  // Initialize model settings from health endpoint data
+  // useHealthInitialization(); // Disabled: Models should start empty like other settings
+  
   // Monitor service health and create notifications for issues
   useHealthMonitoring();
   

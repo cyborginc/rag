@@ -18,6 +18,7 @@ import { useChatStore } from "../store/useChatStore";
 import { useSendMessage } from "../api/useSendMessage";
 import { useSettingsStore, useHealthDependentFeatures } from "../store/useSettingsStore";
 import { useCollectionsStore } from "../store/useCollectionsStore";
+import { useStreamingStore } from "../store/useStreamingStore";
 import { useCollections } from "../api/useCollectionsApi";
 import { useUUID } from "./useUUID";
 import type { GenerateRequest } from "../types/requests";
@@ -72,7 +73,8 @@ function cleanRequestObject(obj: Partial<GenerateRequest>): GenerateRequest {
  */
 export const useMessageSubmit = () => {
   const { input, setInput, filters, addMessage, messages } = useChatStore();
-  const { mutateAsync: sendMessage, resetStream, isStreaming } = useSendMessage();
+  const { mutateAsync: sendMessage, resetStream } = useSendMessage();
+  const { isStreaming } = useStreamingStore(); // Use centralized streaming state
   const { selectedCollections } = useCollectionsStore();
   const { data: allCollections = [] } = useCollections();
   const settings = useSettingsStore();
@@ -109,30 +111,39 @@ export const useMessageSubmit = () => {
       filter_expr: filters.length
         ? filters
             .map((f: Filter, index: number) => {
-              // Create a map of field names to their types from selected collections
+              // Create a map of field names to their types and array_types from selected collections
               const fieldTypeMap = new Map<string, string>();
+              const fieldArrayTypeMap = new Map<string, string>();
               selectedCollections.forEach(collectionName => {
                 const collection = allCollections.find((col: Collection) => col.collection_name === collectionName);
                 if (collection?.metadata_schema) {
-                  collection.metadata_schema.forEach((field: { name: string; type: string; description: string }) => {
+                  collection.metadata_schema.forEach((field: { name: string; type: string; description: string; array_type?: string }) => {
                     fieldTypeMap.set(field.name, field.type);
+                    if (field.array_type) {
+                      fieldArrayTypeMap.set(field.name, field.array_type);
+                    }
                   });
                 }
               });
               
               const isArrayField = fieldTypeMap.get(f.field) === 'array';
+              const arrayElementType = fieldArrayTypeMap.get(f.field);
               
               const formatValue = (value: string | number | boolean | (string | number | boolean)[], isArrayField = false): string => {
                 if (Array.isArray(value)) {
-                  // Handle array values for operators like "in", "not in"
+                  // Handle array values for operators like "in", "not in", "=", "!="
                   const formattedItems = value.map(item => {
                     if (typeof item === 'boolean' || typeof item === 'number') {
                       return String(item);
                     }
-                    // For array fields with in/not in operators, don't quote string values
-                    if (isArrayField && (f.operator === 'in' || f.operator === 'not in')) {
-                      return String(item);
+                    // For array fields, check the array_type to determine if we should quote string values
+                    if (isArrayField && arrayElementType) {
+                      // Don't quote if array elements are numeric or boolean types
+                      if (['integer', 'float', 'number', 'boolean'].includes(arrayElementType)) {
+                        return String(item);
+                      }
                     }
+                    // Quote string values (default behavior)
                     return `"${item}"`;
                   }).join(', ');
                   return `[${formattedItems}]`;
@@ -146,22 +157,11 @@ export const useMessageSubmit = () => {
               let filterExpression = '';
               // Handle special operators
               switch (f.operator) {
-                case 'between':
-                  if (f.secondValue !== undefined) {
-                    const val1 = formatValue(f.value, isArrayField);
-                    const val2 = formatValue(f.secondValue, isArrayField);
-                    filterExpression = `content_metadata["${f.field}"] ${f.operator} ${val1} and ${val2}`;
-                  } else {
-                    filterExpression = `content_metadata["${f.field}"] ${f.operator} ${formatValue(f.value, isArrayField)}`;
-                  }
-                  break;
                 case 'array_contains':
                 case 'array_contains_all':
                 case 'array_contains_any':
+                  // Use function call syntax: array_contains(field, value)
                   filterExpression = `${f.operator}(content_metadata["${f.field}"], ${formatValue(f.value, isArrayField)})`;
-                  break;
-                case 'array_length':
-                  filterExpression = `${f.operator}(content_metadata["${f.field}"]) ${formatValue(f.value, isArrayField)}`;
                   break;
                 default:
                   filterExpression = `content_metadata["${f.field}"] ${f.operator} ${formatValue(f.value, isArrayField)}`;
@@ -184,7 +184,7 @@ export const useMessageSubmit = () => {
   }, [selectedCollections, allCollections, settings, filters]);
 
   const handleSubmit = useCallback(async () => {
-    if (!input.trim() || shouldDisableHealthFeatures) return;
+    if (!input.trim() || shouldDisableHealthFeatures || isStreaming) return;
 
     const userMessage = {
       id: generateUUID(),
@@ -208,7 +208,7 @@ export const useMessageSubmit = () => {
 
     const request = createRequest(currentMessages);
     await sendMessage({ request, assistantId: assistantMessage.id });
-  }, [input, messages, addMessage, setInput, resetStream, createRequest, sendMessage, generateUUID, shouldDisableHealthFeatures]);
+  }, [input, messages, addMessage, setInput, resetStream, createRequest, sendMessage, generateUUID, shouldDisableHealthFeatures, isStreaming]);
 
   return {
     handleSubmit,

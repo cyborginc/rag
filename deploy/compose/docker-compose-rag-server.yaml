@@ -3,7 +3,7 @@ services:
   # Main orchestrator server which stiches together all calls to different services to fulfill the user request
   rag-server:
     container_name: rag-server
-    image: nvcr.io/nvidia/blueprint/rag-server:${TAG:-2.2.0}
+    image: nvcr.io/nvidia/blueprint/rag-server:${TAG:-2.3.0}
     build:
       # Set context to repo's root directory
       context: ../../
@@ -52,7 +52,7 @@ services:
       VECTOR_DB_TOPK: ${VECTOR_DB_TOPK:-100}
 
       ##===LLM Model specific configurations===
-      APP_LLM_MODELNAME: ${APP_LLM_MODELNAME:-"nvidia/llama-3-3-nemotron-super-49b-v1-5"}
+      APP_LLM_MODELNAME: ${APP_LLM_MODELNAME:-"nvidia/llama-3.3-nemotron-super-49b-v1.5"}
       # url on which llm model is hosted. If "", Nvidia hosted API is used
       APP_LLM_SERVERURL: ${APP_LLM_SERVERURL-"nim-llm:8000"}
       # LLM model parameters
@@ -61,12 +61,12 @@ services:
       LLM_TOP_P: ${LLM_TOP_P:-1.0}
 
       ##===Query Rewriter Model specific configurations===
-      APP_QUERYREWRITER_MODELNAME: ${APP_QUERYREWRITER_MODELNAME:-"nvidia/llama-3-3-nemotron-super-49b-v1-5"}
+      APP_QUERYREWRITER_MODELNAME: ${APP_QUERYREWRITER_MODELNAME:-"nvidia/llama-3.3-nemotron-super-49b-v1.5"}
       # url on which query rewriter model is hosted. If "", Nvidia hosted API is used
       APP_QUERYREWRITER_SERVERURL: ${APP_QUERYREWRITER_SERVERURL-"nim-llm:8000"}
 
       ##===Filter Expression Generator Model specific configurations===
-      APP_FILTEREXPRESSIONGENERATOR_MODELNAME: ${APP_FILTEREXPRESSIONGENERATOR_MODELNAME:-"nvidia/llama-3-3-nemotron-super-49b-v1-5"}
+      APP_FILTEREXPRESSIONGENERATOR_MODELNAME: ${APP_FILTEREXPRESSIONGENERATOR_MODELNAME:-"nvidia/llama-3.3-nemotron-super-49b-v1.5"}
       # url on which filter expression generator model is hosted. If "", Nvidia hosted API is used
       APP_FILTEREXPRESSIONGENERATOR_SERVERURL: ${APP_FILTEREXPRESSIONGENERATOR_SERVERURL-"nim-llm:8000"}
       # enable filter expression generator for natural language to filter expression conversion
@@ -99,7 +99,7 @@ services:
       # Max number of context images to include in VLM input
       APP_VLM_MAX_CONTEXT_IMAGES: ${APP_VLM_MAX_CONTEXT_IMAGES:-1}
       # Use VLM only for final response generation
-      APP_VLM_RESPONSE_AS_FINAL_ANSWER: ${APP_VLM_RESPONSE_AS_FINAL_ANSWER:-true}
+      APP_VLM_RESPONSE_AS_FINAL_ANSWER: ${APP_VLM_RESPONSE_AS_FINAL_ANSWER:-false}
       # VLM server URL
       APP_VLM_SERVERURL: ${APP_VLM_SERVERURL-"http://vlm-ms:8000/v1"}
       # VLM model name
@@ -130,11 +130,13 @@ services:
       CONVERSATION_HISTORY: 5
 
       # Tracing
-      APP_TRACING_ENABLED: "False"
+      APP_TRACING_ENABLED: ${APP_TRACING_ENABLED:-"False"}
       # HTTP endpoint
       APP_TRACING_OTLPHTTPENDPOINT: http://otel-collector:4318/v1/traces
       # GRPC endpoint
       APP_TRACING_OTLPGRPCENDPOINT: grpc://otel-collector:4317
+      # Prometheus multi-process metrics directory
+      PROMETHEUS_MULTIPROC_DIR: "/tmp-data/prom_data"
 
       # Choose whether to enable source metadata in document content during generation
       ENABLE_SOURCE_METADATA: ${ENABLE_SOURCE_METADATA:-true}
@@ -151,7 +153,7 @@ services:
       # Minimum groundedness score threshold (0-2)
       RESPONSE_GROUNDEDNESS_THRESHOLD: ${RESPONSE_GROUNDEDNESS_THRESHOLD:-1}
       # reflection llm
-      REFLECTION_LLM: ${REFLECTION_LLM:-"nvidia/llama-3-3-nemotron-super-49b-v1-5"}
+      REFLECTION_LLM: ${REFLECTION_LLM:-"nvidia/llama-3.3-nemotron-super-49b-v1.5"}
       # reflection llm server url. If "", Nvidia hosted API is used
       REFLECTION_LLM_SERVERURL: ${REFLECTION_LLM_SERVERURL-"nim-llm:8000"}
       # enable iterative query decomposition
@@ -168,7 +170,7 @@ services:
   # Sample UI container which interacts with APIs exposed by rag-server container
   rag-frontend:
     container_name: rag-frontend
-    image: nvcr.io/nvidia/blueprint/rag-playground:${TAG:-2.2.0}
+    image: nvcr.io/nvidia/blueprint/rag-frontend:${TAG:-2.3.0}
     build:
       # Set context to repo's root directory
       context: ../../frontend

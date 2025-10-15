@@ -79,8 +79,21 @@ logger = logging.getLogger(__name__)
 
 CONFIG = get_config()
 NV_INGEST_CLIENT_INSTANCE = get_nv_ingest_client()
-MINIO_OPERATOR = get_minio_operator()
-MINIO_OPERATOR._make_bucket(bucket_name="a-bucket")  # Create a-bucket if not exists
+
+MINIO_OPERATOR = None
+
+
+def get_minio_operator_instance():
+    """Lazy initialize the MinioOperator instance"""
+    global MINIO_OPERATOR
+    if MINIO_OPERATOR is None:
+        MINIO_OPERATOR = get_minio_operator()
+    return MINIO_OPERATOR
+
+
+get_minio_operator_instance()._make_bucket(
+    bucket_name="a-bucket"
+)  # Create a-bucket if not exists
 
 # NV-Ingest Batch Mode Configuration
 ENABLE_NV_INGEST_BATCH_MODE = (
@@ -797,17 +810,21 @@ class NvidiaRAGIngestor:
                 collection_prefix = get_unique_thumbnail_id_collection_prefix(
                     collection
                 )
-                delete_object_names = MINIO_OPERATOR.list_payloads(collection_prefix)
-                MINIO_OPERATOR.delete_payloads(delete_object_names)
+                delete_object_names = get_minio_operator_instance().list_payloads(
+                    collection_prefix
+                )
+                get_minio_operator_instance().delete_payloads(delete_object_names)
 
             # Delete document summary from Minio
             for collection in collection_names:
                 collection_prefix = get_unique_thumbnail_id_collection_prefix(
                     f"summary_{collection}"
                 )
-                delete_object_names = MINIO_OPERATOR.list_payloads(collection_prefix)
+                delete_object_names = get_minio_operator_instance().list_payloads(
+                    collection_prefix
+                )
                 if len(delete_object_names):
-                    MINIO_OPERATOR.delete_payloads(delete_object_names)
+                    get_minio_operator_instance().delete_payloads(delete_object_names)
                     logger.info(
                         f"Deleted all document summaries from Minio for collection: {collection}"
                     )
@@ -968,17 +985,23 @@ class NvidiaRAGIngestor:
                     filename_prefix = get_unique_thumbnail_id_file_name_prefix(
                         collection_name, doc
                     )
-                    delete_object_names = MINIO_OPERATOR.list_payloads(filename_prefix)
-                    MINIO_OPERATOR.delete_payloads(delete_object_names)
+                    delete_object_names = get_minio_operator_instance().list_payloads(
+                        filename_prefix
+                    )
+                    get_minio_operator_instance().delete_payloads(delete_object_names)
 
                 # Delete document summary from Minio
                 for doc in document_names:
                     filename_prefix = get_unique_thumbnail_id_file_name_prefix(
                         f"summary_{collection_name}", doc
                     )
-                    delete_object_names = MINIO_OPERATOR.list_payloads(filename_prefix)
+                    delete_object_names = get_minio_operator_instance().list_payloads(
+                        filename_prefix
+                    )
                     if len(delete_object_names):
-                        MINIO_OPERATOR.delete_payloads(delete_object_names)
+                        get_minio_operator_instance().delete_payloads(
+                            delete_object_names
+                        )
                         logger.info(f"Deleted summary for doc: {doc} from Minio")
                 return {
                     "message": "Files deleted successfully",
@@ -1049,13 +1072,15 @@ class NvidiaRAGIngestor:
 
         if os.getenv("ENABLE_MINIO_BULK_UPLOAD", "True") in ["True", "true"]:
             logger.info(f"Bulk uploading {len(payloads)} payloads to MinIO")
-            MINIO_OPERATOR.put_payloads_bulk(
+            get_minio_operator_instance().put_payloads_bulk(
                 payloads=payloads, object_names=object_names
             )
         else:
             logger.info(f"Sequentially uploading {len(payloads)} payloads to MinIO")
             for payload, object_name in zip(payloads, object_names, strict=False):
-                MINIO_OPERATOR.put_payload(payload=payload, object_name=object_name)
+                get_minio_operator_instance().put_payload(
+                    payload=payload, object_name=object_name
+                )
 
     async def __nvingest_upload_doc(
         self,
@@ -1248,7 +1273,8 @@ class NvidiaRAGIngestor:
                 show_progress=logger.getEffectiveLevel() <= logging.DEBUG,
             )
         )
-        end_time = time.time()
+        total_ingestion_time = time.time() - start_time
+        self._log_result_info(batch_number, results, failures, total_ingestion_time)
 
         if generate_summary:
             logger.info(
@@ -1259,11 +1285,6 @@ class NvidiaRAGIngestor:
             asyncio.create_task(
                 self.__ingest_document_summary(results, collection_name=collection_name)
             )
-
-        logger.info(
-            f"== NV-ingest Job for collection_name: {collection_name} "
-            f"for batch {batch_number} is complete! Time taken: {end_time - start_time} seconds =="
-        )
 
         if not results:
             error_message = "NV-Ingest ingestion failed with no results."
@@ -1293,6 +1314,66 @@ class NvidiaRAGIngestor:
             )
 
         return results, failures
+
+    def _log_result_info(
+        self,
+        batch_number: int,
+        results: list[list[dict[str, str | dict]]],
+        failures: list[dict[str, Any]],
+        total_ingestion_time: float,
+    ):
+        """
+        Log the results info with document type counts
+        """
+        from collections import defaultdict
+
+        # Count document types
+        doc_type_counts = defaultdict(int)
+        total_documents = 0
+        total_elements = 0
+        raw_text_elements_size = 0  # in bytes
+
+        for result in results:
+            total_documents += 1
+            for result_element in result:
+                total_elements += 1
+                document_type = result_element.get("document_type", "unknown")
+                document_subtype = (
+                    result_element.get("metadata", {})
+                    .get("content_metadata", {})
+                    .get("subtype", "")
+                )
+                if document_subtype:
+                    document_type_subtype = f"{document_type}({document_subtype})"
+                else:
+                    document_type_subtype = document_type
+                doc_type_counts[document_type_subtype] += 1
+                if document_type == "text":
+                    raw_text_elements_size += len(
+                        result_element.get("metadata", {}).get("content", "")
+                    )
+
+        # Create summary string
+        summary_parts = []
+        for doc_type in doc_type_counts.keys():
+            count = doc_type_counts.get(doc_type, 0)
+            if count > 0:
+                summary_parts.append(f"{doc_type}:{count}")
+        if raw_text_elements_size > 0:
+            summary_parts.append(
+                f"Raw text elements size: {raw_text_elements_size} bytes"
+            )
+
+        summary = (
+            f"Successfully processed {total_documents} document(s) with {total_elements} element(s) • "
+            + " • ".join(summary_parts)
+        )
+        if failures:
+            summary += f", {len(failures)} files failed ingestion"
+
+        logger.info(
+            f"== Batch {batch_number} Ingestion completed in {total_ingestion_time:.2f} seconds • Summary: {summary} =="
+        )
 
     async def __get_failed_documents(
         self,
@@ -1817,7 +1898,7 @@ class NvidiaRAGIngestor:
                 location=location,
             )
 
-            MINIO_OPERATOR.put_payload(
+            get_minio_operator_instance().put_payload(
                 payload={
                     "summary": summary,
                     "file_name": file_name,
