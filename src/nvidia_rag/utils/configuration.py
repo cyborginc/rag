@@ -15,6 +15,7 @@
 """The definition of the application configuration."""
 
 import os
+import base64
 
 from .configuration_wizard import ConfigWizard, configclass, configfield
 
@@ -83,6 +84,25 @@ class VectorStoreConfig(ConfigWizard):
         default=100,
         help_txt="Parameter controlling query time/accuracy trade-off. Higher ef leads to more accurate but slower search.",
     )
+
+    api_key: str = configfield(
+        "api_key",
+        default="",
+        help_txt="CyborgDB API key (required only if using CyborgDB as vector store)",
+    )
+
+    _index_key: str = configfield(
+        "index_key",
+        default="",
+        help_txt="CyborgDB index key (required only if using CyborgDB as vector store)",
+    )
+
+    @property
+    def index_key(self) -> bytes:
+        """Convert the base64 string index_key back to bytes."""
+        if self._index_key:
+            return base64.b64decode(self._index_key)
+        return b''
 
 
 @configclass

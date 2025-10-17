@@ -4,8 +4,8 @@
 -->
 # Configure Elasticsearch as Your Vector Database for NVIDIA RAG Blueprint
 
-The [NVIDIA RAG Blueprint](readme.md) supports multiple vector database backends including [Milvus](https://milvus.io/docs) and [Elasticsearch](https://www.elastic.co/elasticsearch/vector-database).
-Elasticsearch provides robust search capabilities and can be used as an alternative to Milvus for storing and retrieving document embeddings.
+The [NVIDIA RAG Blueprint](readme.md) supports multiple vector database backends including [CyborgDB](https://https://docs.cyborg.co/), [Milvus](https://milvus.io/docs), and [Elasticsearch](https://www.elastic.co/elasticsearch/vector-database).
+Elasticsearch and Milvus can be used as an alternative to CyborgDB for storing and retrieving unencrypted document embeddings.
 
 After you have [deployed the blueprint](readme.md#Deployment-Options-for-RAG-Blueprint),
 use this documentation to configure Elasticsearch as your vector database.
@@ -189,7 +189,6 @@ Use the following steps to create and use your own custom database operators.
 
    ```python
    from nvidia_rag.utils.vdb.vdb_base import VDBRag
-
    class CustomVDB(VDBRag):
        def __init__(self, custom_url, index_name, embedding_model=None):
            # Initialize your custom VDB connection
@@ -215,7 +214,6 @@ Use the following steps to create and use your own custom database operators.
        index_name="collection_name",
        embedding_model=embedding_model
    )
-
    # Use with NVIDIA RAG
    rag = NvidiaRAG(vdb_op=custom_vdb_op)
    ingestor = NvidiaRAGIngestor(vdb_op=custom_vdb_op)
@@ -236,7 +234,6 @@ Use the following steps to create and use your own custom database operators.
       - `retrieval(queries, **kwargs)`: Optional for RAG. Implement multi-query retrieval or raise `NotImplementedError` if you expose a different retrieval entrypoint.
       - `reindex(records, **kwargs)`: Optional for RAG. Implement reindex/update workflows or raise `NotImplementedError`.
       - `run(records)`: Convenience helper to create (if needed) then write.
-
     - Collection management
       - `create_collection(collection_name, dimension=2048, collection_type="text")`: Ensure a collection exists and is ready for inserts/queries.
       - `check_collection_exists(collection_name)`: Boolean existence check.
@@ -251,7 +248,6 @@ Use the following steps to create and use your own custom database operators.
       - `create_metadata_schema_collection()`: Initialize storage for metadata schemas if missing.
       - `add_metadata_schema(collection_name, metadata_schema)`: Replace the stored schema for a collection.
       - `get_metadata_schema(collection_name)`: Fetch the stored schema; return an empty list if none.
-
     - Retrieval helpers
       - Retrieval helper (e.g., `retrieval_*`): Return top‑k relevant documents using your backend’s semantic search. Support optional filters and tracing where applicable.
       - Vector index handle (e.g., `get_*_vectorstore`): Return a handle to your backend’s vector index suitable for retrieval operations.
@@ -287,7 +283,6 @@ Follow these steps to add your custom vector database to the NVIDIA RAG servers 
             embedding_model=embedding_model,
         )
     ```
-
 
 
 - 3) Add required client libraries (if needed)
@@ -359,14 +354,12 @@ Refer to the steps above for detailed implementation guidance.
 Once your custom vector database implementation is complete, you need to build custom images for both the RAG server and Ingestor server:
 
 1. **Update image names in Docker Compose files:**
-
    Edit `deploy/compose/docker-compose-rag-server.yaml` and change the image name:
    ```yaml
    services:
      rag-server:
        image: your-registry/your-rag-server:your-tag
    ```
-
    Edit `deploy/compose/docker-compose-ingestor-server.yaml` and change the image name:
    ```yaml
    services:
@@ -376,7 +369,6 @@ Once your custom vector database implementation is complete, you need to build c
 
    > [!TIP]
    > Use a public registry for easier deployment and accessibility.
-
 2. **Build Ingestor server and RAG server image:**
    ```bash
    docker compose -f deploy/compose/docker-compose-ingestor-server.yaml build
@@ -416,7 +408,6 @@ Update your [`values.yaml`](../deploy/helm/nvidia-blueprint-rag/values.yaml) fil
      APP_VECTORSTORE_URL: "http://your-custom-vdb:port"
      APP_VECTORSTORE_NAME: "your_custom_vdb"
      # ... other existing configurations
-
    # Ingestor server environment variables
    ingestor-server:
      envVars:
@@ -438,7 +429,6 @@ Update your [`values.yaml`](../deploy/helm/nvidia-blueprint-rag/values.yaml) fil
    ```
 
 2. **Add your custom vector database Helm chart to `Chart.yaml`:**
-
    Edit `deploy/helm/nvidia-blueprint-rag/Chart.yaml` and add your custom VDB as a dependency:
    ```yaml
    dependencies:

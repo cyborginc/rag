@@ -38,6 +38,7 @@ dependencies = [
     "nv-ingest-api==25.9.0",
     "nv-ingest-client==25.9.0",
     "tritonclient==2.57.0",
+    "cyborgdb[langchain]==0.12.0",
 ]
 
 [project.optional-dependencies]
