@@ -237,7 +237,7 @@ services:
               device_ids:  ['${OCR_MS_GPU_ID:-${PADDLE_MS_GPU_ID:-0}}']
               capabilities: [gpu]
     runtime: nvidia
-    profiles: ["nemoretriever-ocr"]
+    profiles: ["", "ingest"]
 
   nemoretriever-ocr:
     image: ${NEMORETRIEVER_OCR_IMAGE:-nvcr.io/nvidia/nemo-microservices/nemoretriever-ocr-v1}:${NEMORETRIEVER_OCR_TAG:-1.1.0}
