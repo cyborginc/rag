@@ -8,7 +8,7 @@ reducing hallucinations and ensuring accuracy, compliance, and freshness.
 
 ## Disclaimer
 
-The "Build a Confidential Enterprise RAG" Blueprint is shared as reference and is provided "as is". The security in the production environment is the responsibility of the end users deploying it. When deploying in a production environment, please have security experts review any potential risks and threats; define the trust boundaries, implement logging and monitoring capabilities, secure the communication channels, integrate AuthN & AuthZ with appropriate access controls, keep the deployment up to date, ensure the containers/source code are secure and free of known vulnerabilities.
+The "Cyborg Enterprise RAG Blueprint" Blueprint is shared as reference and is provided "as is". The security in the production environment is the responsibility of the end users deploying it. When deploying in a production environment, please have security experts review any potential risks and threats; define the trust boundaries, implement logging and monitoring capabilities, secure the communication channels, integrate AuthN & AuthZ with appropriate access controls, keep the deployment up to date, ensure the containers/source code are secure and free of known vulnerabilities.
 
 ## Overview
 
@@ -127,7 +127,7 @@ This modular design ensures efficient query processing, accurate retrieval of in
 
 - **RAG Orchestrator Server** – Coordinates interactions between the user, retrievers, vector database, and inference models, ensuring multi-turn and context-aware query handling. This is [LangChain](https://www.langchain.com/)-based.
 
-- **Vector Database (accelerated with NVIDIA cuVS)** – Stores and searches embeddings at scale with GPU-accelerated indexing and retrieval for low-latency performance. You can use [Milvus Vector Database](https://milvus.io/) or [Elasticsearch](https://www.elastic.co/elasticsearch/vector-database).
+- **Vector Database (accelerated with NVIDIA cuVS)** – Stores and searches embeddings at scale with GPU-accelerated indexing and retrieval for low-latency performance. You can use [CyborgDB](https://cyborg.co), [Milvus Vector Database](https://milvus.io/), or [Elasticsearch](https://www.elastic.co/elasticsearch/vector-database).
 
 - **NeMo Retriever Extraction** – A high-performance ingestion microservice for parsing multimodal content. For more information about the ingestion pipeline, see [NeMo Retriever Extraction Overview](https://docs.nvidia.com/nemo/retriever/latest/extraction/overview/)
 
