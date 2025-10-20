@@ -67,6 +67,7 @@ def fake_meter(monkeypatch):
 
     # Monkeypatch opentelemetry.metrics in the imported module to use our fake meter
     import observability.otel_metrics as om
+
     fake_metrics_module = types.SimpleNamespace(get_meter=lambda service_name: meter)
     monkeypatch.setattr(om, "metrics", fake_metrics_module, raising=True)
     return meter

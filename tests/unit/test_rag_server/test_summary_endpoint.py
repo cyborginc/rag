@@ -112,6 +112,7 @@ def client():
     """Create test client with mocked dependencies"""
     with patch("nvidia_rag.rag_server.server.NVIDIA_RAG", mock_nvidia_rag_summary):
         from nvidia_rag.rag_server.server import app
+
         with TestClient(app) as test_client:
             yield test_client
 

@@ -18,6 +18,7 @@ The tests cover:
 
 import pytest
 from lark.exceptions import UnexpectedToken
+
 from nvidia_rag.utils.configuration import MetadataConfig
 from nvidia_rag.utils.metadata_validation import (
     FilterExpressionParser,

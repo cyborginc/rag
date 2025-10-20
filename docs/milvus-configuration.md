@@ -205,59 +205,6 @@ To use a custom Milvus endpoint, use the following procedure.
    helm upgrade rag https://helm.ngc.nvidia.com/nvidia/blueprint/charts/nvidia-blueprint-rag-v2.3.0.tgz -f nvidia-blueprint-rag/values.yaml -n rag
    ```
 
-## GPU Indexing with CPU Search
-
-This mode uses the GPU to build indexes during ingestion while serving search on the CPU. It is useful when you want fast index construction but prefer CPU-based query serving for cost, capacity, or scheduling reasons.
-
-For general GPU↔CPU switching instructions, see the [GPU to CPU Mode Switch](#gpu-to-cpu-mode-switch) section above.
-
-### Environment Variables
-
-Set the following before starting the ingestor server:
-
-```bash
-export APP_VECTORSTORE_ENABLEGPUSEARCH=False
-export APP_VECTORSTORE_ENABLEGPUINDEX=True
-```
-
-With `APP_VECTORSTORE_ENABLEGPUSEARCH=False`, the client enables `adapt_for_cpu=true` automatically. `adapt_for_cpu` decides whether to use GPU for index-building and CPU for search. When this parameter is true, search requests must include the `ef` parameter.
-
-### Docker Compose notes
-
-- Keep Milvus running with a GPU-capable image if you want GPU index-building (for example: `milvusdb/milvus:v2.6.0-gpu`).
-- Set the environment variables above before starting the ingestor server.
-- For inference (search and generate) in `rag-server`, you can use either the GPU or CPU Docker image. Search will run on CPU for the Milvus collection built with GPU indexing when `APP_VECTORSTORE_ENABLEGPUSEARCH=False`.
-
-Example sequence:
-
-```bash
-# Start/ensure Milvus is up (GPU image if you want GPU indexing)
-docker compose -f deploy/compose/vectordb.yaml up -d
-
-# Set env vars and start the ingestor (GPU indexing + CPU search)
-export APP_VECTORSTORE_ENABLEGPUSEARCH=False
-export APP_VECTORSTORE_ENABLEGPUINDEX=True
-docker compose -f deploy/compose/docker-compose-ingestor-server.yaml up -d
-
-# Start rag-server (either Milvus CPU or GPU image is fine)
-docker compose -f deploy/compose/docker-compose-rag-server.yaml up -d
-```
-
-### Helm notes
-
-Set the ingestor server environment variables in `values.yaml`:
-
-```yaml
-ingestor-server:
-  envVars:
-    APP_VECTORSTORE_ENABLEGPUSEARCH: "False"
-    APP_VECTORSTORE_ENABLEGPUINDEX: "True"
-```
-
-If you require GPU index-building, ensure the Milvus image variant supports GPU (for example, keep a `-gpu` tag where applicable). `rag-server` can be deployed with either CPU or GPU images for inference; search will be served on CPU for collections indexed with GPU when `APP_VECTORSTORE_ENABLEGPUSEARCH` is set to `False`.
-
-Note: When `adapt_for_cpu` is in effect, your search requests must supply an `ef` parameter.
-
 ## Troubleshooting
 
 ### GPU_CAGRA Error

@@ -130,10 +130,12 @@ def merge_contexts(
     # Remove duplicates based on page_content
     seen_contents = set()
     unique_contexts = []
+
     for doc in all_contexts:
         if doc.page_content not in seen_contents:
             seen_contents.add(doc.page_content)
             unique_contexts.append(doc)
+
     all_contexts = unique_contexts
 
     if filter_docs and reranker:
@@ -393,6 +395,7 @@ def process_subqueries(
     """
     if history is None:
         history = []
+
     final_contexts = {}
 
     for i, question in enumerate(questions):

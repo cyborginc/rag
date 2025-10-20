@@ -38,6 +38,7 @@ from nvidia_rag.utils.configuration_wizard import (
 @configclass
 class TestNestedConfig(ConfigWizard):
     """Test nested configuration class."""
+
     nested_field: str = configfield(
         "nested_field",
         default="nested_default",
@@ -54,12 +55,14 @@ class TestNestedConfig(ConfigWizard):
 @configclass
 class TestConfig(ConfigWizard):
     """Test configuration class for testing."""
+
     # Field with default value
     simple_field: str = configfield(
         "simple_field",
         default="default_value",
         help_txt="A simple test field"
     )
+
     # Field with custom environment variable name
     custom_env_field: str = configfield(
         "custom_env_field",
@@ -67,6 +70,7 @@ class TestConfig(ConfigWizard):
         env_name="CUSTOM_ENV_VAR",
         help_txt="Field with custom environment variable"
     )
+
     # Field with env disabled
     no_env_field: str = configfield(
         "no_env_field",
@@ -74,24 +78,28 @@ class TestConfig(ConfigWizard):
         env=False,
         help_txt="Field without environment variable support"
     )
+
     # Integer field
     int_field: int = configfield(
         "int_field",
         default=123,
         help_txt="An integer field"
     )
+
     # Boolean field
     bool_field: bool = configfield(
         "bool_field",
         default=True,
         help_txt="A boolean field"
     )
+
     # Float field
     float_field: float = configfield(
         "float_field",
         default=3.14,
         help_txt="A float field"
     )
+
     # Nested configuration
     nested: TestNestedConfig = configfield(
         "nested",
@@ -208,10 +216,12 @@ class TestConfigWizard:
     def test_envvars_structure(self):
         """Test the structure of envvars return values."""
         envvars = TestConfig.envvars()
+
         # Find the custom env variable entry
         custom_env_entry = next(
             (env for env in envvars if env[0] == "CUSTOM_ENV_VAR"), None
         )
+
         assert custom_env_entry is not None
         assert custom_env_entry[1] == ("customEnvField",)  # JSON path
         assert custom_env_entry[2] == str  # Type
@@ -224,6 +234,7 @@ class TestConfigWizard:
     def test_none_dict_data(self):
         """Test handling of None dictionary data."""
         config = TestConfig.from_dict(None)
+
         # Should use defaults
         assert config.simple_field == "default_value"
 
@@ -273,6 +284,7 @@ class TestUtilityFunctions:
         # Mock a non-seekable stream
         stream = StringIO('{"key": "value"}')
         stream.seekable = lambda: False
+
         with pytest.raises(ValueError, match="must be seekable"):
             read_json_or_yaml(stream)
 
@@ -294,6 +306,7 @@ class TestUtilityFunctions:
         """Test JSON loading with invalid JSON string."""
         result = try_json_load('invalid json')
         assert result == 'invalid json'  # Should return original string
+
         result = try_json_load('{"incomplete": }')
         assert result == '{"incomplete": }'
 
@@ -301,12 +314,14 @@ class TestUtilityFunctions:
         """Test updating dictionary with simple path."""
         data = {}
         update_dict(data, ("key",), "value")
+
         assert data == {"key": "value"}
 
     def test_update_dict_nested(self):
         """Test updating dictionary with nested path."""
         data = {}
         update_dict(data, ("level1", "level2", "key"), "value")
+
         expected = {
             "level1": {
                 "level2": {
@@ -320,6 +335,7 @@ class TestUtilityFunctions:
         """Test updating dictionary with existing path."""
         data = {"level1": {"level2": {"existing": "old_value"}}}
         update_dict(data, ("level1", "level2", "key"), "new_value")
+
         expected = {
             "level1": {
                 "level2": {
@@ -334,6 +350,7 @@ class TestUtilityFunctions:
         """Test not overwriting existing values when overwrite=False."""
         data = {"key": "existing_value"}
         update_dict(data, ("key",), "new_value", overwrite=False)
+
         # Should keep existing value
         assert data == {"key": "existing_value"}
 
@@ -341,6 +358,7 @@ class TestUtilityFunctions:
         """Test overwriting existing values when overwrite=True."""
         data = {"key": "existing_value"}
         update_dict(data, ("key",), "new_value", overwrite=True)
+
         # Should update to new value
         assert data == {"key": "new_value"}
 
@@ -348,6 +366,7 @@ class TestUtilityFunctions:
         """Test handling of non-dict intermediate values."""
         data = {"level1": "not_a_dict"}
         update_dict(data, ("level1", "level2", "key"), "value")
+
         # Should not update when intermediate value is not a dict
         assert data == {"level1": "not_a_dict"}
 
@@ -358,6 +377,7 @@ class TestConfigField:
     def test_configfield_basic(self):
         """Test basic configfield creation."""
         field = configfield("test_field", help_txt="Test help")
+
         assert field.json.keys == ("testField",)  # camelCase conversion
         assert field.metadata["help"] == "Test help"
         assert field.metadata["env"] is True
@@ -366,11 +386,13 @@ class TestConfigField:
     def test_configfield_custom_env_name(self):
         """Test configfield with custom environment variable name."""
         field = configfield("test_field", env_name="CUSTOM_ENV", help_txt="Test help")
+
         assert field.metadata["env_name"] == "CUSTOM_ENV"
 
     def test_configfield_env_disabled(self):
         """Test configfield with environment variable disabled."""
         field = configfield("test_field", env=False, help_txt="Test help")
+
         assert field.metadata["env"] is False
 
     def test_configfield_invalid_name(self):

@@ -34,9 +34,6 @@ To get a list of valid model names, use one of the following methods:
 [!TIP]
 Follow steps in [For Helm Deployments](#for-helm-deployments) to change the inference model for Helm charts.
 
-[!TIP]
-Follow steps [here](quickstart.md#changing-nim-llm-model) to change the inference model for helm charts!
-
 
 ### Change the Embedding Model
 

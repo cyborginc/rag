@@ -172,7 +172,7 @@ Continue following the rest of the steps in [Deploy with Docker (NVIDIA-Hosted M
 
 > [!Note]
 > On prem deployment of the VLM model requires an additional 1xH100 or 1xB200 GPU in default deployment configuration.
-> If MIG slicing is enabled on the cluster, ensure to assign a dedicated slice to the VLM. Check [mig-deployment.md](./mig-deployment.md) and  [values-mig.yaml](../deploy/helm/mig-slicing/values-mig.yaml) for more information. 
+> If MIG slicing is enabled on the cluster, ensure to assign a dedicated slice to the VLM. Check [mig-deployment.md](./mig-deployment.md) and  [values-mig.yaml](../deploy/helm/mig-slicing/values-mig.yaml) for more information.
 
 To enable VLM inference in Helm-based deployments, follow these steps:
 
@@ -208,7 +208,7 @@ To enable VLM inference in Helm-based deployments, follow these steps:
 3. **Check if the VLM pod has come up**
 
   A pod with the name `rag-0` will start, this pod corresponds to the VLM model deployment.
-    
+
     ```
       rag       rag-0       0/1     ContainerCreating   0          6m37s
     ```
