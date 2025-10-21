@@ -708,7 +708,7 @@ class CyborgDBVDB(VDBRag):
                 if any(doc_id.startswith(substring) for substring in source_values)
             ]
 
-            print(f"{len(matches)} documents matched for deletion")
+            logger.info(f"{len(matches)} documents matched for deletion")
             
             # Since we use source as ID, we can delete directly
             # The source_values should match the IDs we used when inserting
