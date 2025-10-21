@@ -66,7 +66,6 @@ The reflection feature supports the following deployment options:
    - **Required**: 8x A100 80GB or H100 80GB GPUs for optimal latency-optimized deployment
    - For detailed GPU requirements and supported model configurations, refer to the [NVIDIA NIM documentation](https://docs.nvidia.com/nim/large-language-models/latest/supported-models.html).
 
-
 ### On-Premises Deployment Steps
 
 1. Authenticate Docker with NGC using your NVIDIA API key:
@@ -149,7 +148,7 @@ When using NVIDIA-hosted models, you must obtain an API key. See [Get an API Key
 
 ## Reflection Support via Helm Deployment
 
-You can enable self-reflection through Helm when you deploy the RAG Blueprint.
+You can enable self-reflection through Helm when you deploy Confidential Enterprise RAG.
 
 ### Prerequisites
 

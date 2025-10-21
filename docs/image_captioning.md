@@ -4,7 +4,7 @@
 -->
 # Enable Image Captioning Support for NVIDIA RAG Blueprint
 
-You can enable image captioning support for [NVIDIA RAG Blueprint](readme.md). Enabling image captioning will yield higher accuracy for querstions relevant to images in the ingested documents at the cost of higher ingestion latency.
+You can enable image captioning support for [NVIDIA RAG Blueprint](readme.md). Enabling image captioning will yield higher accuracy for questions relevant to images in the ingested documents at the cost of higher ingestion latency.
 
 After you have [deployed the blueprint](readme.md#deploy), to enable image captioning support, you have the following options:
 - [Enable image captioning support](#enable-image-captioning-support)
