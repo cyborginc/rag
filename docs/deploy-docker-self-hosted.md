@@ -43,7 +43,7 @@ For other deployment options, refer to [Deployment Options](readme.md#deployment
     export APP_VECTORSTORE_INDEXKEY="<your base64 encoded index key>"
     ```
 
-7. Some containers that are enabled with GPU acceleration, such as CyborgDB and NVIDIA NIMS deployed on-prem. To configure Docker for GPU-accelerated containers, [install](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html), the NVIDIA Container Toolkit.
+7. Containers that are enabled with GPU acceleration, such as CyborgDB and NVIDIA NIMS deployed on-prem, require GPU configuration. To configure Docker for GPU-accelerated containers, [install](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) the NVIDIA Container Toolkit.
 
 8. Ensure you meet [the hardware requirements](./support-matrix.md).
 
