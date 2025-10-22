@@ -99,8 +99,9 @@ import base64
 from cyborgdb import Client
 
 # Generate a secure API key for CyborgDB authentication
-# cyborgdb api key can be found here
-cyborgdb_api_key = "" 
+# Get your CyborgDB API key from: https://docs.cyborg.co/versions/v0.12.x/intro/get-api-key
+# Or refer to api-key.md for detailed instructions
+cyborgdb_api_key = ""  # Paste your CyborgDB API key here
 os.environ["CYBORGDB_API_KEY"] = cyborgdb_api_key
 
 # Generate a 32-byte encryption key for the index using Client.generate_key()
