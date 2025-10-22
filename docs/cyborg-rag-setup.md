@@ -84,7 +84,7 @@ CyborgDB is an encrypted vector database proxy that provides end-to-end encrypti
 ```bash
 # CyborgDB Configuration
 export CYBORGDB_API_KEY="your-api-key-here"
-export APP_VECTORSTORE_INDEX_KEY="your-32-byte-key-in-base64"
+export APP_VECTORSTORE_INDEXKEY="your-32-byte-key-in-base64"
 export APP_VECTORSTORE_URL="http://cyborgdb:8000"
 export APP_VECTORSTORE_NAME="cyborgdb"
 ```
@@ -106,12 +106,12 @@ os.environ["CYBORGDB_API_KEY"] = cyborgdb_api_key
 
 # Generate a 32-byte encryption key for the index using Client.generate_key()
 index_key = Client.generate_key()
-os.environ["APP_VECTORSTORE_INDEX_KEY"] = base64.b64encode(index_key).decode('ascii')
+os.environ["APP_VECTORSTORE_INDEXKEY"] = base64.b64encode(index_key).decode('ascii')
 
 # Save these keys securely - you'll need them for both ingestion and retrieval
 with open('.env', 'a') as f:
     f.write(f"\nCYBORGDB_API_KEY={cyborgdb_api_key}\n")
-    f.write(f"APP_VECTORSTORE_INDEX_KEY={os.environ['APP_VECTORSTORE_INDEX_KEY']}\n")
+    f.write(f"APP_VECTORSTORE_INDEXKEY={os.environ['APP_VECTORSTORE_INDEXKEY']}\n")
 
 print("Keys generated and saved to .env file")
 ```
@@ -136,7 +136,7 @@ environment:
   APP_VECTORSTORE_NAME: "cyborgdb"
   APP_VECTORSTORE_URL: "http://cyborgdb:8000"
   APP_VECTORSTORE_APIKEY: ${CYBORGDB_API_KEY}
-  APP_VECTORSTORE_INDEX_KEY: ${APP_VECTORSTORE_INDEX_KEY}
+  APP_VECTORSTORE_INDEXKEY: ${APP_VECTORSTORE_INDEXKEY}
 ```
 
 ### Step 4: Deploy RAG Components
@@ -255,7 +255,7 @@ docker exec cyborgdb redis-cli ping
 
 ```bash
 # Validate key format (must be 32 bytes)
-echo $APP_VECTORSTORE_INDEX_KEY | base64 -d | wc -c
+echo $APP_VECTORSTORE_INDEXKEY | base64 -d | wc -c
 # Should output: 32
 ```
 
