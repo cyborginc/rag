@@ -107,6 +107,7 @@ services:
       - CYBORGDB_CONNECTION_STRING=host:cyborgdb-redis,port:6379,db:0
       - CYBORGDB_API_KEY=${CYBORGDB_API_KEY:-}
       - PORT=8000
+      # - GPU_OPERATIONS='upsert,train'
     depends_on:
       cyborgdb-redis:
         condition: service_healthy
@@ -117,6 +118,12 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+    # deploy:
+    #   resources:
+    #     devices:
+    #       - driver: nvidia
+    #         capabilities: ["gpu"]
+    #         device_ids: ['${VECTORSTORE_GPU_DEVICE_ID:-0}']
     profiles: ["", "cyborgdb"]
 
   cyborgdb-redis:
