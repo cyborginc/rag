@@ -102,7 +102,7 @@ Encrypted Indexes are the main organizational unit of CyborgDB. One encrypted in
 * **Cryptographic isolation**: each index is isolated via encryption keys, making it impossible to query/view the contents of an index without proper access/authorization.
 * **Multi-tenancy**: this separation makes it easy to separate data scopes (e.g., tenants) in a robust and secure manner.
 
-One client can manage an arbitary number of indexes, and an index can contain an arbitrary amount of items/vectors. All contents of the index are end-to-end encrypted, meaning that they remain encrypted throughout their lifecycle (at-rest and in-use).
+One client can manage an arbitrary number of indexes, and an index can contain an arbitrary amount of items/vectors. All contents of the index are end-to-end encrypted, meaning that they remain encrypted throughout their lifecycle (at-rest and in-use).
 
 ```bash
 # first generate your index key and store it
