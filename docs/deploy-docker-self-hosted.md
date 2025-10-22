@@ -37,7 +37,7 @@ For other deployment options, refer to [Deployment Options](readme.md#deployment
     export CYBORGDB_API_KEY="cyborg_..."
     ```
 
-6. Export your CyborgDB index key. For more information, see [How to generate and store your index key](./cyborgdb-rag-setup.md#how-to-generate-and-store-your-index-key).
+6. Export your CyborgDB index key. For more information, see [How to generate and store your index key](./cyborgdb-rag-setup.md#generate-and-store-your-index-key).
 
     ```bash
     export APP_VECTORSTORE_INDEXKEY="<your base64 encoded index key>"
@@ -315,6 +315,12 @@ After the first time you deploy the RAG Blueprint successfully, you can consider
 
    ```bash
    docker compose -f deploy/compose/docker-compose-*-server.yaml up -d --build
+   ```
+
+- By default, GPU accelerated Milvus DB is deployed. You can choose the GPU ID to allocate by using the below env variable.
+
+   ```bash
+   VECTORSTORE_GPU_DEVICE_ID=0
    ```
 
 - For improved accuracy, consider enabling reasoning mode. For details, refer to [Enable thinking](./enable-nemotron-thinking.md).
