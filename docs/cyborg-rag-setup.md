@@ -177,9 +177,9 @@ index.upsert([{
 ```python
 # Queries are also encrypted before search
 query_vector = embed_model.encode("What is RAG?")
-# Query vector is encrypted client-side
-results = index.search(query_vector, top_k=5)
-# Results are decrypted client-side
+# Query vector is encrypted client-side, then sent to CyborgDB
+results = index.query(query_vectors=query_vector, top_k=5)
+# Results are returned with IDs and distances
 ```
 
 ### 3. Key Management Best Practices
