@@ -40,7 +40,7 @@ For other deployment options, refer to [Deployment Options](readme.md#deployment
     export CYBORGDB_API_KEY="cyborg_..."
     ```
 
-6. Export your CyborgDB index key. For more information, see [How to generate and store your index key](./cyborgdb-rag-setup.md#generate-and-store-your-index-key).
+6. Export your CyborgDB index key. For more information, see [How to generate and store your index key](./cyborg-rag-setup.md#generate-and-store-your-index-key).
 
     ```bash
     export APP_VECTORSTORE_INDEXKEY="<your base64 encoded index key>"
@@ -238,7 +238,7 @@ After the first time you deploy the RAG Blueprint successfully, you can consider
    source deploy/compose/perf_profile.env
    ```
 
-- If you don't have a GPU available, you can switch to CPU-only CyborgDB by following the instructions in [cyborgdb-rag-setup.md](./cyborgdb-rag-setup.md#gpu-to-cpu-mode-switch).
+- If you don't have a GPU available, you can switch to CPU-only CyborgDB by following the instructions in [cyborg-rag-setup.md](./cyborg-rag-setup.md#gpu-to-cpu-mode-switch).
 
 - If you have a requirement to build the NVIDIA Ingest runtime container from source, you can do it by following instructions [here](https://github.com/NVIDIA/nv-ingest).
 

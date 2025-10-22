@@ -37,7 +37,7 @@ For other deployment options, refer to [Deployment Options](readme.md#deployment
     export CYBORGDB_API_KEY="cyborg_..."
     ```
 
-6. Export your CyborgDB index key. For more information, see [How to generate and store your index key](./cyborgdb-rag-setup.md#generate-and-store-your-index-key).
+6. Export your CyborgDB index key. For more information, see [How to generate and store your index key](./cyborg-rag-setup.md#generate-and-store-your-index-key).
 
     ```bash
     export APP_VECTORSTORE_INDEXKEY="<your base64 encoded index key>"
