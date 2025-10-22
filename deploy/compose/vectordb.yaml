@@ -104,7 +104,7 @@ services:
       - "9200:8000"
     environment:
       - CYBORGDB_DB_TYPE=postgres
-      - CYBORGDB_CONNECTION_STRING=host=cyborgdb-postgres port=5432 user=cyborgdb password=cyborgdb dbname=cyborgdb
+      - CYBORGDB_CONNECTION_STRING=host=cyborgdb-postgres port=5432 user=${POSTGRES_USER:-cyborgdb} password=${POSTGRES_PASSWORD:-cyborgdb} dbname=${POSTGRES_DB:-cyborgdb}
       - CYBORGDB_API_KEY=${CYBORGDB_API_KEY:-}
       - PORT=8000
       # - GPU_OPERATIONS='upsert,train'
