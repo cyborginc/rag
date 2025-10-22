@@ -31,9 +31,21 @@ For other deployment options, refer to [Deployment Options](readme.md#deployment
    echo "${NGC_API_KEY}" | docker login nvcr.io -u '$oauthtoken' --password-stdin
    ```
 
-5. Containers that are enabled with GPU acceleration, such as Milvus and NVIDIA NIMS, deployed on-prem. To configure Docker for GPU-accelerated containers, install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+5. To start the CyborgDB image you will need to export the CyborgDB API key you created in the first step.
 
-6. Ensure you meet [the hardware requirements](./support-matrix.md).
+    ```bash
+    export CYBORGDB_API_KEY="cyborg_..."
+    ```
+
+6. Export your CyborgDB index key. For more information, see [How to generate and store your index key](./cyborgdb-rag-setup.md#generate-and-store-your-index-key).
+
+    ```bash
+    export APP_VECTORSTORE_INDEXKEY="<your base64 encoded index key>"
+    ```
+
+7. Containers that are enabled with GPU acceleration, such as CyborgDB and NVIDIA NIMS deployed on-prem, require GPU configuration. To configure Docker for GPU-accelerated containers, [install](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) the NVIDIA Container Toolkit.
+
+8. Ensure you meet [the hardware requirements](./support-matrix.md).
 
 
 ## Start services using self-hosted on-premises models
@@ -235,24 +247,17 @@ Use the following procedure to start all containers needed for this blueprint.
 
     You should see output similar to the following. Confirm all the following containers are running.
 
-    ```output
-    NAMES                                   STATUS
-    compose-nv-ingest-ms-runtime-1          Up 5 minutes (healthy)
-    ingestor-server                         Up 5 minutes
-    compose-redis-1                         Up 5 minutes
-    rag-frontend                            Up 9 minutes
-    rag-server                              Up 9 minutes
-    milvus-standalone                       Up 36 minutes
-    milvus-minio                            Up 35 minutes (healthy)
-    milvus-etcd                             Up 35 minutes (healthy)
-    nemoretriever-ranking-ms                Up 38 minutes (healthy)
-    compose-page-elements-1                 Up 38 minutes
-    compose-paddle-1                        Up 38 minutes
-    compose-graphic-elements-1              Up 38 minutes
-    compose-table-structure-1               Up 38 minutes
-    nemoretriever-embedding-ms              Up 38 minutes (healthy)
-    nim-llm-ms                              Up 38 minutes (healthy)
-    ```
+   ```output
+   NAMES                                   STATUS
+   compose-nv-ingest-ms-runtime-1          Up 5 minutes (healthy)
+   ingestor-server                         Up 5 minutes
+   compose-redis-1                         Up 5 minutes
+   rag-frontend                            Up 9 minutes
+   rag-server                              Up 9 minutes
+   cyborgdb-redis                          Up 36 minutes (healthy)
+   cyborgdb                                Up 35 minutes (healthy)
+   minio                                   Up 35 minutes (healthy)
+   ```
 
 
 

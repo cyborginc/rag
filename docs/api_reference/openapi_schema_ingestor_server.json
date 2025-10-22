@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "APIs for NVIDIA RAG Ingestion Server",
-    "description": "This API schema describes all the Ingestion endpoints exposed for Confidential Enterprise RAG server",
+    "description": "This API schema describes all the Ingestion endpoints exposed for Cyborg Enterprise RAG server",
     "version": "1.0.0"
   },
   "servers": [

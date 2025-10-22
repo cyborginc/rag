@@ -17,7 +17,7 @@ For other deployment options, refer to [Deployment Options](readme.md#deployment
 
 ## Prerequisites
 
-1. [Get an API Key](api-key.md).
+1. [Get your API Keys](api-key.md).
 
 2. Install Docker Engine. For more information, see [Ubuntu](https://docs.docker.com/engine/install/ubuntu/).
 
@@ -34,7 +34,19 @@ For other deployment options, refer to [Deployment Options](readme.md#deployment
    echo "${NGC_API_KEY}" | docker login nvcr.io -u '$oauthtoken' --password-stdin
    ```
 
-5. Some containers with are enabled with GPU acceleration, such as Milvus and NVIDIA NIMS deployed on-prem. To configure Docker for GPU-accelerated containers, [install](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html), the NVIDIA Container Toolkit.
+5. To start the CyborgDB image you will need to export the CyborgDB API key you created in the first step.
+
+    ```bash
+    export CYBORGDB_API_KEY="cyborg_..."
+    ```
+
+6. Export your CyborgDB index key. For more information, see [How to generate and store your index key](./cyborgdb-rag-setup.md#generate-and-store-your-index-key).
+
+    ```bash
+    export APP_VECTORSTORE_INDEXKEY="<your base64 encoded index key>"
+    ```
+
+7. To configure Docker for GPU-accelerated containers such as CyborgDB and NVIDIA NIMS deployed on-prem, [install](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) the NVIDIA Container Toolkit.
 
 
 
@@ -178,9 +190,9 @@ Use the following procedure to start all containers needed for this blueprint.
    compose-redis-1                         Up 5 minutes
    rag-frontend                            Up 9 minutes
    rag-server                              Up 9 minutes
-   milvus-standalone                       Up 36 minutes
-   milvus-minio                            Up 35 minutes (healthy)
-   milvus-etcd                             Up 35 minutes (healthy)
+   cyborgdb-redis                          Up 36 minutes (healthy)
+   cyborgdb                                Up 35 minutes (healthy)
+   minio                                   Up 35 minutes (healthy)
    ```
 
 
@@ -226,7 +238,7 @@ After the first time you deploy the RAG Blueprint successfully, you can consider
    source deploy/compose/perf_profile.env
    ```
 
-- If you don't have a GPU available, you can switch to CPU-only Milvus by following the instructions in [milvus-configuration.md](./milvus-configuration.md).
+- If you don't have a GPU available, you can switch to CPU-only CyborgDB by following the instructions in [cyborgdb-rag-setup.md](./cyborgdb-rag-setup.md#gpu-to-cpu-mode-switch).
 
 - If you have a requirement to build the NVIDIA Ingest runtime container from source, you can do it by following instructions [here](https://github.com/NVIDIA/nv-ingest).
 
