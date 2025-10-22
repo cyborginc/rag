@@ -93,16 +93,26 @@ export APP_VECTORSTORE_NAME="cyborgdb"
 
 ### Step 1: Generate Security Keys
 
-```bash
-# Generate a secure API key for CyborgDB authentication
-export CYBORGDB_API_KEY=$(openssl rand -hex 32)
+```python
+import os
+import base64
+from cyborgdb import Client
 
-# Generate a 32-byte encryption key for the index
-export APP_VECTORSTORE_INDEX_KEY=$(openssl rand -base64 32)
+# Generate a secure API key for CyborgDB authentication
+# cyborgdb api key can be found here
+cyborgdb_api_key = "" 
+os.environ["CYBORGDB_API_KEY"] = cyborgdb_api_key
+
+# Generate a 32-byte encryption key for the index using Client.generate_key()
+index_key = Client.generate_key()
+os.environ["APP_VECTORSTORE_INDEX_KEY"] = index_key
 
 # Save these keys securely - you'll need them for both ingestion and retrieval
-echo "CYBORGDB_API_KEY=${CYBORGDB_API_KEY}" >> .env
-echo "APP_VECTORSTORE_INDEX_KEY=${APP_VECTORSTORE_INDEX_KEY}" >> .env
+with open('.env', 'a') as f:
+    f.write(f"\nCYBORGDB_API_KEY={cyborgdb_api_key}\n")
+    f.write(f"APP_VECTORSTORE_INDEX_KEY={os.environ['APP_VECTORSTORE_INDEX_KEY']}\n")
+
+print("Keys generated and saved to .env file")
 ```
 
 ### Step 2: Deploy CyborgDB Services
