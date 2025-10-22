@@ -31,7 +31,7 @@ You need to generate an API key to authenticate requests and determine your serv
 
 To generate an API key, use the following procedure.
 
-1. Log in or sign up for CyborgDB at https://cyborgdb.co/
+1. Log in or sign up for CyborgDB at the [official CyborgDB site](https://cyborgdb.co/)
 2. In your dashboard, click the **Add** button next to "API Keys"
 
 After you generate your key, export your key as an environment variable by using the following code.
