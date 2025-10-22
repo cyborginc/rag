@@ -106,7 +106,7 @@ os.environ["CYBORGDB_API_KEY"] = cyborgdb_api_key
 
 # Generate a 32-byte encryption key for the index using Client.generate_key()
 index_key = Client.generate_key()
-os.environ["APP_VECTORSTORE_INDEX_KEY"] = index_key
+os.environ["APP_VECTORSTORE_INDEX_KEY"] = base64.b64encode(index_key).decode('ascii')
 
 # Save these keys securely - you'll need them for both ingestion and retrieval
 with open('.env', 'a') as f:
