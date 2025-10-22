@@ -103,13 +103,13 @@ services:
     ports:
       - "9200:8000"
     environment:
-      - CYBORGDB_DB_TYPE=redis
-      - CYBORGDB_CONNECTION_STRING=host:cyborgdb-redis,port:6379,db:0
+      - CYBORGDB_DB_TYPE=postgres
+      - CYBORGDB_CONNECTION_STRING=host=cyborgdb-postgres port=5432 user=cyborgdb password=cyborgdb dbname=cyborgdb
       - CYBORGDB_API_KEY=${CYBORGDB_API_KEY:-}
       - PORT=8000
       # - GPU_OPERATIONS='upsert,train'
     depends_on:
-      cyborgdb-redis:
+      cyborgdb-postgres:
         condition: service_healthy
     networks:
       - default
@@ -126,21 +126,25 @@ services:
     #         device_ids: ['${VECTORSTORE_GPU_DEVICE_ID:-0}']
     profiles: ["", "cyborgdb"]
 
-  cyborgdb-redis:
-    container_name: cyborgdb-redis
-    image: redis:7-alpine
+  cyborgdb-postgres:
+    container_name: cyborgdb-postgres
+    image: postgres:16-alpine
     ports:
-      - "6380:6379"
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cyborgdb}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cyborgdb}
+      POSTGRES_DB: ${POSTGRES_DB:-cyborgdb}
     volumes:
-      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/redis:/data
+      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/postgres:/var/lib/postgresql/data
     networks:
       - default
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cyborgdb}"]
       interval: 5s
       timeout: 3s
       retries: 5
-      start_period: 5s
+      start_period: 10s
     profiles: ["", "cyborgdb"]
 
 networks:
