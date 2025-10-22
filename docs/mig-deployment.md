@@ -145,9 +145,9 @@ You should see output similar to the following.
 
 
 
-## Step 3: Install Confidential Enterprise RAG Helm Chart with MIG Values
+## Step 3: Install Cyborg Enterprise RAG Helm Chart with MIG Values
 
-Run the following code to install the Confidential Enterprise RAG Helm Chart.
+Run the following code to install the Cyborg Enterprise RAG Helm Chart.
 
 ```bash
 helm upgrade --install rag -n rag https://helm.ngc.nvidia.com/nvidia/blueprint/charts/nvidia-blueprint-rag-v2.3.0.tgz \

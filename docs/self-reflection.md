@@ -148,7 +148,7 @@ When using NVIDIA-hosted models, you must obtain an API key. See [Get an API Key
 
 ## Reflection Support via Helm Deployment
 
-You can enable self-reflection through Helm when you deploy Confidential Enterprise RAG.
+You can enable self-reflection through Helm when you deploy Cyborg Enterprise RAG.
 
 ### Prerequisites
 
