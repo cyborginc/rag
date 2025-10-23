@@ -190,7 +190,7 @@ Use the following procedure to start all containers needed for this blueprint.
    compose-redis-1                         Up 5 minutes
    rag-frontend                            Up 9 minutes
    rag-server                              Up 9 minutes
-   cyborgdb-redis                          Up 36 minutes (healthy)
+   cyborgdb-postgres                       Up 36 minutes (healthy)
    cyborgdb                                Up 35 minutes (healthy)
    minio                                   Up 35 minutes (healthy)
    ```
