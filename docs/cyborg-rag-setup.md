@@ -236,9 +236,6 @@ echo $APP_VECTORSTORE_INDEXKEY | base64 -d | wc -c
 #### 3. Performance Issues
 
 ```bash
-# Check Redis memory usage
-docker exec cyborgdb-redis redis-cli INFO memory
-
 # Monitor CyborgDB metrics
 docker stats cyborgdb
 ```
