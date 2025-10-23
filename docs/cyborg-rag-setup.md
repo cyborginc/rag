@@ -64,7 +64,7 @@ CyborgDB is an encrypted vector database proxy that provides end-to-end encrypti
                               │ Encrypted storage
                               ▼
          ┌──────────────────────────────────────────┐
-         │         Redis Backing Store              │
+         │      PostgreSQL Backing Store            │
          │     (Encrypted vectors at rest)          │
          └──────────────────────────────────────────┘
 ```
@@ -115,11 +115,11 @@ export APP_VECTORSTORE_INDEXKEY=$(cat index_key.txt)
 ### Deploy CyborgDB Services
 
 ```bash
-# Deploy CyborgDB with Redis backend
+# Deploy CyborgDB with Postgres backend
 docker-compose -f deploy/compose/vectordb.yaml --profile cyborgdb up -d
 
 # Verify services are running
-docker ps | grep -E "cyborgdb|redis"
+docker ps | grep -E "cyborgdb|cyborgdb-postgres"
 ```
 
 ### Deploy RAG Components
@@ -221,8 +221,8 @@ results = index.query(query_vectors=query_vector, top_k=5)
 # Check if CyborgDB is running
 docker logs cyborgdb
 
-# Verify Redis backend is accessible
-docker exec cyborgdb redis-cli ping
+# Verify PostgreSQL backend is accessible
+docker exec cyborgdb-postgres pg_isready -U cyborgdb
 ```
 
 #### 2. Encryption Key Issues
@@ -252,7 +252,7 @@ docker stats cyborgdb
 ### Migrating from Elasticsearch
 
 1. Extract dense vectors from Elasticsearch
-2. Set up CyborgDB with Redis backend
+2. Set up CyborgDB with PostgreSQL backend
 3. Batch upload vectors with encryption
 4. Update search queries to use CyborgDB client
 
@@ -260,7 +260,7 @@ docker stats cyborgdb
 
 1. **Security First**: Always use strong, randomly generated keys
 2. **Monitor Performance**: Track query latencies and throughput
-3. **Plan for Scale**: Redis memory should be 2-3x your vector dataset size
+3. **Plan for Scale**: PostgreSQL memory should be 2-3x your vector dataset size
 4. **Test Recovery**: Practice key rotation and backup restoration
 5. **Audit Access**: Log all vector database operations
 
@@ -268,7 +268,6 @@ docker stats cyborgdb
 
 - [CyborgDB Documentation](https://docs.cyborg.co)
 - [NVIDIA cuVS Library](https://github.com/rapidsai/cuvs)
-- [Redis Best Practices](https://redis.io/docs/manual/patterns/)
 - [Confidential Enterprise RAG Docs](../README.md)
 
 ## Support
