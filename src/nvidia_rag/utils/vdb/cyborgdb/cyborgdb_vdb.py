@@ -167,18 +167,15 @@ class CyborgDBVDB(VDBRag):
         # Create new index
         try:
             # Create index configuration
-            index_config = IndexIVFFlat(
-                dimension=dimension,
-                n_lists=128,  # Default number of inverted lists
-                metric="euclidean"
-            )
-            
+            index_config = IndexIVFFlat(dimension=dimension)
+
             # Create index via client
             index = self.client.create_index(
                 index_name=collection_name,
                 index_key=self.index_key,
                 index_config=index_config,
-                embedding_model=None  # We'll provide embeddings directly
+                embedding_model=None,  # We'll provide embeddings directly
+                metric="euclidean"
             )
             
             self._indexes[collection_name] = index
@@ -786,13 +783,15 @@ class CyborgDBVDB(VDBRag):
 
         start_time = time.time()
 
-        retriever = vectorstore.as_retriever(search_kwargs={"k": top_k})
+        # Build search_kwargs with filter if provided
+        search_kwargs = {"k": top_k}
+        if filter_expr:
+            search_kwargs["filter"] = filter_expr
+
+        retriever = vectorstore.as_retriever(search_kwargs=search_kwargs)
 
         retriever_lambda = RunnableLambda(
-            lambda x: retriever.invoke(
-                x,
-                expr=filter_expr,
-            )
+            lambda x: retriever.invoke(x)
         )
         retriever_chain = {"context": retriever_lambda} | RunnableAssign(
             {"context": lambda input: input["context"]}
