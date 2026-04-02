@@ -57,7 +57,7 @@ from nvidia_rag.utils.vdb.vdb_base import VDBRag
 logger = logging.getLogger(__name__)
 
 try:
-    from cyborgdb import Client, EncryptedIndex, IndexIVFFlat
+    from cyborgdb import Client
     from cyborgdb.integrations.langchain import CyborgVectorStore
     CYBORGDB_AVAILABLE = True
 except ImportError:
@@ -119,9 +119,6 @@ class CyborgDBVDB(VDBRag):
         # Store vectorstore instances per collection
         self._vectorstores = {}
         
-        # Store direct index instances for upsert operations
-        self._indexes = {}
-        
         # Connection alias for compatibility
         self.connection_alias = f"cyborgdb_{str(uuid4())[:8]}"
 
@@ -139,53 +136,6 @@ class CyborgDBVDB(VDBRag):
         """Set the collection name."""
         self._collection_name = collection_name
 
-    def _get_or_create_index(self, collection_name: str, dimension: int = 1536) -> EncryptedIndex:
-        """
-        Get existing index or create a new one for direct upsert operations.
-        """
-        # Check cache first
-        if collection_name in self._indexes:
-            return self._indexes[collection_name]
-        
-        # Check if index exists
-        try:
-            existing_indexes = self.client.list_indexes()
-            if collection_name in existing_indexes:
-                # Load existing index
-                index = EncryptedIndex(
-                    index_name=collection_name,
-                    index_key=self.index_key,
-                    api=self.client.api,
-                    api_client=self.client.api_client
-                )
-                self._indexes[collection_name] = index
-                logger.info(f"Loaded existing index: {collection_name}")
-                return index
-        except Exception as e:
-            logger.warning(f"Error checking existing indexes: {e}")
-        
-        # Create new index
-        try:
-            # Create index configuration
-            index_config = IndexIVFFlat(dimension=dimension)
-
-            # Create index via client
-            index = self.client.create_index(
-                index_name=collection_name,
-                index_key=self.index_key,
-                index_config=index_config,
-                embedding_model=None,  # We'll provide embeddings directly
-                metric="euclidean"
-            )
-            
-            self._indexes[collection_name] = index
-            logger.info(f"Created new index: {collection_name}")
-            return index
-            
-        except Exception as e:
-            logger.error(f"Failed to create index: {e}")
-            raise
-    
     def _get_or_create_vectorstore(self, collection_name: str, dimension: Optional[int] = None, get_only: bool = False) -> CyborgVectorStore | None:
         """
         Get existing vectorstore or create a new one for the collection.
@@ -234,115 +184,96 @@ class CyborgDBVDB(VDBRag):
 
     def write_to_index(self, records: List[Dict[str, Any]], **kwargs):
         """
-        Write records to the CyborgDB index using direct upsert.
-        Based on implementation from cyborg.py.
-        
+        Write records to the CyborgDB index via the LangChain vectorstore integration.
+
         Args:
-            records: List of records to insert
+            records: List of nv-ingest records to insert
             **kwargs: Additional parameters
         """
-        logger.debug(f"Writing {len(records)} records to CyborgDB")
-        
         collection_name = kwargs.get("collection_name", self._collection_name)
-        
-        # Get or create the direct index for upsert
-        index = self._get_or_create_index(collection_name)
-        
-        if not index:
-            raise ValueError(f"Failed to get index for collection {collection_name}")
-        
-        # Convert records to CyborgDB format for direct upsert
-        items = []
-        
+        logger.info(f"Writing {len(records)} records to CyborgDB index")
+
+        vectorstore = self._get_or_create_vectorstore(collection_name)
+        if not vectorstore:
+            raise ValueError(f"Failed to get vectorstore for collection {collection_name}")
+
+        texts = []
+        metadatas = []
+        ids = []
+        embeddings = []
+
         for idx, record in enumerate(records):
             if not isinstance(record, dict):
                 logger.error(f"Record {idx} is not a dict.")
                 raise TypeError(f"Expected dict, got {type(record).__name__}")
-            
+
             # Extract ID - prefer source-based ID for easier deletion
             id_value = None
-
-
-            # First try to use source as ID
             if "source" in record and record["source"]:
                 id_value = str(record["source"].get("source_id")) + "_" + str(uuid4())
             elif "metadata" in record and record["metadata"].get("source"):
                 id_value = record["metadata"]["source"].get("source_id") + "_" + str(uuid4())
             elif "metadata" in record and record["metadata"].get("source_metadata"):
                 id_value = record["metadata"]["source_metadata"].get("source_id") + "_" + str(uuid4())
-            # Fall back to provided ID fields
             elif "id" in record and record["id"] is not None:
                 id_value = str(record["id"])
             elif "_id" in record and record["_id"] is not None:
                 id_value = str(record["_id"])
             else:
-                # Last resort: generate UUID
                 id_value = str(uuid4())
-            
-            item = {"id": id_value}
-            
-            # Handle vector field - look for embeddings in various locations
-            vector_found = False
+            ids.append(id_value)
+
+            # Extract embedding vector
+            vector = None
             if "vector" in record:
-                item["vector"] = record["vector"]
-                vector_found = True
+                vector = record["vector"]
             elif "embedding" in record:
-                item["vector"] = record["embedding"]
-                vector_found = True
+                vector = record["embedding"]
             elif "metadata" in record and "embedding" in record["metadata"]:
-                item["vector"] = record["metadata"]["embedding"]
-                vector_found = True
-            
-            if not vector_found:
+                vector = record["metadata"]["embedding"]
+
+            if vector is None:
                 logger.warning(f"No vector/embedding found for record {id_value}")
-            
-            # Handle metadata
+            embeddings.append(vector)
+
+            # Extract text content (will be stored as _content by add_texts)
+            text = ""
+            if "metadata" in record and "content" in record["metadata"]:
+                text = record["metadata"]["content"] or ""
+                max_length = 65535  # CyborgDB limit
+                if len(text) > max_length:
+                    logger.warning(f"Truncating content from {len(text)} to {max_length} chars")
+                    text = text[:max_length] + "...[truncated]"
+            texts.append(text)
+
+            # Build metadata - exclude content (passed as text) and embedding (passed separately)
             metadata = {}
-            
-            # Copy metadata from record
             if "metadata" in record:
                 metadata.update(record["metadata"])
-                
-                # Rename 'content' -> '_content' and truncate if needed
-                if "content" in metadata:
-                    content = metadata.pop("content")
-                    max_length = 65535  # CyborgDB limit
-                    if content and len(content) > max_length:
-                        logger.warning(f"Truncating content from {len(content)} to {max_length} chars")
-                        content = content[:max_length] + "...[truncated]"
-                    metadata["_content"] = content
-                
-                # Handle source_metadata
+                metadata.pop("content", None)
+                metadata.pop("embedding", None)
                 if "source_metadata" in metadata:
                     metadata["source"] = metadata.pop("source_metadata")
-                
-                # Remove embedding from metadata if it was there (already in vector field)
-                metadata.pop("embedding", None)
-            
-            # Add source field if present
+
             if "source" in record:
                 metadata["source"] = record["source"]
-            
-            # Add content_metadata if present
             if "content_metadata" in record:
                 metadata["content_metadata"] = record["content_metadata"]
-            
-            # Apply preprocessing to metadata
-            processed_metadata = self._preprocess_metadata(metadata)
-            
-            if processed_metadata:
-                item["metadata"] = processed_metadata
-            
-            items.append(item)
-        
-        # Upsert items directly to index
+
+            metadatas.append(metadata)
+
         try:
-            index.upsert(items)
+            vectorstore.add_texts(
+                texts,
+                metadatas=metadatas,
+                ids=ids,
+                embeddings=embeddings if any(e is not None for e in embeddings) else None,
+            )
         except Exception as e:
-            logger.error(f"Failed to upsert records: {e}", exc_info=True)
+            logger.error(f"Failed to insert records: {e}", exc_info=True)
             raise
-        
-        logger.info(f"Successfully wrote {len(records)} records to CyborgDB")
+
+        logger.info(f"Successfully inserted {len(records)} documents into CyborgDB")
 
     def retrieval(self, queries: list, **kwargs) -> list[dict[str, Any]]:
         """
@@ -514,24 +445,14 @@ class CyborgDBVDB(VDBRag):
         """
         deleted_collections = []
         failed_collections = []
-        
+
         logger.debug(f"Deleting collections: {collection_names}")
-        
-        # List all indexes before deletion
-        try:
-            all_indexes_before = self.client.list_indexes()
-        except Exception as e:
-            logger.error(f"Failed to list indexes before deletion: {e}")
-            all_indexes_before = []
-        
+
         for collection_name in collection_names:
             logger.debug(f"Processing collection: '{collection_name}'")
-            
+
             try:
-                # Check if collection exists first
-                exists = self.check_collection_exists(collection_name)
-                
-                if not exists:
+                if not self.check_collection_exists(collection_name):
                     logger.debug(f"Collection '{collection_name}' not found, skipping deletion")
                     failed_collections.append({
                         "collection_name": collection_name,
@@ -539,69 +460,29 @@ class CyborgDBVDB(VDBRag):
                     })
                     continue
 
-                
-                # Get the index instance directly and use its delete_index method
-                # This ensures we only delete the specific index
-                if collection_name in self._indexes:
-                    # Use cached index if available
-                    index = self._indexes[collection_name]
-                else:
-                    # Load the index
-                    try:
-                        
-                        index = EncryptedIndex(
-                            index_name=collection_name,
-                            index_key=self.index_key,
-                            api=self.client.api,
-                            api_client=self.client.api_client
-                        )
-                    except Exception as e:
-                        logger.error(f"FAILED to load index for '{collection_name}': {e}", exc_info=True)
-                        failed_collections.append({
-                            "collection_name": collection_name,
-                            "error_message": f"Failed to load index: {str(e)}"
-                        })
-                        continue
-                
-                # Delete using the index's own delete method
-                try:
-                    index.delete_index()
-                    
+                vectorstore = self._get_or_create_vectorstore(collection_name)
+                result = vectorstore.delete(delete_index=True)
+
+                if result:
                     deleted_collections.append(collection_name)
                     logger.debug(f"Successfully deleted collection: '{collection_name}'")
-                    
-                    # Remove from caches
-                    if collection_name in self._vectorstores:
-                        del self._vectorstores[collection_name]
-                    if collection_name in self._indexes:
-                        del self._indexes[collection_name]
-                        
-                except Exception as delete_error:
-                    logger.error(f"Failed to delete index '{collection_name}': {delete_error}")
+                    self._vectorstores.pop(collection_name, None)
+                else:
                     failed_collections.append({
                         "collection_name": collection_name,
-                        "error_message": f"Delete operation failed: {str(delete_error)}"
+                        "error_message": "Delete operation returned False"
                     })
-                    
+
             except Exception as e:
-                logger.error(f"Error processing collection '{collection_name}': {e}")
+                logger.error(f"Error deleting collection '{collection_name}': {e}")
                 failed_collections.append({
                     "collection_name": collection_name,
                     "error_message": str(e)
                 })
-        
-        # Verify deletions
-        try:
-            all_indexes_after = self.client.list_indexes()
-            unexpected_deletions = (set(all_indexes_before) - set(all_indexes_after)) - set(deleted_collections)
-            if unexpected_deletions:
-                logger.error(f"Unexpected deletions: {unexpected_deletions}")
-        except Exception as e:
-            logger.error(f"Failed to verify deletions: {e}")
-        
+
         if deleted_collections or failed_collections:
             logger.info(f"Deletion complete: {len(deleted_collections)} succeeded, {len(failed_collections)} failed")
-        
+
         return {
             "message": "Collection deletion process completed.",
             "successful": deleted_collections,
