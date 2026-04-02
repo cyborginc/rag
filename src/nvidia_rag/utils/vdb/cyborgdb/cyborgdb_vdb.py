@@ -190,40 +190,27 @@ class CyborgDBVDB(VDBRag):
         """
         Get existing vectorstore or create a new one for the collection.
         """
-        print(f"[CyborgDB Query] _get_or_create_vectorstore: collection={collection_name}, get_only={get_only}")
-
         # Check cache first
         if collection_name in self._vectorstores:
-            print(f"[CyborgDB Query] Found vectorstore in cache")
             return self._vectorstores[collection_name]
 
         # If only getting existing, check if collection exists
-        if get_only:
-            print(f"[CyborgDB Query] Checking if collection exists...")
-            exists = self.check_collection_exists(collection_name)
-            print(f"[CyborgDB Query] Collection exists: {exists}")
-            if not exists:
-                return None
-
+        if get_only and not self.check_collection_exists(collection_name):
+            return None
+        
         # Create/load vectorstore instance
-        print(f"[CyborgDB Query] Creating CyborgVectorStore instance...")
-        try:
-            vectorstore = CyborgVectorStore(
-                index_name=collection_name,
-                index_key=self.index_key,
-                api_key=self.api_key,
-                base_url=self.vdb_endpoint,
-                embedding=self.embedding_model,
-                dimension=dimension,
-            )
-            print(f"[CyborgDB Query] CyborgVectorStore created successfully")
-        except Exception as e:
-            print(f"[CyborgDB Query] ERROR creating CyborgVectorStore: {e}")
-            raise
-
+        vectorstore = CyborgVectorStore(
+            index_name=collection_name,
+            index_key=self.index_key,
+            api_key=self.api_key,
+            base_url=self.vdb_endpoint,
+            embedding=self.embedding_model,
+            dimension=dimension,
+        )
+        
         # Add collection_name attribute for compatibility with the retrieval chain
         vectorstore.collection_name = collection_name
-
+        
         # Cache it
         self._vectorstores[collection_name] = vectorstore
         return vectorstore
@@ -234,15 +221,7 @@ class CyborgDBVDB(VDBRag):
         """
         Check if an index exists in CyborgDB.
         """
-        print(f"[CyborgDB Query] _check_index_exists: {index_name}")
-        try:
-            indexes = self.client.list_indexes()
-            print(f"[CyborgDB Query] Available indexes: {indexes}")
-            result = index_name in indexes
-            return result
-        except Exception as e:
-            print(f"[CyborgDB Query] ERROR listing indexes: {e}")
-            raise
+        return index_name in self.client.list_indexes()
     
     def create_index(self):
         """
@@ -501,14 +480,7 @@ class CyborgDBVDB(VDBRag):
         """
         Check if a collection (index) exists in CyborgDB.
         """
-        print(f"[CyborgDB Query] check_collection_exists: {collection_name}")
-        try:
-            result = self._check_index_exists(collection_name)
-            print(f"[CyborgDB Query] check_collection_exists result: {result}")
-            return result
-        except Exception as e:
-            print(f"[CyborgDB Query] ERROR in check_collection_exists: {e}")
-            raise
+        return self._check_index_exists(collection_name)
 
     def get_collection(self) -> List[Dict[str, Any]]:
         """
@@ -792,14 +764,7 @@ class CyborgDBVDB(VDBRag):
         """
         Get the vectorstore for a collection.
         """
-        print(f"[CyborgDB Query] get_langchain_vectorstore called for collection: {collection_name}")
-        try:
-            result = self._get_or_create_vectorstore(collection_name, get_only=True)
-            print(f"[CyborgDB Query] get_langchain_vectorstore result: {'success' if result else 'None returned'}")
-            return result
-        except Exception as e:
-            print(f"[CyborgDB Query] ERROR in get_langchain_vectorstore: {e}")
-            raise
+        return self._get_or_create_vectorstore(collection_name, get_only=True)
 
     def retrieval_langchain(
         self,
@@ -813,19 +778,8 @@ class CyborgDBVDB(VDBRag):
         """
         Retrieve documents from a collection using langchain
         """
-        print(f"[CyborgDB Query] Starting retrieval_langchain")
-        print(f"[CyborgDB Query] Query: {query[:100]}..." if len(query) > 100 else f"[CyborgDB Query] Query: {query}")
-        print(f"[CyborgDB Query] Collection: {collection_name}, top_k: {top_k}")
-
         if vectorstore is None:
-            print(f"[CyborgDB Query] Vectorstore not provided, getting from collection...")
             vectorstore = self.get_langchain_vectorstore(collection_name)
-
-        if vectorstore is None:
-            print(f"[CyborgDB Query] ERROR: Failed to get vectorstore for collection {collection_name}")
-            return []
-
-        print(f"[CyborgDB Query] Vectorstore obtained successfully")
 
         start_time = time.time()
 
@@ -833,57 +787,37 @@ class CyborgDBVDB(VDBRag):
         search_kwargs = {"k": top_k}
         if filter_expr:
             search_kwargs["filter"] = filter_expr
-        print(f"[CyborgDB Query] Search kwargs: {search_kwargs}")
 
-        print(f"[CyborgDB Query] Creating retriever...")
-        try:
-            retriever = vectorstore.as_retriever(search_kwargs=search_kwargs)
-            print(f"[CyborgDB Query] Retriever created successfully")
-        except Exception as e:
-            print(f"[CyborgDB Query] ERROR creating retriever: {e}")
-            raise
+        retriever = vectorstore.as_retriever(search_kwargs=search_kwargs)
 
-        print(f"[CyborgDB Query] Building retriever chain...")
         retriever_lambda = RunnableLambda(
             lambda x: retriever.invoke(x)
         )
         retriever_chain = {"context": retriever_lambda} | RunnableAssign(
             {"context": lambda input: input["context"]}
         )
-        print(f"[CyborgDB Query] Invoking retriever chain...")
-
-        try:
-            retriever_docs = retriever_chain.invoke(query, config={"run_name": "retriever"})
-            print(f"[CyborgDB Query] Retriever chain invoked successfully")
-        except Exception as e:
-            print(f"[CyborgDB Query] ERROR invoking retriever chain: {e}")
-            raise
-
+        retriever_docs = retriever_chain.invoke(query, config={"run_name": "retriever"})
         docs = retriever_docs.get("context", [])
-        print(f"[CyborgDB Query] Retrieved {len(docs)} raw documents")
         
         # Filter out documents with empty content to avoid validation errors
-        print(f"[CyborgDB Query] Filtering documents for empty content...")
         filtered_docs = []
-        for idx, doc in enumerate(docs):
+        for doc in docs:
             # Check if document has content
             content = doc.page_content if hasattr(doc, 'page_content') else ""
             if not content and doc.metadata:
                 # Try to get content from metadata
                 content = doc.metadata.get("_content", "") or doc.metadata.get("content", "")
-
+            
             # Only include documents with non-empty content
             if content and content.strip():
                 filtered_docs.append(doc)
             else:
-                print(f"[CyborgDB Query] Filtered out doc {idx} with empty content: {doc.metadata.get('source', 'unknown')}")
                 logger.warning(f"Filtered out document with empty content: {doc.metadata.get('source', 'unknown')}")
-
+        
         # collection_name is already provided as a parameter
 
         end_time = time.time()
         latency = end_time - start_time
-        print(f"[CyborgDB Query] Completed in {latency:.4f}s, returned {len(filtered_docs)} docs (filtered {len(docs) - len(filtered_docs)} empty)")
         logger.info(f" CyborgDB Retrieval latency: {latency:.4f} seconds, returned {len(filtered_docs)} docs (filtered {len(docs) - len(filtered_docs)} empty)")
 
         return self._add_collection_name_to_retrieved_docs(filtered_docs, collection_name)
