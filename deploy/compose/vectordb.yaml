@@ -99,7 +99,7 @@ services:
 
   cyborgdb:
     container_name: cyborgdb
-    image: docker.cloudsmith.io/cyborg/cyborgdb-dev/cyborgdb-service-cuda:latest
+    image: cyborginc/cyborgdb-service-cuda:0.16.1
     ports:
       - "9200:8000"
     environment:
