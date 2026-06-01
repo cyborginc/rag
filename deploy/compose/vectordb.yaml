@@ -99,53 +99,33 @@ services:
 
   cyborgdb:
     container_name: cyborgdb
-    image: cyborginc/cyborgdb-service:latest
+    image: cyborginc/cyborgdb-service-cuda:0.16.1
     ports:
       - "9200:8000"
     environment:
-      - CYBORGDB_DB_TYPE=postgres
-      - CYBORGDB_CONNECTION_STRING=host=cyborgdb-postgres port=5432 user=${POSTGRES_USER:-cyborgdb} password=${POSTGRES_PASSWORD:-cyborgdb} dbname=${POSTGRES_DB:-cyborgdb}
       - CYBORGDB_API_KEY=${CYBORGDB_API_KEY:-}
-      - PORT=8000
-      # - GPU_OPERATIONS='upsert,train'
-    depends_on:
-      cyborgdb-postgres:
-        condition: service_healthy
+      - GPU_OPERATIONS=all
+    volumes:
+      - cyborgdb_data:/app/cyborgdb_data
     networks:
       - default
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-    # deploy:
-    #   resources:
-    #     devices:
-    #       - driver: nvidia
-    #         capabilities: ["gpu"]
-    #         device_ids: ['${VECTORSTORE_GPU_DEVICE_ID:-0}']
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health')"]
+      interval: 10s
+      timeout: 6s
+      retries: 7
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: ["gpu"]
+              # count: ${INFERENCE_GPU_COUNT:-all}
+              device_ids: ['${VECTORSTORE_GPU_DEVICE_ID:-0}']
     profiles: ["", "cyborgdb"]
 
-  cyborgdb-postgres:
-    container_name: cyborgdb-postgres
-    image: postgres:16-alpine
-    ports:
-      - "5433:5432"
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-cyborgdb}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cyborgdb}
-      POSTGRES_DB: ${POSTGRES_DB:-cyborgdb}
-    volumes:
-      - ${DOCKER_VOLUME_DIRECTORY:-.}/volumes/postgres:/var/lib/postgresql/data
-    networks:
-      - default
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cyborgdb}"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
-    profiles: ["", "cyborgdb"]
+volumes:
+  cyborgdb_data:
 
 networks:
   default:

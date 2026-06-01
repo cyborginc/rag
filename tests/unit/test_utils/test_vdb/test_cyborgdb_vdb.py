@@ -153,24 +153,24 @@ class TestCyborgDBVDB(unittest.TestCase):
         
         mock_vs_instance = Mock()
         mock_vectorstore.return_value = mock_vs_instance
-        mock_vs_instance.add_documents.return_value = ["id1", "id2"]
-        
-        # Test data
+        mock_vs_instance.add_texts.return_value = ["id1", "id2"]
+
+        # Test data - records with metadata.content (nv-ingest format)
         records = [
             {
-                "text": "test text 1",
+                "metadata": {"content": "test text 1"},
                 "vector": [0.1, 0.2, 0.3],
                 "source": "doc1.pdf",
                 "content_metadata": {"title": "Test Doc 1"}
             },
             {
-                "text": "test text 2", 
+                "metadata": {"content": "test text 2"},
                 "vector": [0.4, 0.5, 0.6],
                 "source": "doc2.pdf",
                 "content_metadata": {"title": "Test Doc 2"}
             }
         ]
-        
+
         # Create instance and test
         cyborgdb_vdb = CyborgDBVDB(
             collection_name=self.collection_name,
@@ -179,23 +179,30 @@ class TestCyborgDBVDB(unittest.TestCase):
             index_key=self.index_key
         )
         cyborgdb_vdb.write_to_index(records)
-        
+
         # Verify vectorstore was created/retrieved
         mock_vectorstore.assert_called()
-        
-        # Verify documents were added
-        mock_vs_instance.add_documents.assert_called_once()
-        added_docs = mock_vs_instance.add_documents.call_args[0][0]
-        
-        # Check the documents were properly converted
-        self.assertEqual(len(added_docs), 2)
-        self.assertEqual(added_docs[0].page_content, "test text 1")
-        self.assertEqual(added_docs[1].page_content, "test text 2")
-        
-        # Check metadata was properly set
-        self.assertEqual(added_docs[0].metadata["source"], "doc1.pdf")
-        self.assertEqual(added_docs[0].metadata["content_metadata"], {"title": "Test Doc 1"})
-        
+
+        # Verify add_texts was called
+        mock_vs_instance.add_texts.assert_called_once()
+        call_args = mock_vs_instance.add_texts.call_args
+        texts = call_args[0][0]
+        metadatas = call_args[1]["metadatas"]
+        embeddings = call_args[1]["embeddings"]
+
+        # Check texts were properly extracted
+        self.assertEqual(len(texts), 2)
+        self.assertEqual(texts[0], "test text 1")
+        self.assertEqual(texts[1], "test text 2")
+
+        # Check metadata was properly set (content excluded, source and content_metadata included)
+        self.assertEqual(metadatas[0]["source"], "doc1.pdf")
+        self.assertEqual(metadatas[0]["content_metadata"], {"title": "Test Doc 1"})
+        self.assertNotIn("content", metadatas[0])
+
+        # Check embeddings were passed through
+        self.assertEqual(embeddings, [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
+
         mock_logger.info.assert_any_call("Writing 2 records to CyborgDB index")
         mock_logger.info.assert_any_call("Successfully inserted 2 documents into CyborgDB")
 
@@ -381,30 +388,24 @@ class TestCyborgDBVDB(unittest.TestCase):
 
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.get_config')
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.Client')
-    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.EncryptedIndex')
+    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.CyborgVectorStore')
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.logger')
-    def test_delete_collections(self, mock_logger, mock_encrypted_index, mock_client, mock_get_config):
-        """Test delete_collections method with logging."""
+    def test_delete_collections(self, mock_logger, mock_vectorstore, mock_client, mock_get_config):
+        """Test delete_collections method."""
         # Setup mocks
         mock_config = Mock()
         mock_config.embeddings.dimensions = 768
         mock_get_config.return_value = mock_config
-        
+
         mock_client_instance = Mock()
         mock_client.return_value = mock_client_instance
         mock_client_instance.list_indexes.return_value = ["collection1", "collection2"]
-        
-        # Mock EncryptedIndex instances
-        mock_index1 = Mock()
-        mock_index1.index_name = "collection1"
-        mock_index1.delete_index.return_value = True
-        
-        mock_index2 = Mock()
-        mock_index2.index_name = "collection2"
-        mock_index2.delete_index.return_value = True
-        
-        mock_encrypted_index.side_effect = [mock_index1, mock_index2]
-        
+
+        # Mock vectorstore delete
+        mock_vs_instance = Mock()
+        mock_vectorstore.return_value = mock_vs_instance
+        mock_vs_instance.delete.return_value = True
+
         # Create instance and test
         cyborgdb_vdb = CyborgDBVDB(
             collection_name=self.collection_name,
@@ -413,9 +414,9 @@ class TestCyborgDBVDB(unittest.TestCase):
             index_key=self.index_key
         )
         collection_names = ["collection1", "collection2"]
-        
+
         result = cyborgdb_vdb.delete_collections(collection_names)
-        
+
         expected_result = {
             "message": "Collection deletion process completed.",
             "successful": collection_names,
@@ -423,17 +424,12 @@ class TestCyborgDBVDB(unittest.TestCase):
             "total_success": 2,
             "total_failed": 0
         }
-        
+
         self.assertEqual(result, expected_result)
-        
-        # Verify logging was called
-        mock_logger.info.assert_any_call("=" * 80)
-        mock_logger.info.assert_any_call(f"DELETE_COLLECTIONS called with: {collection_names}")
-        mock_logger.info.assert_any_call(f"Number of collections to delete: {len(collection_names)}")
-        
-        # Verify delete_index was called on each index
-        mock_index1.delete_index.assert_called_once()
-        mock_index2.delete_index.assert_called_once()
+
+        # Verify delete was called via vectorstore
+        self.assertEqual(mock_vs_instance.delete.call_count, 2)
+        mock_vs_instance.delete.assert_called_with(delete_index=True)
 
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.get_config')
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.Client')
@@ -535,27 +531,24 @@ class TestCyborgDBVDB(unittest.TestCase):
 
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.get_config')
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.Client')
-    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.EncryptedIndex')
+    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.CyborgVectorStore')
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.logger')
-    def test_delete_collections_with_non_existent(self, mock_logger, mock_encrypted_index, mock_client, mock_get_config):
+    def test_delete_collections_with_non_existent(self, mock_logger, mock_vectorstore, mock_client, mock_get_config):
         """Test delete_collections with non-existent collections."""
         # Setup mocks
         mock_config = Mock()
         mock_config.embeddings.dimensions = 768
         mock_get_config.return_value = mock_config
-        
+
         mock_client_instance = Mock()
         mock_client.return_value = mock_client_instance
         # Only collection1 exists
         mock_client_instance.list_indexes.return_value = ["collection1"]
-        
-        # Mock EncryptedIndex for existing collection
-        mock_index1 = Mock()
-        mock_index1.index_name = "collection1"
-        mock_index1.delete_index.return_value = True
-        
-        mock_encrypted_index.return_value = mock_index1
-        
+
+        mock_vs_instance = Mock()
+        mock_vectorstore.return_value = mock_vs_instance
+        mock_vs_instance.delete.return_value = True
+
         # Create instance and test
         cyborgdb_vdb = CyborgDBVDB(
             collection_name=self.collection_name,
@@ -564,9 +557,9 @@ class TestCyborgDBVDB(unittest.TestCase):
             index_key=self.index_key
         )
         collection_names = ["collection1", "non_existent"]
-        
+
         result = cyborgdb_vdb.delete_collections(collection_names)
-        
+
         # Should only delete collection1
         self.assertEqual(result["successful"], ["collection1"])
         self.assertEqual(len(result["failed"]), 1)
@@ -574,28 +567,24 @@ class TestCyborgDBVDB(unittest.TestCase):
         self.assertEqual(result["failed"][0]["error_message"], "Collection not found")
         self.assertEqual(result["total_success"], 1)
         self.assertEqual(result["total_failed"], 1)
-        
-        # Verify logging for non-existent collection
-        mock_logger.warning.assert_any_call("Collection 'non_existent' NOT FOUND, skipping deletion")
-        
-        # Verify delete_index was only called once
-        mock_index1.delete_index.assert_called_once()
+
+        # Verify delete was only called once via vectorstore
+        mock_vs_instance.delete.assert_called_once_with(delete_index=True)
 
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.get_config')
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.Client')
-    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.EncryptedIndex')
-    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.logger')
-    def test_delete_collections_with_cached_indexes(self, mock_logger, mock_encrypted_index, mock_client, mock_get_config):
-        """Test delete_collections with cached indexes."""
+    @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.CyborgVectorStore')
+    def test_delete_collections_with_cached_vectorstore(self, mock_vectorstore, mock_client, mock_get_config):
+        """Test delete_collections with cached vectorstore."""
         # Setup mocks
         mock_config = Mock()
         mock_config.embeddings.dimensions = 768
         mock_get_config.return_value = mock_config
-        
+
         mock_client_instance = Mock()
         mock_client.return_value = mock_client_instance
         mock_client_instance.list_indexes.return_value = ["cached_collection"]
-        
+
         # Create instance
         cyborgdb_vdb = CyborgDBVDB(
             collection_name=self.collection_name,
@@ -603,39 +592,25 @@ class TestCyborgDBVDB(unittest.TestCase):
             api_key=self.api_key,
             index_key=self.index_key
         )
-        
-        # Pre-populate cache with an index
-        cached_index = Mock()
-        cached_index.index_name = "cached_collection"
-        cached_index.delete_index.return_value = True
-        cyborgdb_vdb._indexes["cached_collection"] = cached_index
-        
-        # Also cache a vectorstore
+
+        # Pre-populate cache with a vectorstore
         cached_vectorstore = Mock()
+        cached_vectorstore.delete.return_value = True
         cyborgdb_vdb._vectorstores["cached_collection"] = cached_vectorstore
-        
+
         result = cyborgdb_vdb.delete_collections(["cached_collection"])
-        
+
         # Verify successful deletion
         self.assertEqual(result["successful"], ["cached_collection"])
         self.assertEqual(result["failed"], [])
         self.assertEqual(result["total_success"], 1)
         self.assertEqual(result["total_failed"], 0)
-        
+
         # Verify cache was cleared
-        self.assertNotIn("cached_collection", cyborgdb_vdb._indexes)
         self.assertNotIn("cached_collection", cyborgdb_vdb._vectorstores)
-        
-        # Verify logging for cached index
-        mock_logger.info.assert_any_call("Using CACHED index for 'cached_collection'")
-        mock_logger.info.assert_any_call("Removed 'cached_collection' from vectorstore cache")
-        mock_logger.info.assert_any_call("Removed 'cached_collection' from index cache")
-        
-        # Verify delete was called on cached index
-        cached_index.delete_index.assert_called_once()
-        
-        # EncryptedIndex constructor should not be called for cached index
-        mock_encrypted_index.assert_not_called()
+
+        # Verify delete was called on cached vectorstore
+        cached_vectorstore.delete.assert_called_once_with(delete_index=True)
 
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.get_config')
     @patch('nvidia_rag.utils.vdb.cyborgdb.cyborgdb_vdb.Client')
